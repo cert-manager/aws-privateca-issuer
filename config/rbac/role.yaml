@@ -1,0 +1,92 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaissuers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaissuers/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests/status
+  verbs:
+  - get
+  - patch
+  - update

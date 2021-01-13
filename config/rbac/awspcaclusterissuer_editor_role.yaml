@@ -1,0 +1,24 @@
+# permissions for end users to edit awspcaclusterissuers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: awspcaclusterissuer-editor-role
+rules:
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers/status
+  verbs:
+  - get

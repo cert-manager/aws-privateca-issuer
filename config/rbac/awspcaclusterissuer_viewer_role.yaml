@@ -1,0 +1,20 @@
+# permissions for end users to view awspcaclusterissuers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: awspcaclusterissuer-viewer-role
+rules:
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - awspca.cert-manager.io
+  resources:
+  - awspcaclusterissuers/status
+  verbs:
+  - get
