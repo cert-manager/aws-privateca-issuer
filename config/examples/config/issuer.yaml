@@ -1,0 +1,11 @@
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAIssuer
+metadata:
+  name: example
+  namespace: default
+spec:
+  arn: <some-pca-arn>
+  region: eu-west-1
+  secretRef:
+    namespace: default
+    name: example

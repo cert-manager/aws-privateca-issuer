@@ -1,0 +1,6 @@
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAClusterIssuer
+metadata:
+  name: example
+spec:
+  arn: <some-pca-arn>
