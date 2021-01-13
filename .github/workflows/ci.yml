@@ -2,7 +2,7 @@ name: CI
 on: [push, pull_request]
 jobs:
   build:
-    name: Tests
+    name: Linting
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.x
@@ -12,6 +12,6 @@ jobs:
         id: go
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
-      - name: Unit tests
+      - name: Lint
         run: |
-          make test
+          make fmt vet
