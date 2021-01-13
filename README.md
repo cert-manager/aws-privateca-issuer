@@ -1,4 +1,5 @@
 # AWS Private CA Issuer
+![build status](https://github.com/jniebuhr/aws-pca-issuer/workflows/CI/badge.svg)
 
 AWS ACM Private CA is a module of the AWS Certificate Manager that can setup and manage private CAs.
 
