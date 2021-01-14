@@ -83,6 +83,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
 		if !ok {
+			err := fmt.Errorf("secret does not contain AWS_ACCESS_KEY_ID")
 			log.Error(err, "secret value AWS_ACCESS_KEY_ID was not found")
 			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
 			return ctrl.Result{}, err
@@ -90,6 +91,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
 		if !ok {
+			err := fmt.Errorf("secret does not contain AWS_SECRET_ACCESS_KEY")
 			log.Error(err, "secret value AWS_SECRET_ACCESS_KEY was not found")
 			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
 			return ctrl.Result{}, err
