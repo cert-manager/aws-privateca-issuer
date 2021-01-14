@@ -1,37 +1,43 @@
-## Welcome to GitHub Pages
+<p align="center">
+<a href="https://github.com/jniebuhr/aws-pca-issuer/actions">
+<img alt="Build Status" src="https://github.com/jniebuhr/aws-pca-issuer/workflows/CI/badge.svg" />
+</a>
+<a href="https://goreportcard.com/report/github.com/jniebuhr/aws-pca-issuer">
+<img alt="Build Status" src="https://goreportcard.com/badge/github.com/jniebuhr/aws-pca-issuer" />
+</a>
+</p>
 
-You can use the [editor on GitHub](https://github.com/jniebuhr/aws-pca-issuer/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+# AWS Private CA Issuer
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+AWS ACM Private CA is a module of the AWS Certificate Manager that can setup and manage private CAs.
 
-### Markdown
+cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
+It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS PCA.
 
-```markdown
-Syntax highlighted code block
+## Setup
 
-# Header 1
-## Header 2
-### Header 3
+Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes/).
 
-- Bulleted
-- List
+TODO: Add install instructions with Helm chart
 
-1. Numbered
-2. List
+## Configuration
 
-**Bold** and _Italic_ and `Code` text
+As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
 
-[Link](url) and ![Image](src)
-```
+Access to AWS can also be configured using an EC2 instance role.
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+## Usage
 
-### Jekyll Themes
+This operator provides two custom resources that you can use.
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/jniebuhr/aws-pca-issuer/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+Examples can be found in the [examples](https://github.com/jniebuhr/aws-pca-issuer/tree/master/config/examples/) directory.
 
-### Support or Contact
+### AWSPCAIssuer
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
+This is a regular namespaced issuer that can be used as a reference in your Certificate CRs.
+
+### AWSPCAClusterIssuer
+
+This CR is identical to the AWSPCAIssuer. The only difference being that it's not namespaced and can be referenced from anywhere.
