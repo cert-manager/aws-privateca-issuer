@@ -1,0 +1,133 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "aws-pca-issuer.serviceAccountName" . }}
+  labels:
+    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aws-pca-issuer.fullname" . }}
+  labels:
+    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - ""
+      - coordination.k8s.io
+    resources:
+      - configmaps
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaclusterissuers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaclusterissuers/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaclusterissuers/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaissuers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaissuers/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - awspca.cert-manager.io
+    resources:
+      - awspcaissuers/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificaterequests
+    verbs:
+      - get
+      - list
+      - update
+      - watch
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificaterequests/status
+    verbs:
+      - get
+      - patch
+      - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aws-pca-issuer.fullname" . }}
+  labels:
+    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aws-pca-issuer.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aws-pca-issuer.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

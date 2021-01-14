@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aws-pca-issuer
+description: An addon for cert-manager to sign certificates using AWS PCA
+type: application
+version: 0.1.0
+appVersion: 0.1.0
