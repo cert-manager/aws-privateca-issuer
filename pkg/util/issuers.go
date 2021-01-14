@@ -26,8 +26,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var Clock clock.Clock = clock.RealClock{}
+var realtimeClock clock.Clock = clock.RealClock{}
 
+// GetIssuer returns either an AWSPCAClusterIssuer or AWSPCAIssuer by its name
 func GetIssuer(ctx context.Context, client client.Client, name types.NamespacedName) (api.GenericIssuer, error) {
 	iss := new(api.AWSPCAIssuer)
 	err := client.Get(ctx, name, iss)
@@ -45,6 +46,7 @@ func GetIssuer(ctx context.Context, client client.Client, name types.NamespacedN
 	return iss, nil
 }
 
+// SetIssuerCondition sets the ready state of an issuer and updates it in the cluster
 func SetIssuerCondition(log logr.Logger, issuer api.GenericIssuer, conditionType string, status metav1.ConditionStatus, reason, message string) {
 	newCondition := metav1.Condition{
 		Type:    conditionType,
@@ -53,7 +55,7 @@ func SetIssuerCondition(log logr.Logger, issuer api.GenericIssuer, conditionType
 		Message: message,
 	}
 
-	now := metav1.NewTime(Clock.Now())
+	now := metav1.NewTime(realtimeClock.Now())
 	newCondition.LastTransitionTime = now
 
 	for idx, cond := range issuer.GetStatus().Conditions {

@@ -27,17 +27,17 @@ all: manager
 
 # Run tests
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-test: generate fmt vet manifests
+test: generate fmt vet lint manifests
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.7.0/hack/setup-envtest.sh
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
 # Build manager binary
-manager: generate fmt vet
+manager: generate fmt vet lint
 	go build -o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate fmt vet manifests
+run: generate fmt vet lint manifests
 	go run ./main.go
 
 # Install CRDs into a cluster
@@ -69,6 +69,10 @@ fmt:
 vet:
 	go vet ./...
 
+lint: golangci-lint golint
+	$(GOLANGCILINT) run --timeout 10m
+	$(GOLINT) ./...
+
 # Generate code
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -90,6 +94,14 @@ controller-gen:
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize:
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+
+GOLINT = $(shell pwd)/bin/golint
+golint:
+	$(call go-get-tool,$(GOLINT),golang.org/x/lint/golint)
+
+GOLANGCILINT = $(shell pwd)/bin/golangci-lint
+golangci-lint:
+	$(call go-get-tool,$(GOLANGCILINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.35.2)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))

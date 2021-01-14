@@ -14,4 +14,4 @@ jobs:
         uses: actions/checkout@v2
       - name: Lint
         run: |
-          make fmt vet
+          make fmt vet lint

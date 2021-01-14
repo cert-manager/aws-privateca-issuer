@@ -38,7 +38,7 @@ import (
 	api "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
 )
 
-// AWSPCAIssuerReconciler reconciles a AWSPCAIssuer object
+// CertificateRequestReconciler reconciles a AWSPCAIssuer object
 type CertificateRequestReconciler struct {
 	client.Client
 	Log      logr.Logger
@@ -53,10 +53,6 @@ type CertificateRequestReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the AWSPCAIssuer object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
@@ -102,7 +98,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if !IsReady(iss) {
+	if !isReady(iss) {
 		err := fmt.Errorf("issuer %s is not ready", iss.GetName())
 		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "issuer is not ready")
 		return ctrl.Result{}, err
@@ -134,9 +130,9 @@ func (r *CertificateRequestReconciler) SetupWithManager(mgr ctrl.Manager) error 
 		Complete(r)
 }
 
-func IsReady(issuer api.GenericIssuer) bool {
+func isReady(issuer api.GenericIssuer) bool {
 	for _, condition := range issuer.GetStatus().Conditions {
-		if condition.Type == api.ConditionReady && condition.Status == v1.ConditionTrue {
+		if condition.Type == api.ConditionTypeReady && condition.Status == v1.ConditionTrue {
 			return true
 		}
 	}

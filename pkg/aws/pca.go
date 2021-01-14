@@ -28,6 +28,7 @@ import (
 
 var collection = new(sync.Map)
 
+// GetProvisioner gets a provisioner that has previously been stored
 func GetProvisioner(name types.NamespacedName) (*PCAProvisioner, bool) {
 	value, exists := collection.Load(name)
 	if !exists {
@@ -37,15 +38,18 @@ func GetProvisioner(name types.NamespacedName) (*PCAProvisioner, bool) {
 	return p, exists
 }
 
+// StoreProvisioner stores a provisioner in the cache
 func StoreProvisioner(name types.NamespacedName, provisioner *PCAProvisioner) {
 	collection.Store(name, provisioner)
 }
 
+// PCAProvisioner contains logic for issuing PCA certificates
 type PCAProvisioner struct {
 	session *session.Session
 	arn     string
 }
 
+// NewProvisioner returns a new PCAProvisioner
 func NewProvisioner(session *session.Session, arn string) (p *PCAProvisioner) {
 	return &PCAProvisioner{
 		session: session,
@@ -53,6 +57,7 @@ func NewProvisioner(session *session.Session, arn string) (p *PCAProvisioner) {
 	}
 }
 
+// Sign takes a certificate request and signs it using PCA
 func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error) {
 	svc := acmpca.New(p.session, &aws.Config{})
 
@@ -83,12 +88,14 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		CertificateAuthorityArn: aws.String(p.arn),
 	}
 
-	svc.WaitUntilCertificateIssued(&getParams)
+	err = svc.WaitUntilCertificateIssued(&getParams)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	getOutput, getError := svc.GetCertificate(&getParams)
-
-	if getError != nil {
-		return nil, nil, getError
+	getOutput, err := svc.GetCertificate(&getParams)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	certPem := []byte(*getOutput.Certificate + "\n")
@@ -98,9 +105,9 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	caParams := acmpca.GetCertificateAuthorityCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 	}
-	caOutput, caError := svc.GetCertificateAuthorityCertificate(&caParams)
-	if caError != nil {
-		return nil, nil, caError
+	caOutput, err := svc.GetCertificateAuthorityCertificate(&caParams)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	caPem := []byte(*caOutput.Certificate)

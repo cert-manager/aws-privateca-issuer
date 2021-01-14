@@ -47,7 +47,8 @@ type AWSPCAIssuerStatus struct {
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
-const ConditionReady = "Ready"
+// ConditionTypeReady is the default condition type for the CRs
+const ConditionTypeReady = "Ready"
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

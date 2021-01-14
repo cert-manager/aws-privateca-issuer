@@ -37,8 +37,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var AwsDefaultRegion = os.Getenv("AWS_REGION")
+var awsDefaultRegion = os.Getenv("AWS_REGION")
 
+// GenericIssuerReconciler reconciles both AWSPCAIssuer and AWSPCAClusterIssuer objects
 type GenericIssuerReconciler struct {
 	client.Client
 	Log      logr.Logger
@@ -46,13 +47,18 @@ type GenericIssuerReconciler struct {
 	Recorder record.EventRecorder
 }
 
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+//
+// For more details, check Reconcile and its Result here:
+// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request, issuer api.GenericIssuer) (ctrl.Result, error) {
 	log := r.Log.WithValues("genericissuer", req.NamespacedName)
 	spec := issuer.GetSpec()
 	err := validateIssuer(spec)
 	if err != nil {
 		log.Error(err, "failed to validate issuer")
-		r.setStatus(ctx, issuer, metav1.ConditionFalse, "Validation", "Failed to validate resource: %v", err)
+		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Validation", "Failed to validate resource: %v", err)
 		return ctrl.Result{}, err
 	}
 
@@ -71,21 +77,21 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		secret := new(core.Secret)
 		if err := r.Client.Get(ctx, secretNamespaceName, secret); err != nil {
 			log.Error(err, "failed to retrieve AWS secret")
-			r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to retrieve secret: %v", err)
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to retrieve secret: %v", err)
 			return ctrl.Result{}, err
 		}
 
 		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
 		if !ok {
 			log.Error(err, "secret value AWS_ACCESS_KEY_ID was not found")
-			r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
 			return ctrl.Result{}, err
 		}
 
 		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
 		if !ok {
 			log.Error(err, "secret value AWS_SECRET_ACCESS_KEY was not found")
-			r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
 			return ctrl.Result{}, err
 		}
 
@@ -93,6 +99,12 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	sess, err := session.NewSession(config.Config)
+	if err != nil {
+		log.Error(err, "failed to create AWS session")
+		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to create AWS session")
+		return ctrl.Result{}, err
+	}
+
 	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(sess, spec.Arn))
 
 	return ctrl.Result{}, r.setStatus(ctx, issuer, metav1.ConditionTrue, "Verified", "Issuer verified")
@@ -101,7 +113,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.GenericIssuer, status metav1.ConditionStatus, reason, message string, args ...interface{}) error {
 	log := r.Log.WithValues("genericissuer", issuer.GetName())
 	completeMessage := fmt.Sprintf(message, args...)
-	util.SetIssuerCondition(log, issuer, api.ConditionReady, status, reason, completeMessage)
+	util.SetIssuerCondition(log, issuer, api.ConditionTypeReady, status, reason, completeMessage)
 
 	eventType := core.EventTypeNormal
 	if status == metav1.ConditionFalse {
@@ -116,7 +128,7 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 	switch {
 	case spec.Arn == "":
 		return fmt.Errorf("spec.arn cannot be empty")
-	case spec.Region == "" && AwsDefaultRegion == "":
+	case spec.Region == "" && awsDefaultRegion == "":
 		return fmt.Errorf("spec.region cannot be empty if no default region is specified")
 	}
 	return nil
