@@ -20,7 +20,14 @@ This project acts as an addon (see https://cert-manager.io/docs/configuration/ex
 
 Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes/).
 
-TODO: Add install instructions with Helm chart
+Then install AWS PCA Issuer using Helm:
+
+```shell
+helm repo add awspca https://jniebuhr.github.io/aws-pca-issuer/
+helm install awspca/aws-pca-issuer --generate-name
+```
+
+You can check the chart configuration in the default [values](https://github.com/jniebuhr/aws-pca-issuer/blob/master/charts/aws-pca-issuer/values.yaml) file.
 
 ## Configuration
 
