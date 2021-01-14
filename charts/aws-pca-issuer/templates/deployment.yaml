@@ -37,6 +37,9 @@ spec:
             - /manager
           args:
             - --leader-elect
+          ports:
+            - containerPort: 8080
+              name: http
           livenessProbe:
             httpGet:
               path: /healthz

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aws-pca-issuer.fullname" . }}
+  labels:
+    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "aws-pca-issuer.selectorLabels" . | nindent 4 }}

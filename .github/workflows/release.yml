@@ -33,3 +33,10 @@ jobs:
           context: .
           tags: "ghcr.io/jniebuhr/aws-pca-issuer:${{ github.event.release.tag_name }}"
           push: true
+
+      - name: Publish Helm chart
+        uses: stefanprodan/helm-gh-pages@master
+        if: "startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master'"
+        with:
+          token: ${{ secrets.CR_PAT }}
+          app_version: 0.0.1
