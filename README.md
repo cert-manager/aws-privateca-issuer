@@ -1,3 +1,4 @@
+<p align="center"><img src="assets/logo.png" alt="Logo" /></p>
 <p align="center">
 <a href="https://github.com/jniebuhr/aws-pca-issuer/actions">
 <img alt="Build Status" src="https://github.com/jniebuhr/aws-pca-issuer/workflows/CI/badge.svg" />
