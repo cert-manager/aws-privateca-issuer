@@ -6,6 +6,7 @@
 <a href="https://goreportcard.com/report/github.com/jniebuhr/aws-pca-issuer">
 <img alt="Build Status" src="https://goreportcard.com/badge/github.com/jniebuhr/aws-pca-issuer" />
 </a>
+<img alt="Latest version" src="https://img.shields.io/github/v/release/jniebuhr/aws-pca-issuer?color=success&sort=semver" />
 </p>
 
 # AWS Private CA Issuer
