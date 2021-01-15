@@ -1,0 +1,22 @@
+kind: Certificate
+apiVersion: cert-manager.io/v1
+metadata:
+  name: ecdsa-cert-256
+  namespace: default
+spec:
+  commonName: ecdsa-256.example.com
+  dnsNames:
+    - ecdsa-256.example.com
+  duration: 2160h0m0s
+  issuerRef:
+    group: awspca.cert-manager.io
+    kind: AWSPCAClusterIssuer
+    name: example
+  renewBefore: 360h0m0s
+  secretName: ecdsa-cert-256
+  usages:
+    - server auth
+    - client auth
+  privateKey:
+    algorithm: "ecdsa"
+    size: 256

@@ -1,0 +1,22 @@
+kind: Certificate
+apiVersion: cert-manager.io/v1
+metadata:
+  name: rsa-cert-2048
+  namespace: default
+spec:
+  commonName: rsa-2048.example.com
+  dnsNames:
+    - rsa-2048.example.com
+  duration: 2160h0m0s
+  issuerRef:
+    group: awspca.cert-manager.io
+    kind: AWSPCAClusterIssuer
+    name: example
+  renewBefore: 360h0m0s
+  secretName: rsa-cert-2048
+  usages:
+    - server auth
+    - client auth
+  privateKey:
+    algorithm: "rsa"
+    size: 2048
