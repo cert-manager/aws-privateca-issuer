@@ -1,0 +1,22 @@
+kind: Certificate
+apiVersion: cert-manager.io/v1
+metadata:
+  name: ecdsa-cert-521
+  namespace: default
+spec:
+  commonName: ecdsa-521.example.com
+  dnsNames:
+    - ecdsa-521.example.com
+  duration: 2160h0m0s
+  issuerRef:
+    group: awspca.cert-manager.io
+    kind: AWSPCAClusterIssuer
+    name: example
+  renewBefore: 360h0m0s
+  secretName: ecdsa-cert-521
+  usages:
+    - server auth
+    - client auth
+  privateKey:
+    algorithm: "ecdsa"
+    size: 521
