@@ -12,6 +12,6 @@ jobs:
         id: go
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
-      - name: Lint
+      - name: Test
         run: |
-          make fmt vet lint
+          make test
