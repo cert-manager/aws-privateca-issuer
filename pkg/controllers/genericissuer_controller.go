@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/defaults"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/go-logr/logr"
 	api "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
@@ -62,12 +61,21 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	config := defaults.Get()
-
+	var region *string
 	if spec.Region != "" {
-		config.Config.Region = aws.String(spec.Region)
+		region = aws.String(spec.Region)
+	} else {
+		if awsDefaultRegion != "" {
+			region = aws.String(awsDefaultRegion)
+		} else {
+			err := fmt.Errorf("unable to determine an AWS region to use")
+			log.Error(err, "unable to determine an AWS region to use")
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "unable to determine an AWS region to use")
+			return ctrl.Result{}, err
+		}
 	}
 
+	var clientCredentials *credentials.Credentials
 	if spec.SecretRef.Name != "" {
 		secretNamespaceName := types.NamespacedName{
 			Namespace: spec.SecretRef.Namespace,
@@ -97,10 +105,13 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 
-		config.Config.Credentials = credentials.NewStaticCredentials(string(accessKey), string(secretKey), "")
+		clientCredentials = credentials.NewStaticCredentials(string(accessKey), string(secretKey), "")
 	}
 
-	sess, err := session.NewSession(config.Config)
+	sess, err := session.NewSession(&aws.Config{
+		Region:      region,
+		Credentials: clientCredentials,
+	})
 	if err != nil {
 		log.Error(err, "failed to create AWS session")
 		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to create AWS session")
