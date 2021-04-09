@@ -44,6 +44,8 @@ type CertificateRequestReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+
+	CheckApprovedCondition bool
 }
 
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch;update
@@ -71,6 +73,14 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if cr.Spec.IssuerRef.Group != "" && cr.Spec.IssuerRef.Group != api.GroupVersion.Group {
 		log.V(4).Info("CertificateRequest does not specify an issuerRef matching our group")
 		return ctrl.Result{}, nil
+	}
+
+	if r.CheckApprovedCondition {
+		// If CertificateRequest has not been approved or is denied, exit early.
+		if !cmutil.CertificateRequestIsApproved(cr) || cmutil.CertificateRequestIsDenied(cr) {
+			log.V(4).Info("certificate request has not been approved")
+			return ctrl.Result{}, nil
+		}
 	}
 
 	if len(cr.Status.Certificate) > 0 {
