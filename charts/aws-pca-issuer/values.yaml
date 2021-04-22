@@ -8,6 +8,8 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
+disableApprovedCheck: false
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""

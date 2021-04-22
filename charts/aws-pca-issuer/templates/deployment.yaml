@@ -37,6 +37,9 @@ spec:
             - /manager
           args:
             - --leader-elect
+            {{- if .Values.disableApprovedCheck }}
+            - -disable-approved-check
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http
