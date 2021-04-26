@@ -131,11 +131,13 @@ subjects:
     name: {{ include "aws-pca-issuer.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
+{{- end }}
+{{- if .Values.approverRole.enabled -}}
 # permissions to approve all awspca.cert-manager.io requests
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cert-manager-controller-approve:awspca-cert-manager-io
+  name: {{.Values.approverRole.serviceAccountName}}-controller-approve:awspca-cert-manager-io
   labels:
     {{- include "aws-pca-issuer.labels" . | nindent 4 }}
 rules:
@@ -149,20 +151,20 @@ rules:
     - awspcaclusterissuers.awspca.cert-manager.io/*
     - awspcaissuers.awspca.cert-manager.io/*
 ---
-# bind the cert-manager internal approver to approve
-# awspca.cert-manager.io CertificateRequests
+# bind the approver ServiceAccount to approve all awspca.cert-manager.io
+# CertificateRequests
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: cert-manager-controller-approve:awspca-cert-manager-io
+  name: {{.Values.approverRole.serviceAccountName}}-controller-approve:awspca-cert-manager-io
   labels:
     {{- include "aws-pca-issuer.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cert-manager-controller-approve:awspca-cert-manager-io
+  name: {{.Values.approverRole.serviceAccountName}}-controller-approve:awspca-cert-manager-io
 subjects:
 - kind: ServiceAccount
-  name: cert-manager
-  namespace: cert-manager
+  name: {{ .Values.approverRole.serviceAccountName }}
+  namespace: {{ .Values.approverRole.namespace }}
 {{- end }}

@@ -28,6 +28,14 @@ service:
   type: ClusterIP
   port: 8080
 
+
+# Options for configuring a target ServiceAccount with the role to approve
+# all awspca.cert-manager.io requests.
+approverRole:
+  enabled: true
+  serviceAccountName: cert-manager
+  namespace: cert-manager
+
 serviceMonitor:
   create: false
   annotations: {}
