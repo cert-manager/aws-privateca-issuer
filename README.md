@@ -37,6 +37,26 @@ As of now, the only configurable settings are access to AWS. So you can use `AWS
 
 Access to AWS can also be configured using an EC2 instance role.
 
+A minimal policy to use the issuer with an authority would look like follows:
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "aws-pca-issuer",
+      "Action": [
+        "acm-pca:GetCertificate",
+        "acm-pca:GetCertificateAuthorityCertificate",
+        "acm-pca:IssueCertificate"
+      ],
+      "Effect": "Allow",
+      "Resource": "arn:aws:acm-pca:<region>:<account_id>:certificate-authority/<resource_id>"
+    }
+  ]
+}
+```
+
 ## Usage
 
 This operator provides two custom resources that you can use.
