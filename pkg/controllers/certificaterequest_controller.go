@@ -29,7 +29,9 @@ import (
 
 	"github.com/go-logr/logr"
 	core "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,6 +46,9 @@ type CertificateRequestReconciler struct {
 	Log      logr.Logger
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
+
+	Clock                  clock.Clock
+	CheckApprovedCondition bool
 }
 
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch;update
@@ -71,6 +76,55 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	if cr.Spec.IssuerRef.Group != "" && cr.Spec.IssuerRef.Group != api.GroupVersion.Group {
 		log.V(4).Info("CertificateRequest does not specify an issuerRef matching our group")
 		return ctrl.Result{}, nil
+	}
+
+	// Ignore CertificateRequest if it is already Ready
+	if cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionTrue,
+	}) {
+		log.V(4).Info("CertificateRequest is Ready. Ignoring.")
+		return ctrl.Result{}, nil
+	}
+	// Ignore CertificateRequest if it is already Failed
+	if cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionFalse,
+		Reason: cmapi.CertificateRequestReasonFailed,
+	}) {
+		log.V(4).Info("CertificateRequest is Failed. Ignoring.")
+		return ctrl.Result{}, nil
+	}
+	// Ignore CertificateRequest if it already has a Denied Ready Reason
+	if cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionFalse,
+		Reason: cmapi.CertificateRequestReasonDenied,
+	}) {
+		log.V(4).Info("CertificateRequest already has a Ready condition with Denied Reason. Ignoring.")
+		return ctrl.Result{}, nil
+	}
+
+	// If CertificateRequest has been denied, mark the CertificateRequest as
+	// Ready=Denied and set FailureTime if not already.
+	if cmutil.CertificateRequestIsDenied(cr) {
+		log.V(4).Info("CertificateRequest has been denied. Marking as failed.")
+
+		if cr.Status.FailureTime == nil {
+			nowTime := metav1.NewTime(r.Clock.Now())
+			cr.Status.FailureTime = &nowTime
+		}
+
+		message := "The CertificateRequest was denied by an approval controller"
+		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonDenied, message)
+	}
+
+	if r.CheckApprovedCondition {
+		// If CertificateRequest has not been approved, exit early.
+		if !cmutil.CertificateRequestIsApproved(cr) {
+			log.V(4).Info("certificate request has not been approved")
+			return ctrl.Result{}, nil
+		}
 	}
 
 	if len(cr.Status.Certificate) > 0 {

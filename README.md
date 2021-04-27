@@ -31,6 +31,7 @@ helm install awspca/aws-pca-issuer --generate-name
 
 You can check the chart configuration in the default [values](https://github.com/jniebuhr/aws-pca-issuer/blob/master/charts/aws-pca-issuer/values.yaml) file.
 
+
 ## Configuration
 
 As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
@@ -70,3 +71,11 @@ This is a regular namespaced issuer that can be used as a reference in your Cert
 ### AWSPCAClusterIssuer
 
 This CR is identical to the AWSPCAIssuer. The only difference being that it's not namespaced and can be referenced from anywhere.
+
+### Disable Approval Check
+
+The AWSPCA Issuer will wait for CertificateRequests to have an [approved condition
+set](https://cert-manager.io/docs/concepts/certificaterequest/#approval) before
+signing. If using an older version of cert-manager (pre v1.3), you can disable
+this check by supplying the command line flag `-disable-approved-check` to the
+Issuer Deployment.

@@ -1,0 +1,15 @@
+# permissions to approve all awspca.cert-manager.io requests
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cert-manager-controller-approve:awspca-cert-manager-io
+rules:
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - signers
+  verbs:
+  - approve
+  resourceNames:
+  - awspcaclusterissuers.awspca.cert-manager.io/*
+  - awspcaissuers.awspca.cert-manager.io/*
