@@ -36,4 +36,5 @@ jobs:
         uses: stefanprodan/helm-gh-pages@master
         with:
           token: ${{ secrets.CR_PAT }}
+          linting: off
           app_version: ${{steps.tag.outputs.tag}}
