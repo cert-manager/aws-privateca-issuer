@@ -18,5 +18,5 @@ spec:
     - server auth
     - client auth
   privateKey:
-    algorithm: "rsa"
+    algorithm: "RSA"
     size: 2048
