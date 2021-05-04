@@ -18,5 +18,5 @@ spec:
     - server auth
     - client auth
   privateKey:
-    algorithm: "ecdsa"
+    algorithm: "ECDSA"
     size: 256
