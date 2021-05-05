@@ -18,7 +18,10 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -31,9 +34,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+var (
+	errNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
+	errNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
+	errNoArnInSpec       = errors.New("no Arn found in Issuer Spec")
+	errNoRegionInSpec    = errors.New("no Region found in Issuer Spec")
 )
 
 var awsDefaultRegion = os.Getenv("AWS_REGION")
@@ -82,7 +91,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
 		if !ok {
-			err := fmt.Errorf("secret does not contain AWS_ACCESS_KEY_ID")
+			err := errNoAccessKeyID
 			log.Error(err, "secret value AWS_ACCESS_KEY_ID was not found")
 			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
 			return ctrl.Result{}, err
@@ -90,7 +99,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
 		if !ok {
-			err := fmt.Errorf("secret does not contain AWS_SECRET_ACCESS_KEY")
+			err := errNoSecretAccessKey
 			log.Error(err, "secret value AWS_SECRET_ACCESS_KEY was not found")
 			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
 			return ctrl.Result{}, err
@@ -128,9 +137,9 @@ func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.Gene
 func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 	switch {
 	case spec.Arn == "":
-		return fmt.Errorf("spec.arn cannot be empty")
+		return fmt.Errorf(errNoArnInSpec.Error())
 	case spec.Region == "" && awsDefaultRegion == "":
-		return fmt.Errorf("spec.region cannot be empty if no default region is specified")
+		return fmt.Errorf(errNoRegionInSpec.Error())
 	}
 	return nil
 }

@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/jniebuhr/aws-pca-issuer/pkg/aws"
 	"github.com/jniebuhr/aws-pca-issuer/pkg/util"
@@ -133,7 +134,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	if cr.Spec.IsCA {
-		log.Info("AWSPCA does not support CA certificates")
+		log.Info("CA Certificates are not currently supported via cert-manager")
 		return ctrl.Result{}, nil
 	}
 

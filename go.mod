@@ -6,6 +6,7 @@ require (
 	github.com/aws/aws-sdk-go v1.36.25
 	github.com/go-logr/logr v0.3.0
 	github.com/jetstack/cert-manager v1.3.1
+	github.com/stretchr/testify v1.6.1 // indirect
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2

@@ -23,49 +23,53 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/acmpca"
+	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"sync"
 )
 
 var collection = new(sync.Map)
 
-// GetProvisioner gets a provisioner that has previously been stored
-func GetProvisioner(name types.NamespacedName) (*PCAProvisioner, bool) {
-	value, exists := collection.Load(name)
-	if !exists {
-		return nil, exists
-	}
-	p, exists := value.(*PCAProvisioner)
-	return p, exists
-}
-
-// StoreProvisioner stores a provisioner in the cache
-func StoreProvisioner(name types.NamespacedName, provisioner *PCAProvisioner) {
-	collection.Store(name, provisioner)
+type GenericProvisioner interface {
+	Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error)
 }
 
 // PCAProvisioner contains logic for issuing PCA certificates
 type PCAProvisioner struct {
-	session *session.Session
-	arn     string
+	pcaClient acmpcaiface.ACMPCAAPI
+	arn       string
+}
+
+// GetProvisioner gets a provisioner that has previously been stored
+func GetProvisioner(name types.NamespacedName) (GenericProvisioner, bool) {
+	value, exists := collection.Load(name)
+	if !exists {
+		return nil, exists
+	}
+	p, exists := value.(GenericProvisioner)
+	return p, exists
+}
+
+// StoreProvisioner stores a provisioner in the cache
+func StoreProvisioner(name types.NamespacedName, provisioner GenericProvisioner) {
+	collection.Store(name, provisioner)
 }
 
 // NewProvisioner returns a new PCAProvisioner
 func NewProvisioner(session *session.Session, arn string) (p *PCAProvisioner) {
 	return &PCAProvisioner{
-		session: session,
-		arn:     arn,
+		pcaClient: acmpca.New(session, &aws.Config{}),
+		arn:       arn,
 	}
 }
 
 // Sign takes a certificate request and signs it using PCA
 func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error) {
-	svc := acmpca.New(p.session, &aws.Config{})
-
 	block, _ := pem.Decode(cr.Spec.Request)
 	if block == nil {
 		return nil, nil, fmt.Errorf("failed to decode CSR")
@@ -97,7 +101,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		IdempotencyToken: aws.String("awspca"),
 	}
 
-	issueOutput, err := svc.IssueCertificate(&issueParams)
+	issueOutput, err := p.pcaClient.IssueCertificate(&issueParams)
 
 	if err != nil {
 		return nil, nil, err
@@ -108,12 +112,12 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		CertificateAuthorityArn: aws.String(p.arn),
 	}
 
-	err = svc.WaitUntilCertificateIssued(&getParams)
+	err = p.pcaClient.WaitUntilCertificateIssued(&getParams)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	getOutput, err := svc.GetCertificate(&getParams)
+	getOutput, err := p.pcaClient.GetCertificate(&getParams)
 	if err != nil {
 		return nil, nil, err
 	}
