@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   aws-pca-issuer:
   - apiVersion: v2
+    appVersion: v0.2.1
+    created: "2021-05-07T06:06:30.762668994Z"
+    description: An addon for cert-manager to sign certificates using AWS PCA
+    digest: 0867fc85ddea6c1c5c0889911521ed63fa7b1f6023de842cf397754cb427b8cd
+    name: aws-pca-issuer
+    type: application
+    urls:
+    - https://jniebuhr.github.io/aws-pca-issuer/aws-pca-issuer-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v2
     appVersion: v0.2.0
     created: "2021-04-27T07:33:46.70437909Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
@@ -11,4 +21,4 @@ entries:
     urls:
     - https://jniebuhr.github.io/aws-pca-issuer/aws-pca-issuer-0.1.0.tgz
     version: 0.1.0
-generated: "2021-04-27T07:33:46.703413189Z"
+generated: "2021-05-07T06:06:30.76182494Z"
