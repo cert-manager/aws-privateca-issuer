@@ -119,20 +119,9 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	}
 
 	certPem := []byte(*getOutput.Certificate + "\n")
-	chainPem := []byte(*getOutput.CertificateChain)
-	certPem = append(certPem, chainPem...)
+	caCertChainPem := []byte(*getOutput.CertificateChain)
 
-	caParams := acmpca.GetCertificateAuthorityCertificateInput{
-		CertificateAuthorityArn: aws.String(p.arn),
-	}
-	caOutput, err := svc.GetCertificateAuthorityCertificate(&caParams)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caPem := []byte(*caOutput.Certificate)
-
-	return certPem, caPem, nil
+	return certPem, caCertChainPem, nil
 }
 
 func signatureAlgorithm(cr *x509.CertificateRequest) (string, error) {

@@ -45,7 +45,7 @@ A minimal policy to use the issuer with an authority would look like follows:
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "aws-pca-issuer",
+      "Sid": "awspcaissuer",
       "Action": [
         "acm-pca:GetCertificate",
         "acm-pca:GetCertificateAuthorityCertificate",
