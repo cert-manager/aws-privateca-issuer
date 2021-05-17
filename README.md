@@ -92,8 +92,7 @@ NOTE: Running these tests **will incur charges in your AWS Account**. Please ref
 
 
 For running the integration tests you will need a few things:
-* 2 AWS Private CAs - One Private CA that is backed by an RSA key and another Private CA that is backed by an EC key (Currently the PCA external issuer only supports issuing RSA certs from an RSA key backed CA and issuing
-EC certs from an EC key backed CA).
+* 2 AWS Private CAs - One Private CA that is backed by an RSA key and another Private CA that is backed by an EC key (Currently the PCA external issuer only supports issuing RSA certs from an RSA key backed CA and issuing EC certs from an EC key backed CA).
 * Access to an AWS Account (Via an IAM User) where you will have permission to create, update, and delete the Private CAs needed to run the integration tests
 * [Git](https://git-scm.com/)
 * [Golang v1.13+](https://golang.org/)
@@ -111,7 +110,11 @@ The code for the integration tests live in test_utils/e2e_tests.sh. The test fir
 
 The tests will take your AWS CLI creds via the enviornment variables ```AWS_ACCESS_KEY_ID``` and ```AWS_SECRET_ACCESS_KEY``` and use those to not only create/update/delete the CAs used for the test, but also use these as the secret to pass to the AWSPCAClusterIssuer/AWSPCAIssuer for allowing the Issuers to issue certificates.
 
+<<<<<<< HEAD
 The tests will then spin up a kind cluster and create various Issuer/ClusterIssuer resources along with various certificate resources. The test will verify that using the Cluster or Namespace Issuer, the PCA external issuer is able to issue both EC and RSA certificates and the Cert Manager certificate resources reach a ready state.
+=======
+The tests will them spin up a kind cluster and create various Issuer/ClusterIssuer resources along with various certificate resources. The test will verify that using the Cluster or Namespace Issuer, the PCA external issuer is able to issue both EC and RSA certificates and the Cert Manager certificate resources reach a ready state.
+>>>>>>> 1c52c7a634f0bec6ca6c0581f1f8ec6d354d0f31
 
 After the test, the resources created with the kind cluster are cleaned up, the kind cluster is deleted, and the CAs used during the test are deleted.
 
