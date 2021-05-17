@@ -1,3 +1,15 @@
+/*
+  Copyright 2021.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+*/
 package aws
 
 import (
@@ -34,7 +46,6 @@ var (
 	certArn = "arn"
 	cert    = "cert"
 	chain   = "chain"
-	cacert  = "cacert"
 )
 
 type errorACMPCAClient struct {
@@ -61,9 +72,6 @@ func (m *workingACMPCAClient) GetCertificate(input *acmpca.GetCertificateInput) 
 	return &acmpca.GetCertificateOutput{Certificate: &cert, CertificateChain: &chain}, nil
 }
 
-func (m *workingACMPCAClient) GetCertificateAuthorityCertificate(input *acmpca.GetCertificateAuthorityCertificateInput) (*acmpca.GetCertificateAuthorityCertificateOutput, error) {
-	return &acmpca.GetCertificateAuthorityCertificateOutput{Certificate: &cacert}, nil
-}
 func TestPCASignatureAlgorithm(t *testing.T) {
 	type createKey func() (priv interface{})
 
@@ -132,18 +140,18 @@ func TestPCASignatureAlgorithm(t *testing.T) {
 func TestPCASign(t *testing.T) {
 
 	type testCase struct {
-		provisioner    PCAProvisioner
-		expectFailure  bool
-		expectedCaCert string
-		expectedCert   string
+		provisioner   PCAProvisioner
+		expectFailure bool
+		expectedChain string
+		expectedCert  string
 	}
 
 	tests := map[string]testCase{
 		"success": {
-			provisioner:    PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}},
-			expectFailure:  false,
-			expectedCaCert: cacert,
-			expectedCert:   string(append([]byte(cert+"\n"), []byte(chain)...)),
+			provisioner:   PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}},
+			expectFailure: false,
+			expectedChain: chain,
+			expectedCert:  string([]byte(cert + "\n")),
 		},
 		"failure-error-issueCertificate": {
 			provisioner:   PCAProvisioner{arn: arn, pcaClient: &errorACMPCAClient{}},
@@ -166,16 +174,16 @@ func TestPCASign(t *testing.T) {
 				},
 			}
 
-			leaf, ca, err := tc.provisioner.Sign(context.TODO(), cr)
+			leaf, chain, err := tc.provisioner.Sign(context.TODO(), cr)
 
 			if tc.expectFailure && err == nil {
 				fmt.Print(err.Error())
 				assert.Fail(t, "Expected an error but received none")
 			}
 
-			if tc.expectedCaCert != "" && tc.expectedCert != "" {
+			if tc.expectedChain != "" && tc.expectedCert != "" {
 				assert.Equal(t, []byte(tc.expectedCert), leaf)
-				assert.Equal(t, []byte(tc.expectedCaCert), ca)
+				assert.Equal(t, []byte(tc.expectedChain), chain)
 			}
 
 		})

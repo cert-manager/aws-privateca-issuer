@@ -1,7 +1,0 @@
-apiVersion: awspca.cert-manager.io/v1beta1
-kind: AWSPCAIssuer
-metadata:
-  name: awspcaissuer-sample
-spec:
-  # Add fields here
-  foo: bar

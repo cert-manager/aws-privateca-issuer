@@ -1,0 +1,11 @@
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAIssuer
+metadata:
+  name: pca-issuer-ec
+  namespace: default
+spec:
+  arn: {{EC_CA_ARN}}
+  region: {{REGION}}
+  secretRef:
+    namespace: default
+    name: pca-secret

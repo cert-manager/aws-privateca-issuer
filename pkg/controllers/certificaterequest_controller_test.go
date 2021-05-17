@@ -1,3 +1,15 @@
+/*
+  Copyright 2021.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+*/
 package controllers
 
 import (
@@ -5,6 +17,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	logrtesting "github.com/go-logr/logr/testing"
 	cmutil "github.com/jetstack/cert-manager/pkg/api/util"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
@@ -38,6 +52,15 @@ func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest
 }
 
 type createMockProvisioner func()
+
+func TestProvisonerOperation(t *testing.T) {
+	session, _ := session.NewSession(&aws.Config{})
+	provisioner := awspca.NewProvisioner(session, "arn")
+	awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, provisioner)
+	output, exists := awspca.GetProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
+	assert.Equal(t, output, provisioner)
+	assert.Equal(t, exists, true)
+}
 
 func TestCertificateRequestReconcile(t *testing.T) {
 	type testCase struct {
