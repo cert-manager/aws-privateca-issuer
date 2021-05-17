@@ -134,7 +134,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	if cr.Spec.IsCA {
-		log.Info("CA Certificates are not currently supported via cert-manager")
+		log.Info("CA Certificates are not currently supported via the PCA external issuer")
 		return ctrl.Result{}, nil
 	}
 
@@ -170,7 +170,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	pem, ca, err := provisioner.Sign(ctx, cr)
 	if err != nil {
 		log.Error(err, "failed to request certificate from PCA")
-		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA")
+		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
 	}
 	cr.Status.Certificate = pem
 	cr.Status.CA = ca

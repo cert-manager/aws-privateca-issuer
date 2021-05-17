@@ -51,6 +51,7 @@ func GetProvisioner(name types.NamespacedName) (GenericProvisioner, bool) {
 	if !exists {
 		return nil, exists
 	}
+
 	p, exists := value.(GenericProvisioner)
 	return p, exists
 }
