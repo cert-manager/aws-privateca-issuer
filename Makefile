@@ -23,6 +23,26 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# BIN is the directory where tools will be installed
+export BIN ?= ${CURDIR}/bin
+
+OS := $(shell go env GOOS)
+ARCH := $(shell go env GOARCH)
+
+# Kind
+KIND_VERSION := 0.9.0
+KIND := ${BIN}/kind-${KIND_VERSION}
+K8S_CLUSTER_NAME := pca-external-issuer
+
+# cert-manager
+CERT_MANAGER_VERSION ?= 1.3.0
+
+# Controller tools
+CONTROLLER_GEN_VERSION := 0.5.0
+CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
+
+INSTALL_YAML ?= build/install.yaml
+
 all: manager
 
 # Run tests
@@ -129,3 +149,46 @@ bundle: manifests kustomize
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+# ==================================
+# E2E testing
+# ==================================
+.PHONY: kind-cluster
+kind-cluster: ## Use Kind to create a Kubernetes cluster for E2E tests
+kind-cluster: ${KIND}
+	 ${KIND} get clusters | grep ${K8S_CLUSTER_NAME} || ${KIND} create cluster --name ${K8S_CLUSTER_NAME}
+
+.PHONY: kind-cluster-delete
+kind-cluster-delete:
+	${KIND} delete cluster --name ${K8S_CLUSTER_NAME}
+
+.PHONY: kind-load
+kind-load: ## Load all the Docker images into Kind
+	${KIND} load docker-image --name ${K8S_CLUSTER_NAME} ${IMG}
+
+.PHONY: kind-export-logs
+kind-export-logs:
+	${KIND} export logs --name ${K8S_CLUSTER_NAME} ${E2E_ARTIFACTS_DIRECTORY}
+
+.PHONY: deploy-cert-managerkubectl logs -f -l name=myLabel --all-containers 
+deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
+	kubectl apply --filename=https://github.com/jetstack/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.yaml
+	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io
+
+.PHONY: e2e
+e2e:
+	./test_utils/e2e_test.sh
+
+#Run the unit tests, then setup the e2e test, run the tests, and then clean up
+.PHONY: runtests
+runtests: kind-cluster deploy-cert-manager docker-build kind-load deploy e2e kind-cluster-delete
+
+# ==================================
+# Download: tools in ${BIN}
+# ==================================
+${BIN}:
+	mkdir -p ${BIN}
+
+${KIND}: ${BIN}
+	curl -sSL -o ${KIND} https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-${OS}-${ARCH}
+	chmod +x ${KIND}
