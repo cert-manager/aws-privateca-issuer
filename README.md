@@ -114,4 +114,6 @@ The tests will then spin up a kind cluster and create various Issuer/ClusterIssu
 
 After the test, the resources created with the kind cluster are cleaned up, the kind cluster is deleted, and the CAs used during the test are deleted.
 
+The Private CAs created during this test run are cleaned up on a **best-effort basis**. To ensure no runaway costs, verify via the AWS CLI or Console that the Private CAs created during the test run are in a deleted state. If you need to delete the Private CAs created during the test run yourself you may use the script test_utils/delete_ca.sh or refer to the [AWS Private CA documentation](https://docs.aws.amazon.com/acm-pca/latest/userguide/PCADeleteCA.html)
+
 If at any point, ```make runtests``` encounters an error, the integration tests should be considered a failure.
