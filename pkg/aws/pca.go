@@ -17,7 +17,6 @@ limitations under the License.
 package aws
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/rsa"
@@ -125,37 +124,9 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	}
 
 	certPem := []byte(*getOutput.Certificate + "\n")
-	chainPem := []byte(*getOutput.CertificateChain)
-	chainIntCAs, rootCA, err := splitRootCACertificate(chainPem)
-	if err != nil {
-		return nil, nil, err
-	}
-	certPem = append(certPem, chainIntCAs...)
+	caCertChainPem := []byte(*getOutput.CertificateChain)
 
-	return certPem, rootCA, nil
-}
-
-func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {
-	var caChainCerts []byte
-	var rootCACert []byte
-	for {
-		block, rest := pem.Decode(caCertChainPem)
-		if block == nil || block.Type != "CERTIFICATE" {
-			return nil, nil, fmt.Errorf("failed to read certificate")
-		}
-		var encBuf bytes.Buffer
-		if err := pem.Encode(&encBuf, block); err != nil {
-			return nil, nil, err
-		}
-		if len(rest) > 0 {
-			caChainCerts = append(caChainCerts, encBuf.Bytes()...)
-			caCertChainPem = rest
-		} else {
-			rootCACert = append(rootCACert, encBuf.Bytes()...)
-			break
-		}
-	}
-	return caChainCerts, rootCACert, nil
+	return certPem, caCertChainPem, nil
 }
 
 func signatureAlgorithm(cr *x509.CertificateRequest) (string, error) {
