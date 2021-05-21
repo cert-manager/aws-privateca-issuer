@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/go-logr/logr"
 	api "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
 	awspca "github.com/jniebuhr/aws-pca-issuer/pkg/aws"
@@ -73,7 +73,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	config := aws.Config{}
 
 	if spec.Region != "" {
-		config.Region = aws.String(spec.Region)
+		config.Region = spec.Region
 	}
 
 	if spec.SecretRef.Name != "" {
@@ -108,14 +108,13 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		config.Credentials = credentials.NewStaticCredentials(string(accessKey), string(secretKey), "")
 	}
 
-	sess, err := session.NewSession(&config)
+	id, err := sts.NewFromConfig(config).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err != nil {
-		log.Error(err, "failed to create AWS session")
-		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to create AWS session")
+		log.Error(err, "failed to sts.GetCallerIdentity")
 		return ctrl.Result{}, err
 	}
-
-	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(sess, spec.Arn))
+	log.Info("sts.GetCallerIdentity", "arn", id.Arn, "account", id.Account, "user_id", id.UserId)
+	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(config, spec.Arn))
 
 	return ctrl.Result{}, r.setStatus(ctx, issuer, metav1.ConditionTrue, "Verified", "Issuer verified")
 }

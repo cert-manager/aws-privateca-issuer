@@ -24,24 +24,31 @@ import (
 	"encoding/pem"
 	"fmt"
 	"sync"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/acmpca"
-	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca"
+	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 var collection = new(sync.Map)
 
+// GenericProvisioner abstracts over the Provisioner type for mocking purposes
 type GenericProvisioner interface {
 	Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error)
 }
 
+// acmPCAClient abstracts over the methods used from acmpca.Client
+type acmPCAClient interface {
+	acmpca.GetCertificateAPIClient
+	IssueCertificate(ctx context.Context, params *acmpca.IssueCertificateInput, optFns ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error)
+}
+
 // PCAProvisioner contains logic for issuing PCA certificates
 type PCAProvisioner struct {
-	pcaClient acmpcaiface.ACMPCAAPI
+	pcaClient acmPCAClient
 	arn       string
 }
 
@@ -62,9 +69,9 @@ func StoreProvisioner(name types.NamespacedName, provisioner GenericProvisioner)
 }
 
 // NewProvisioner returns a new PCAProvisioner
-func NewProvisioner(session *session.Session, arn string) (p *PCAProvisioner) {
+func NewProvisioner(config aws.Config, arn string) (p *PCAProvisioner) {
 	return &PCAProvisioner{
-		pcaClient: acmpca.New(session, &aws.Config{}),
+		pcaClient: acmpca.NewFromConfig(config),
 		arn:       arn,
 	}
 }
@@ -91,18 +98,21 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		validityDays = int64(cr.Spec.Duration.Hours() / 24)
 	}
 
+	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
+	idempotencyToken := cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name
+
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
-		SigningAlgorithm:        aws.String(sigAlgorithm),
+		SigningAlgorithm:        sigAlgorithm,
 		Csr:                     cr.Spec.Request,
-		Validity: &acmpca.Validity{
-			Type:  aws.String(acmpca.ValidityPeriodTypeDays),
-			Value: aws.Int64(validityDays),
+		Validity: &acmpcatypes.Validity{
+			Type:  acmpcatypes.ValidityPeriodTypeDays,
+			Value: &validityDays,
 		},
-		IdempotencyToken: aws.String("awspca"),
+		IdempotencyToken: &idempotencyToken,
 	}
 
-	issueOutput, err := p.pcaClient.IssueCertificate(&issueParams)
+	issueOutput, err := p.pcaClient.IssueCertificate(ctx, &issueParams)
 
 	if err != nil {
 		return nil, nil, err
@@ -113,12 +123,13 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		CertificateAuthorityArn: aws.String(p.arn),
 	}
 
-	err = p.pcaClient.WaitUntilCertificateIssued(&getParams)
+	waiter := acmpca.NewCertificateIssuedWaiter(p.pcaClient)
+	err = waiter.Wait(ctx, &getParams, 5*time.Minute)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	getOutput, err := p.pcaClient.GetCertificate(&getParams)
+	getOutput, err := p.pcaClient.GetCertificate(ctx, &getParams)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -129,7 +140,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	return certPem, caCertChainPem, nil
 }
 
-func signatureAlgorithm(cr *x509.CertificateRequest) (string, error) {
+func signatureAlgorithm(cr *x509.CertificateRequest) (acmpcatypes.SigningAlgorithm, error) {
 	switch cr.PublicKeyAlgorithm {
 	case x509.RSA:
 		pubKey, ok := cr.PublicKey.(*rsa.PublicKey)
@@ -139,13 +150,13 @@ func signatureAlgorithm(cr *x509.CertificateRequest) (string, error) {
 
 		switch {
 		case pubKey.N.BitLen() >= 4096:
-			return acmpca.SigningAlgorithmSha512withrsa, nil
+			return acmpcatypes.SigningAlgorithmSha512withrsa, nil
 		case pubKey.N.BitLen() >= 3072:
-			return acmpca.SigningAlgorithmSha384withrsa, nil
+			return acmpcatypes.SigningAlgorithmSha384withrsa, nil
 		case pubKey.N.BitLen() >= 2048:
-			return acmpca.SigningAlgorithmSha256withrsa, nil
+			return acmpcatypes.SigningAlgorithmSha256withrsa, nil
 		case pubKey.N.BitLen() == 0:
-			return acmpca.SigningAlgorithmSha256withrsa, nil
+			return acmpcatypes.SigningAlgorithmSha256withrsa, nil
 		default:
 			return "", fmt.Errorf("unsupported rsa keysize specified: %d", pubKey.N.BitLen())
 		}
@@ -157,13 +168,13 @@ func signatureAlgorithm(cr *x509.CertificateRequest) (string, error) {
 
 		switch pubKey.Curve.Params().BitSize {
 		case 521:
-			return acmpca.SigningAlgorithmSha512withecdsa, nil
+			return acmpcatypes.SigningAlgorithmSha512withecdsa, nil
 		case 384:
-			return acmpca.SigningAlgorithmSha384withecdsa, nil
+			return acmpcatypes.SigningAlgorithmSha384withecdsa, nil
 		case 256:
-			return acmpca.SigningAlgorithmSha256withecdsa, nil
+			return acmpcatypes.SigningAlgorithmSha256withecdsa, nil
 		case 0:
-			return acmpca.SigningAlgorithmSha256withecdsa, nil
+			return acmpcatypes.SigningAlgorithmSha256withecdsa, nil
 		default:
 			return "", fmt.Errorf("unsupported ecdsa keysize specified: %d", pubKey.Curve.Params().BitSize)
 		}

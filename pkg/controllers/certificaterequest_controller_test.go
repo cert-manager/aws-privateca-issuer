@@ -17,8 +17,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	logrtesting "github.com/go-logr/logr/testing"
 	cmutil "github.com/jetstack/cert-manager/pkg/api/util"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
@@ -54,8 +53,7 @@ func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest
 type createMockProvisioner func()
 
 func TestProvisonerOperation(t *testing.T) {
-	session, _ := session.NewSession(&aws.Config{})
-	provisioner := awspca.NewProvisioner(session, "arn")
+	provisioner := awspca.NewProvisioner(aws.Config{}, "arn")
 	awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, provisioner)
 	output, exists := awspca.GetProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
 	assert.Equal(t, output, provisioner)
