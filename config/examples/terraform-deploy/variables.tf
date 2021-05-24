@@ -73,12 +73,6 @@ variable "k8s_namespace" {
   description = "The K8s namespace in which to install the Helm chart, default: 'default'"
 }
 
-variable "settings" {
-  type        = map(any)
-  default     = {}
-  description = "Additional settings which will be passed to the Helm chart values, see https://hub.helm.sh/charts/stable/cluster-autoscaler"
-}
-
 variable "k8s_serviceaccount" {
   type        = string
   default     = "default"

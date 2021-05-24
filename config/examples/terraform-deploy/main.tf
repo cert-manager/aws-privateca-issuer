@@ -13,12 +13,4 @@ resource "helm_release" "aws-pca-issuer" {
     name  = "serviceAccount.annotation"
     value = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${var.cluster_name}-aws_pca_issuer_role"
   }
-
-  dynamic "set" {
-    for_each = var.settings
-    content {
-      name  = set.key
-      value = set.value
-    }
-  }
 }
