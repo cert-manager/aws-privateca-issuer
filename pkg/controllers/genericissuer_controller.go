@@ -105,7 +105,8 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 
-		config.Credentials = credentials.NewStaticCredentials(string(accessKey), string(secretKey), "")
+		config.Credentials = credentials.NewStaticCredentialsProvider(
+			string(accessKey), string(secretKey), "")
 	}
 
 	id, err := sts.NewFromConfig(config).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
