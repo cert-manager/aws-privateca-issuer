@@ -27,3 +27,11 @@ testbin/*
 #ignore files created during integ tests
 secret
 catemplate
+
+# terraform
+.templates
+*.lock.hcl
+*.terraform
+*.tfstate
+*.tfstate
+*.backup
