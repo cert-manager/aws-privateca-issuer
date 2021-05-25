@@ -74,7 +74,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	if cr.Spec.IssuerRef.Group != "" && cr.Spec.IssuerRef.Group != api.GroupVersion.Group {
+	if cr.Spec.IssuerRef.Group != api.GroupVersion.Group {
 		log.V(4).Info("CertificateRequest does not specify an issuerRef matching our group")
 		return ctrl.Result{}, nil
 	}
