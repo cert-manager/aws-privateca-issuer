@@ -18,8 +18,9 @@ package main
 
 import (
 	"flag"
-	certmanager "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"os"
+
+	certmanager "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -86,10 +87,11 @@ func main() {
 	}
 
 	genericIssuerController := &controllers.GenericIssuerReconciler{
-		Client:   mgr.GetClient(),
-		Log:      ctrl.Log.WithName("controllers").WithName("GenericIssuer"),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("awspcaissuer-controller"),
+		Client:            mgr.GetClient(),
+		Log:               ctrl.Log.WithName("controllers").WithName("GenericIssuer"),
+		Scheme:            mgr.GetScheme(),
+		Recorder:          mgr.GetEventRecorderFor("awspcaissuer-controller"),
+		GetCallerIdentity: true,
 	}
 	if err = (&controllers.AWSPCAIssuerReconciler{
 		Client:            mgr.GetClient(),
