@@ -25,8 +25,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/acmpca"
-	"github.com/aws/aws-sdk-go/service/acmpca/acmpcaiface"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca"
+	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	v1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -147,26 +147,22 @@ vWJet5qO7W0LkKp4DeQWA0KkAtmgR3ZQ
 )
 
 type errorACMPCAClient struct {
-	acmpcaiface.ACMPCAAPI
+	acmPCAClient
 }
 
-func (m *errorACMPCAClient) IssueCertificate(input *acmpca.IssueCertificateInput) (*acmpca.IssueCertificateOutput, error) {
+func (m *errorACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.IssueCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error) {
 	return nil, errors.New("Cannot issue certificate")
 }
 
 type workingACMPCAClient struct {
-	acmpcaiface.ACMPCAAPI
+	acmPCAClient
 }
 
-func (m *workingACMPCAClient) IssueCertificate(input *acmpca.IssueCertificateInput) (*acmpca.IssueCertificateOutput, error) {
+func (m *workingACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.IssueCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error) {
 	return &acmpca.IssueCertificateOutput{CertificateArn: &certArn}, nil
 }
 
-func (m *workingACMPCAClient) WaitUntilCertificateIssued(input *acmpca.GetCertificateInput) error {
-	return nil
-}
-
-func (m *workingACMPCAClient) GetCertificate(input *acmpca.GetCertificateInput) (*acmpca.GetCertificateOutput, error) {
+func (m *workingACMPCAClient) GetCertificate(_ context.Context, input *acmpca.GetCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.GetCertificateOutput, error) {
 	return &acmpca.GetCertificateOutput{Certificate: &cert, CertificateChain: &chain}, nil
 }
 
@@ -174,47 +170,47 @@ func TestPCASignatureAlgorithm(t *testing.T) {
 	type createKey func() (priv interface{})
 
 	type testCase struct {
-		expectedAlgorithm string
+		expectedAlgorithm types.SigningAlgorithm
 		createKeyFun      createKey
 	}
 	tests := map[string]testCase{
 		"success-RSA-2048": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha256withrsa,
+			expectedAlgorithm: types.SigningAlgorithmSha256withrsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
 				return keyBytes
 			},
 		},
 		"success-RSA-3072": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha384withrsa,
+			expectedAlgorithm: types.SigningAlgorithmSha384withrsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := rsa.GenerateKey(rand.Reader, 3072)
 				return keyBytes
 			},
 		},
 		"success-RSA-4096": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha512withrsa,
+			expectedAlgorithm: types.SigningAlgorithmSha512withrsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := rsa.GenerateKey(rand.Reader, 4096)
 				return keyBytes
 			},
 		},
 		"success-ECDSA-521": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha512withecdsa,
+			expectedAlgorithm: types.SigningAlgorithmSha512withecdsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 				return keyBytes
 			},
 		},
 		"success-ECDSA-384": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha384withecdsa,
+			expectedAlgorithm: types.SigningAlgorithmSha384withecdsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 				return keyBytes
 			},
 		},
 		"success-ECDSA-256": {
-			expectedAlgorithm: acmpca.SigningAlgorithmSha256withecdsa,
+			expectedAlgorithm: types.SigningAlgorithmSha256withecdsa,
 			createKeyFun: func() (priv interface{}) {
 				keyBytes, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 				return keyBytes
@@ -229,7 +225,7 @@ func TestPCASignatureAlgorithm(t *testing.T) {
 			response, _ := signatureAlgorithm(csr)
 
 			if tc.expectedAlgorithm != response {
-				assert.Fail(t, "Expected type "+tc.expectedAlgorithm+" but got "+response)
+				assert.Fail(t, "Expected type %v, but got %s", tc.expectedAlgorithm, response)
 			}
 		})
 	}
