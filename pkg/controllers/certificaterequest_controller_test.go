@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	issuerapi "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
-	awspca "github.com/jniebuhr/aws-pca-issuer/pkg/aws"
+	issuerapi "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
+	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 )
 
 type fakeProvisioner struct {

@@ -2,9 +2,9 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "aws-pca-issuer.serviceAccountName" . }}
+  name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
   {{- with .Values.serviceAccount.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -15,9 +15,9 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "aws-pca-issuer.fullname" . }}
+  name: {{ include "aws-privateca-issuer.fullname" . }}
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 rules:
   - apiGroups:
       - ""
@@ -121,16 +121,16 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "aws-pca-issuer.fullname" . }}
+  name: {{ include "aws-privateca-issuer.fullname" . }}
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "aws-pca-issuer.fullname" . }}
+  name: {{ include "aws-privateca-issuer.fullname" . }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "aws-pca-issuer.serviceAccountName" . }}
+    name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
 {{- end }}
@@ -141,7 +141,7 @@ kind: ClusterRole
 metadata:
   name: {{.Values.approverRole.serviceAccountName}}-controller-approve:awspca-cert-manager-io
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 rules:
   - apiGroups:
     - cert-manager.io
@@ -160,7 +160,7 @@ kind: ClusterRoleBinding
 metadata:
   name: {{.Values.approverRole.serviceAccountName}}-controller-approve:awspca-cert-manager-io
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole

@@ -1,7 +1,7 @@
 domain: awspca.cert-manager.io
 layout: go.kubebuilder.io/v3
-projectName: aws-pca-issuer
-repo: github.com/jniebuhr/aws-pca-issuer
+projectName: aws-privateca-issuer
+repo: github.com/cert-manager/aws-privateca-issuer
 resources:
 - crdVersion: v1
   kind: AWSPCAIssuer

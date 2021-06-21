@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	awspcacertmanageriov1beta1 "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
-	"github.com/jniebuhr/aws-pca-issuer/pkg/controllers"
+	awspcacertmanageriov1beta1 "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
+	"github.com/cert-manager/aws-privateca-issuer/pkg/controllers"
 	// +kubebuilder:scaffold:imports
 )
 

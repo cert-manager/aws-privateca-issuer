@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager 
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 LABEL org.opencontainers.image.authors="Jochen Ullrich <kontakt@ju-hh.de>"
-LABEL org.opencontainers.image.source=https://github.com/jniebuhr/aws-pca-issuer
+LABEL org.opencontainers.image.source=https://github.com/cert-manager/aws-privateca-issuer
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532

@@ -19,7 +19,7 @@ package util
 import (
 	"context"
 	"github.com/go-logr/logr"
-	api "github.com/jniebuhr/aws-pca-issuer/pkg/api/v1beta1"
+	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
