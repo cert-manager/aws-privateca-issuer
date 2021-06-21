@@ -99,12 +99,15 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		validityDays = int64(cr.Spec.Duration.Hours() / 24)
 	}
 
+	tempArn := templateArn(cr.Spec)
+
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
 	idempotencyToken := cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name
 
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 		SigningAlgorithm:        sigAlgorithm,
+		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
 		Validity: &acmpcatypes.Validity{
 			Type:  acmpcatypes.ValidityPeriodTypeDays,
@@ -144,6 +147,29 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	certPem = append(certPem, chainIntCAs...)
 
 	return certPem, rootCA, nil
+}
+
+func templateArn(spec cmapi.CertificateRequestSpec) string {
+	if len(spec.Usages) == 1 {
+		switch spec.Usages[0] {
+		case cmapi.UsageCodeSigning:
+			return "arn:aws:acm-pca:::template/CodeSigningCertificate/V1"
+		case cmapi.UsageClientAuth:
+			return "arn:aws:acm-pca:::template/EndEntityClientAuthCertificate/V1"
+		case cmapi.UsageServerAuth:
+			return "arn:aws:acm-pca:::template/EndEntityServerAuthCertificate/V1"
+		case cmapi.UsageOCSPSigning:
+			return "arn:aws:acm-pca:::template/OCSPSigningCertificate/V1"
+		}
+	} else if len(spec.Usages) == 2 {
+		clientServer := (spec.Usages[0] == cmapi.UsageClientAuth && spec.Usages[1] == cmapi.UsageServerAuth)
+		serverClient := (spec.Usages[0] == cmapi.UsageServerAuth && spec.Usages[1] == cmapi.UsageClientAuth)
+		if clientServer || serverClient {
+			return "arn:aws:acm-pca:::template/EndEntityCertificate/V1"
+		}
+	}
+
+	return "arn:aws:acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1"
 }
 
 func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {

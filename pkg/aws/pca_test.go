@@ -166,6 +166,68 @@ func (m *workingACMPCAClient) GetCertificate(_ context.Context, input *acmpca.Ge
 	return &acmpca.GetCertificateOutput{Certificate: &cert, CertificateChain: &chain}, nil
 }
 
+func TestPCATemplateArn(t *testing.T) {
+	type testCase struct {
+		expectedTemplate string
+		keyUsages        []v1.KeyUsage
+	}
+	tests := map[string]testCase{
+		"client": {
+			expectedTemplate: "arn:aws:acm-pca:::template/EndEntityClientAuthCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageClientAuth,
+			},
+		},
+		"server": {
+			expectedTemplate: "arn:aws:acm-pca:::template/EndEntityServerAuthCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageServerAuth,
+			},
+		},
+		"client server": {
+			expectedTemplate: "arn:aws:acm-pca:::template/EndEntityCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageClientAuth,
+				v1.UsageServerAuth,
+			},
+		},
+		"server client": {
+			expectedTemplate: "arn:aws:acm-pca:::template/EndEntityCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageServerAuth,
+				v1.UsageClientAuth,
+			},
+		},
+		"code signing": {
+			expectedTemplate: "arn:aws:acm-pca:::template/CodeSigningCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageCodeSigning,
+			},
+		},
+		"ocsp signing": {
+			expectedTemplate: "arn:aws:acm-pca:::template/OCSPSigningCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageOCSPSigning,
+			},
+		},
+		"other": {
+			expectedTemplate: "arn:aws:acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageTimestamping,
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			response := templateArn(v1.CertificateRequestSpec{
+				Usages: tc.keyUsages,
+			})
+
+			assert.Equal(t, tc.expectedTemplate, response)
+		})
+	}
+}
+
 func TestPCASignatureAlgorithm(t *testing.T) {
 	type createKey func() (priv interface{})
 
