@@ -1,12 +1,12 @@
 <p align="center"><img src="assets/logo.png" alt="Logo" width="250px" /></p>
 <p align="center">
-<a href="https://github.com/cert-manager/aws-pca-issuer/actions">
-<img alt="Build Status" src="https://github.com/cert-manager/aws-pca-issuer/workflows/CI/badge.svg" />
+<a href="https://github.com/cert-manager/aws-privateca-issuer/actions">
+<img alt="Build Status" src="https://github.com/cert-manager/aws-privateca-issuer/workflows/CI/badge.svg" />
 </a>
-<a href="https://goreportcard.com/report/github.com/cert-manager/aws-pca-issuer">
-<img alt="Build Status" src="https://goreportcard.com/badge/github.com/cert-manager/aws-pca-issuer" />
+<a href="https://goreportcard.com/report/github.com/cert-manager/aws-privateca-issuer">
+<img alt="Build Status" src="https://goreportcard.com/badge/github.com/cert-manager/aws-privateca-issuer" />
 </a>
-<img alt="Latest version" src="https://img.shields.io/github/v/release/jniebuhr/aws-pca-issuer?color=success&sort=semver" />
+<img alt="Latest version" src="https://img.shields.io/github/v/release/jniebuhr/aws-privateca-issuer?color=success&sort=semver" />
 </p>
 
 # AWS Private CA Issuer
@@ -25,11 +25,11 @@ Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes
 Then install AWS PCA Issuer using Helm:
 
 ```shell
-helm repo add awspca https://jniebuhr.github.io/aws-pca-issuer/
-helm install awspca/aws-pca-issuer --generate-name
+helm repo add awspca https://jniebuhr.github.io/aws-privateca-issuer/
+helm install awspca/aws-privateca-issuer --generate-name
 ```
 
-You can check the chart configuration in the default [values](https://github.com/cert-manager/aws-pca-issuer/blob/master/charts/aws-pca-issuer/values.yaml) file.
+You can check the chart configuration in the default [values](https://github.com/cert-manager/aws-privateca-issuer/blob/master/charts/aws-privateca-issuer/values.yaml) file.
 
 
 ## Configuration
@@ -62,7 +62,7 @@ A minimal policy to use the issuer with an authority would look like follows:
 
 This operator provides two custom resources that you can use.
 
-Examples can be found in the [examples](https://github.com/cert-manager/aws-pca-issuer/tree/master/config/examples/) directory.
+Examples can be found in the [examples](https://github.com/cert-manager/aws-privateca-issuer/tree/master/config/examples/) directory.
 
 ### AWSPCAIssuer
 

@@ -21,8 +21,8 @@ import (
 	"fmt"
 
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
-	"github.com/cert-manager/aws-pca-issuer/pkg/aws"
-	"github.com/cert-manager/aws-pca-issuer/pkg/util"
+	"github.com/cert-manager/aws-privateca-issuer/pkg/aws"
+	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,7 +38,7 @@ import (
 
 	cmutil "github.com/jetstack/cert-manager/pkg/api/util"
 	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
-	api "github.com/cert-manager/aws-pca-issuer/pkg/api/v1beta1"
+	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 )
 
 // CertificateRequestReconciler reconciles a AWSPCAIssuer object

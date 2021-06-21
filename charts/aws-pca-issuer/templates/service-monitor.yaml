@@ -2,9 +2,9 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "aws-pca-issuer.fullname" . }}
+  name: {{ include "aws-privateca-issuer.fullname" . }}
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
   {{- with .Values.serviceMonitor.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -15,5 +15,5 @@ spec:
       port: http
   selector:
     matchLabels:
-      {{- include "aws-pca-issuer.selectorLabels" . | nindent 6 }}
+      {{- include "aws-privateca-issuer.selectorLabels" . | nindent 6 }}
 {{- end }}

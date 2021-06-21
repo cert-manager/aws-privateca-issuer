@@ -24,7 +24,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	api "github.com/cert-manager/aws-pca-issuer/pkg/api/v1beta1"
+	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 )
 
 // AWSPCAClusterIssuerReconciler reconciles a AWSPCAClusterIssuer object

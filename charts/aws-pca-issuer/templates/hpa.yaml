@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "aws-pca-issuer.fullname" . }}
+  name: {{ include "aws-privateca-issuer.fullname" . }}
   labels:
-    {{- include "aws-pca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "aws-pca-issuer.fullname" . }}
+    name: {{ include "aws-privateca-issuer.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

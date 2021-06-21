@@ -1,4 +1,4 @@
-module github.com/cert-manager/aws-pca-issuer
+module github.com/cert-manager/aws-privateca-issuer
 
 go 1.15
 
