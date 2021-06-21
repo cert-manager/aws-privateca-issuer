@@ -6,7 +6,7 @@
 <a href="https://goreportcard.com/report/github.com/cert-manager/aws-privateca-issuer">
 <img alt="Build Status" src="https://goreportcard.com/badge/github.com/cert-manager/aws-privateca-issuer" />
 </a>
-<img alt="Latest version" src="https://img.shields.io/github/v/release/jniebuhr/aws-privateca-issuer?color=success&sort=semver" />
+<img alt="Latest version" src="https://img.shields.io/github/v/release/cert-manager/aws-privateca-issuer?color=success&sort=semver" />
 </p>
 
 # AWS Private CA Issuer
