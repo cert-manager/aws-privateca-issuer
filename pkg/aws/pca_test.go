@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"testing"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	v1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
@@ -227,6 +229,37 @@ func TestPCASignatureAlgorithm(t *testing.T) {
 			if tc.expectedAlgorithm != response {
 				assert.Fail(t, "Expected type %v, but got %s", tc.expectedAlgorithm, response)
 			}
+		})
+	}
+}
+
+func TestIdempotencyToken(t *testing.T) {
+	var (
+		idempotencyTokenMaxLength = 36
+	)
+
+	type testCase struct {
+		request  v1.CertificateRequest
+		expected string
+	}
+
+	tests := map[string]testCase{
+		"success": {
+			request: v1.CertificateRequest{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "fake-name",
+					Namespace: "fake-namespace",
+				},
+			},
+			expected: "f331cbfd0cc6569f58c12c3dbb238a4f",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			token := idempotencyToken(&tc.request)
+			assert.Equal(t, tc.expected, token)
+			assert.LessOrEqual(t, len(token), idempotencyTokenMaxLength)
 		})
 	}
 }

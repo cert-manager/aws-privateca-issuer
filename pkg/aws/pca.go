@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"crypto/md5"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -77,6 +78,13 @@ func NewProvisioner(config aws.Config, arn string) (p *PCAProvisioner) {
 	}
 }
 
+// idempotencyToken is limited to 64 ASCII characters, so make a fixed length hash.
+// @see: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Run_Instance_Idempotency.html
+func idempotencyToken(cr *cmapi.CertificateRequest) string {
+	token := []byte(cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name)
+	return fmt.Sprintf("%x", md5.Sum(token))
+}
+
 // Sign takes a certificate request and signs it using PCA
 func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error) {
 	block, _ := pem.Decode(cr.Spec.Request)
@@ -100,7 +108,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	}
 
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
-	idempotencyToken := cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name
+	token := idempotencyToken(cr)
 
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
@@ -110,7 +118,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 			Type:  acmpcatypes.ValidityPeriodTypeDays,
 			Value: &validityDays,
 		},
-		IdempotencyToken: &idempotencyToken,
+		IdempotencyToken: aws.String(token),
 	}
 
 	issueOutput, err := p.pcaClient.IssueCertificate(ctx, &issueParams)
