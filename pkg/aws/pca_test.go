@@ -230,8 +230,13 @@ func TestPCATemplateArn(t *testing.T) {
 			response := templateArn(arn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:aws:"), "returns expected ARN prefix")
+		})
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
 
-			response = templateArn(govArn, spec)
+			response := templateArn(govArn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "us-gov returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:aws-us-gov:"), "us-gov returns expected ARN prefix")
 		})
