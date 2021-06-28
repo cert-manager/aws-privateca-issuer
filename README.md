@@ -117,3 +117,9 @@ After the test, the resources created with the kind cluster are cleaned up, the 
 The Private CAs created during this test run are cleaned up on a **best-effort basis**. To ensure no runaway costs, verify via the AWS CLI or Console that the Private CAs created during the test run are in a deleted state. If you need to delete the Private CAs created during the test run yourself you may use the script test_utils/delete_ca.sh or refer to the [AWS Private CA documentation](https://docs.aws.amazon.com/acm-pca/latest/userguide/PCADeleteCA.html)
 
 If at any point, ```make runtests``` encounters an error, the integration tests should be considered a failure.
+
+## Troubleshooting
+
+1. Check the secret with the AWS credentials: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY values have to be base64 encoded.
+
+2. If the generated CertificateRequest shows no events, it is very likely that you're using an older version of cert-manager which doesn't support approval check. Disable approval check at the issuer deployment.
