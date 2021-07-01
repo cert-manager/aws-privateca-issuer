@@ -1,6 +1,5 @@
 # Build the manager binary
 FROM golang:1.16 as builder
-
 WORKDIR /workspace
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -13,8 +12,22 @@ RUN go mod download
 COPY main.go main.go
 COPY pkg/ pkg/
 
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+ENV GO111MODULE=on
+
+# Do an initial compilation before setting the version so that there is less to
+# re-compile when the version changes
+RUN go build -mod=readonly ./...
+
+ARG VERSION
+
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+RUN go build \
+    -ldflags="-X=github.com/cert-manager/acm-pca-issuer/internal/version.Version=${VERSION}" \
+    -mod=readonly \
+    -o manager main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details

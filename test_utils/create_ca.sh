@@ -27,7 +27,7 @@ aws acm-pca get-certificate-authority-csr \
 
 ISSUE_CERTIFICATE_RESPONSE=$(aws acm-pca issue-certificate \
     --certificate-authority-arn $CAARN \
-    --csr file://ca.csr \
+    --csr fileb://ca.csr \
     --signing-algorithm "$3" \
     --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1 \
     --validity Value=365,Type="DAYS" \
@@ -48,7 +48,7 @@ aws acm-pca get-certificate \
 
 aws acm-pca import-certificate-authority-certificate \
     --certificate-authority-arn $CAARN \
-    --certificate file://cert.pem \
+    --certificate fileb://cert.pem \
     --endpoint https://acm-pca.$region.amazonaws.com
 
 #output the active CA's ARN

@@ -1,7 +1,10 @@
-# Current Operator version
-VERSION ?= 0.0.1
+# The version which will be reported by the --version argument of each binary
+# and which will be used as the Docker image tag
+VERSION ?= $(shell git describe --tags)
+
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
+
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
@@ -11,8 +14,19 @@ BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
 endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
+MAKEFLAGS += --warn-undefined-variables
+SHELL := bash
+.SHELLFLAGS := -eu -o pipefail -c
+.DELETE_ON_ERROR:
+.SUFFIXES:
+.ONESHELL:
+
+# The Docker repository name, overridden in CI.
+DOCKER_REGISTRY ?= ghcr.io
+DOCKER_IMAGE_NAME ?= cert-manager/aws-privateca-issuer/controller
+
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/jniebuhr/aws-pca-issuer:latest
+IMG ?= ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${VERSION}
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -68,10 +82,17 @@ install: manifests kustomize
 uninstall: manifests kustomize
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
+.PHONY: ${INSTALL_YAML} kustomize
+${INSTALL_YAML}:
+	mkdir -p $(dir ${INSTALL_YAML})
+	rm -rf kustomization.yaml
+	$(KUSTOMIZE) create --resources ./config/default
+	$(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build . > ${INSTALL_YAML}
+
 # Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests kustomize
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+deploy: ${INSTALL_YAML}
+	kubectl apply -f ${INSTALL_YAML}
 
 # UnDeploy controller from the configured Kubernetes cluster in ~/.kube/config
 undeploy:
@@ -99,13 +120,16 @@ generate: controller-gen
 
 # Build the docker image
 docker-build: test
-	docker build -t ${IMG} .
+	docker build \
+		--build-arg VERSION=$(VERSION) \
+		--tag ${IMG} \
+		--file Dockerfile \
+		${CURDIR}
 
 # Push the docker image
 docker-push:
 	docker push ${IMG}
 
-# Download controller-gen locally if necessary
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen:
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
@@ -170,7 +194,7 @@ kind-load: ## Load all the Docker images into Kind
 kind-export-logs:
 	${KIND} export logs --name ${K8S_CLUSTER_NAME} ${E2E_ARTIFACTS_DIRECTORY}
 
-.PHONY: deploy-cert-managerkubectl logs -f -l name=myLabel --all-containers 
+.PHONY: deploy-cert-manager
 deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
 	kubectl apply --filename=https://github.com/jetstack/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.yaml
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io
@@ -181,7 +205,7 @@ e2e:
 
 #Run the unit tests, then setup the e2e test, run the tests, and then clean up
 .PHONY: runtests
-runtests: kind-cluster deploy-cert-manager docker-build kind-load deploy e2e kind-cluster-delete
+runtests: manager kind-cluster deploy-cert-manager docker-build kind-load deploy e2e kind-cluster-delete
 
 # ==================================
 # Download: tools in ${BIN}
