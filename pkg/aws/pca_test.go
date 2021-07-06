@@ -169,8 +169,9 @@ func (m *workingACMPCAClient) GetCertificate(_ context.Context, input *acmpca.Ge
 
 func TestPCATemplateArn(t *testing.T) {
 	var (
-		arn    = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
-		govArn = "arn:aws-us-gov:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		arn     = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		govArn  = "arn:aws-us-gov:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		fakeArn = "arn:fake:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
 	)
 
 	type testCase struct {
@@ -239,6 +240,15 @@ func TestPCATemplateArn(t *testing.T) {
 			response := templateArn(govArn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "us-gov returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:aws-us-gov:"), "us-gov returns expected ARN prefix")
+		})
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+
+			response := templateArn(fakeArn, spec)
+			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "fake arn returns expected template")
+			assert.True(t, strings.HasPrefix(response, "arn:fake:"), "fake arn returns expected ARN prefix")
 		})
 	}
 }

@@ -151,10 +151,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 }
 
 func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
-	prefix := "arn:aws:"
-	if strings.HasPrefix(caArn, "arn:aws-us-gov:") {
-		prefix = "arn:aws-us-gov:"
-	}
+	arn := strings.SplitAfterN(caArn, ":", 3)
+	prefix := arn[0] + arn[1]
 
 	if len(spec.Usages) == 1 {
 		switch spec.Usages[0] {
