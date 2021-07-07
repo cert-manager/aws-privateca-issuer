@@ -95,7 +95,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -151,7 +151,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Name: "clusterissuer1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name: "clusterissuer1-credentials",
 						},
 						Region: "us-east-1",
@@ -207,7 +207,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -325,7 +325,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},

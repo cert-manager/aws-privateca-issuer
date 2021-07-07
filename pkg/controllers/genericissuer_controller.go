@@ -96,19 +96,29 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return ctrl.Result{}, err
 		}
 
-		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
+		key := "AWS_ACCESS_KEY_ID"
+		if spec.SecretRef.AccessKeyIDSelector.Key != "" {
+			key = spec.SecretRef.AccessKeyIDSelector.Key
+		}
+		accessKey, ok := secret.Data[key]
 		if !ok {
 			err := errNoAccessKeyID
-			log.Error(err, "secret value AWS_ACCESS_KEY_ID was not found")
-			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
+			msg := fmt.Sprintf("secret value %s for access key ID was not found", key)
+			log.Error(err, msg)
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", msg)
 			return ctrl.Result{}, err
 		}
 
-		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
+		key = "AWS_SECRET_ACCESS_KEY"
+		if spec.SecretRef.SecretAccessKeySelector.Key != "" {
+			key = spec.SecretRef.SecretAccessKeySelector.Key
+		}
+		secretKey, ok := secret.Data[key]
 		if !ok {
 			err := errNoSecretAccessKey
-			log.Error(err, "secret value AWS_SECRET_ACCESS_KEY was not found")
-			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
+			msg := fmt.Sprintf("secret value %s for secret access key was not found", key)
+			log.Error(err, msg)
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", msg)
 			return ctrl.Result{}, err
 		}
 
