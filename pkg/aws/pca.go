@@ -25,6 +25,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -107,12 +108,15 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		validityDays = int64(cr.Spec.Duration.Hours() / 24)
 	}
 
+	tempArn := templateArn(p.arn, cr.Spec)
+
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
 	token := idempotencyToken(cr)
 
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 		SigningAlgorithm:        sigAlgorithm,
+		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
 		Validity: &acmpcatypes.Validity{
 			Type:  acmpcatypes.ValidityPeriodTypeDays,
@@ -152,6 +156,32 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	certPem = append(certPem, chainIntCAs...)
 
 	return certPem, rootCA, nil
+}
+
+func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
+	arn := strings.SplitAfterN(caArn, ":", 3)
+	prefix := arn[0] + arn[1]
+
+	if len(spec.Usages) == 1 {
+		switch spec.Usages[0] {
+		case cmapi.UsageCodeSigning:
+			return prefix + "acm-pca:::template/CodeSigningCertificate/V1"
+		case cmapi.UsageClientAuth:
+			return prefix + "acm-pca:::template/EndEntityClientAuthCertificate/V1"
+		case cmapi.UsageServerAuth:
+			return prefix + "acm-pca:::template/EndEntityServerAuthCertificate/V1"
+		case cmapi.UsageOCSPSigning:
+			return prefix + "acm-pca:::template/OCSPSigningCertificate/V1"
+		}
+	} else if len(spec.Usages) == 2 {
+		clientServer := (spec.Usages[0] == cmapi.UsageClientAuth && spec.Usages[1] == cmapi.UsageServerAuth)
+		serverClient := (spec.Usages[0] == cmapi.UsageServerAuth && spec.Usages[1] == cmapi.UsageClientAuth)
+		if clientServer || serverClient {
+			return prefix + "acm-pca:::template/EndEntityCertificate/V1"
+		}
+	}
+
+	return prefix + "acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1"
 }
 
 func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {
