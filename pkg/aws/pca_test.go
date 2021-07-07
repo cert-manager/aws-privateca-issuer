@@ -21,6 +21,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -184,6 +185,92 @@ func (m *workingACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.
 
 func (m *workingACMPCAClient) GetCertificate(_ context.Context, input *acmpca.GetCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.GetCertificateOutput, error) {
 	return &acmpca.GetCertificateOutput{Certificate: &cert, CertificateChain: &chain}, nil
+}
+
+func TestPCATemplateArn(t *testing.T) {
+	var (
+		arn     = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		govArn  = "arn:aws-us-gov:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		fakeArn = "arn:fake:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+	)
+
+	type testCase struct {
+		expectedSuffix string
+		keyUsages      []v1.KeyUsage
+	}
+	tests := map[string]testCase{
+		"client": {
+			expectedSuffix: ":acm-pca:::template/EndEntityClientAuthCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageClientAuth,
+			},
+		},
+		"server": {
+			expectedSuffix: ":acm-pca:::template/EndEntityServerAuthCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageServerAuth,
+			},
+		},
+		"client server": {
+			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageClientAuth,
+				v1.UsageServerAuth,
+			},
+		},
+		"server client": {
+			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageServerAuth,
+				v1.UsageClientAuth,
+			},
+		},
+		"code signing": {
+			expectedSuffix: ":acm-pca:::template/CodeSigningCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageCodeSigning,
+			},
+		},
+		"ocsp signing": {
+			expectedSuffix: ":acm-pca:::template/OCSPSigningCertificate/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageOCSPSigning,
+			},
+		},
+		"other": {
+			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1",
+			keyUsages: []v1.KeyUsage{
+				v1.UsageTimestamping,
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+
+			response := templateArn(arn, spec)
+			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "returns expected template")
+			assert.True(t, strings.HasPrefix(response, "arn:aws:"), "returns expected ARN prefix")
+		})
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+
+			response := templateArn(govArn, spec)
+			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "us-gov returns expected template")
+			assert.True(t, strings.HasPrefix(response, "arn:aws-us-gov:"), "us-gov returns expected ARN prefix")
+		})
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+
+			response := templateArn(fakeArn, spec)
+			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "fake arn returns expected template")
+			assert.True(t, strings.HasPrefix(response, "arn:fake:"), "fake arn returns expected ARN prefix")
+		})
+	}
 }
 
 func TestIdempotencyToken(t *testing.T) {
