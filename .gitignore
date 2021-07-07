@@ -27,3 +27,6 @@ testbin/*
 #ignore files created during integ tests
 secret
 catemplate
+kustomization.yaml
+build
+build/*

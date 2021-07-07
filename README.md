@@ -25,7 +25,7 @@ Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes
 Then install AWS PCA Issuer using Helm:
 
 ```shell
-helm repo add awspca https://jniebuhr.github.io/aws-pca-issuer/
+helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
 helm install awspca/aws-pca-issuer --generate-name
 ```
 
@@ -47,8 +47,8 @@ A minimal policy to use the issuer with an authority would look like follows:
     {
       "Sid": "awspcaissuer",
       "Action": [
+        "acm-pca:DescribeCertificateAuthority",
         "acm-pca:GetCertificate",
-        "acm-pca:GetCertificateAuthorityCertificate",
         "acm-pca:IssueCertificate"
       ],
       "Effect": "Allow",
@@ -101,6 +101,7 @@ For running the integration tests you will need a few things:
 * [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [Kubebuilder v2.3.1+](https://book.kubebuilder.io/quick-start.html#installation)
 * [Kustomize v3.8.1+](https://kustomize.io/)
+* [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 
 ### How the integration tests work / How to run them
 

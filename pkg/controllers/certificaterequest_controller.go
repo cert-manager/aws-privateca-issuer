@@ -20,9 +20,9 @@ import (
 	"context"
 	"fmt"
 
-	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
+	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -36,9 +36,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	cmutil "github.com/jetstack/cert-manager/pkg/api/util"
 	cmmeta "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
-	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 )
 
 // CertificateRequestReconciler reconciles a AWSPCAIssuer object

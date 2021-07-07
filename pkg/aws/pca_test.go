@@ -14,8 +14,6 @@ package aws
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -153,12 +151,32 @@ type errorACMPCAClient struct {
 	acmPCAClient
 }
 
+func (m *errorACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
+	return &acmpca.DescribeCertificateAuthorityOutput{
+		CertificateAuthority: &types.CertificateAuthority{
+			CertificateAuthorityConfiguration: &types.CertificateAuthorityConfiguration{
+				SigningAlgorithm: types.SigningAlgorithmSha256withecdsa,
+			},
+		},
+	}, nil
+}
+
 func (m *errorACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.IssueCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error) {
 	return nil, errors.New("Cannot issue certificate")
 }
 
 type workingACMPCAClient struct {
 	acmPCAClient
+}
+
+func (m *workingACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
+	return &acmpca.DescribeCertificateAuthorityOutput{
+		CertificateAuthority: &types.CertificateAuthority{
+			CertificateAuthorityConfiguration: &types.CertificateAuthorityConfiguration{
+				SigningAlgorithm: types.SigningAlgorithmSha256withecdsa,
+			},
+		},
+	}, nil
 }
 
 func (m *workingACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.IssueCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error) {
@@ -251,71 +269,6 @@ func TestPCATemplateArn(t *testing.T) {
 			response := templateArn(fakeArn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "fake arn returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:fake:"), "fake arn returns expected ARN prefix")
-		})
-	}
-}
-
-func TestPCASignatureAlgorithm(t *testing.T) {
-	type createKey func() (priv interface{})
-
-	type testCase struct {
-		expectedAlgorithm types.SigningAlgorithm
-		createKeyFun      createKey
-	}
-	tests := map[string]testCase{
-		"success-RSA-2048": {
-			expectedAlgorithm: types.SigningAlgorithmSha256withrsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := rsa.GenerateKey(rand.Reader, 2048)
-				return keyBytes
-			},
-		},
-		"success-RSA-3072": {
-			expectedAlgorithm: types.SigningAlgorithmSha384withrsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := rsa.GenerateKey(rand.Reader, 3072)
-				return keyBytes
-			},
-		},
-		"success-RSA-4096": {
-			expectedAlgorithm: types.SigningAlgorithmSha512withrsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := rsa.GenerateKey(rand.Reader, 4096)
-				return keyBytes
-			},
-		},
-		"success-ECDSA-521": {
-			expectedAlgorithm: types.SigningAlgorithmSha512withecdsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
-				return keyBytes
-			},
-		},
-		"success-ECDSA-384": {
-			expectedAlgorithm: types.SigningAlgorithmSha384withecdsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-				return keyBytes
-			},
-		},
-		"success-ECDSA-256": {
-			expectedAlgorithm: types.SigningAlgorithmSha256withecdsa,
-			createKeyFun: func() (priv interface{}) {
-				keyBytes, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-				return keyBytes
-			},
-		},
-	}
-
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, tc.createKeyFun())
-			csr, _ := x509.ParseCertificateRequest(csrBytes)
-			response, _ := signatureAlgorithm(csr)
-
-			if tc.expectedAlgorithm != response {
-				assert.Fail(t, "Expected type %v, but got %s", tc.expectedAlgorithm, response)
-			}
 		})
 	}
 }

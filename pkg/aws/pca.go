@@ -19,10 +19,7 @@ package aws
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"crypto/md5"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -46,13 +43,15 @@ type GenericProvisioner interface {
 // acmPCAClient abstracts over the methods used from acmpca.Client
 type acmPCAClient interface {
 	acmpca.GetCertificateAPIClient
+	DescribeCertificateAuthority(ctx context.Context, params *acmpca.DescribeCertificateAuthorityInput, optFns ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error)
 	IssueCertificate(ctx context.Context, params *acmpca.IssueCertificateInput, optFns ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error)
 }
 
 // PCAProvisioner contains logic for issuing PCA certificates
 type PCAProvisioner struct {
-	pcaClient acmPCAClient
-	arn       string
+	pcaClient        acmPCAClient
+	arn              string
+	signingAlgorithm *acmpcatypes.SigningAlgorithm
 }
 
 // GetProvisioner gets a provisioner that has previously been stored
@@ -93,16 +92,6 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		return nil, nil, fmt.Errorf("failed to decode CSR")
 	}
 
-	csr, err := x509.ParseCertificateRequest(block.Bytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	sigAlgorithm, err := signatureAlgorithm(csr)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	validityDays := int64(30)
 	if cr.Spec.Duration != nil {
 		validityDays = int64(cr.Spec.Duration.Hours() / 24)
@@ -113,9 +102,14 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
 	token := idempotencyToken(cr)
 
+	err := getSigningAlgorithm(ctx, p)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
-		SigningAlgorithm:        sigAlgorithm,
+		SigningAlgorithm:        *p.signingAlgorithm,
 		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
 		Validity: &acmpcatypes.Validity{
@@ -156,6 +150,24 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 	certPem = append(certPem, chainIntCAs...)
 
 	return certPem, rootCA, nil
+}
+
+func getSigningAlgorithm(ctx context.Context, p *PCAProvisioner) error {
+	if p.signingAlgorithm != nil {
+		return nil
+	}
+
+	describeParams := acmpca.DescribeCertificateAuthorityInput{
+		CertificateAuthorityArn: aws.String(p.arn),
+	}
+	describeOutput, err := p.pcaClient.DescribeCertificateAuthority(ctx, &describeParams)
+
+	if err != nil {
+		return err
+	}
+
+	p.signingAlgorithm = &describeOutput.CertificateAuthority.CertificateAuthorityConfiguration.SigningAlgorithm
+	return nil
 }
 
 func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
@@ -205,48 +217,4 @@ func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {
 		}
 	}
 	return caChainCerts, rootCACert, nil
-}
-
-func signatureAlgorithm(cr *x509.CertificateRequest) (acmpcatypes.SigningAlgorithm, error) {
-	switch cr.PublicKeyAlgorithm {
-	case x509.RSA:
-		pubKey, ok := cr.PublicKey.(*rsa.PublicKey)
-		if !ok {
-			return "", fmt.Errorf("failed to read public key")
-		}
-
-		switch {
-		case pubKey.N.BitLen() >= 4096:
-			return acmpcatypes.SigningAlgorithmSha512withrsa, nil
-		case pubKey.N.BitLen() >= 3072:
-			return acmpcatypes.SigningAlgorithmSha384withrsa, nil
-		case pubKey.N.BitLen() >= 2048:
-			return acmpcatypes.SigningAlgorithmSha256withrsa, nil
-		case pubKey.N.BitLen() == 0:
-			return acmpcatypes.SigningAlgorithmSha256withrsa, nil
-		default:
-			return "", fmt.Errorf("unsupported rsa keysize specified: %d", pubKey.N.BitLen())
-		}
-	case x509.ECDSA:
-		pubKey, ok := cr.PublicKey.(*ecdsa.PublicKey)
-		if !ok {
-			return "", fmt.Errorf("failed to read public key")
-		}
-
-		switch pubKey.Curve.Params().BitSize {
-		case 521:
-			return acmpcatypes.SigningAlgorithmSha512withecdsa, nil
-		case 384:
-			return acmpcatypes.SigningAlgorithmSha384withecdsa, nil
-		case 256:
-			return acmpcatypes.SigningAlgorithmSha256withecdsa, nil
-		case 0:
-			return acmpcatypes.SigningAlgorithmSha256withecdsa, nil
-		default:
-			return "", fmt.Errorf("unsupported ecdsa keysize specified: %d", pubKey.Curve.Params().BitSize)
-		}
-
-	default:
-		return "", fmt.Errorf("unsupported public key algorithm: %v", cr.PublicKeyAlgorithm)
-	}
 }

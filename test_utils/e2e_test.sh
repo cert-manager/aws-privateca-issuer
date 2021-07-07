@@ -62,6 +62,7 @@ kubectl apply --filename secret
 fillInCATemplate config/samples/awspcaclusterissuer_ec/_v1beta1_awspcaclusterissuer_ec.yaml {{EC_CA_ARN}} $ECARN
 kubectl apply --filename catemplate
 kubectl apply --filename config/samples/awspcaclusterissuer_ec/ec_certificate_awspcaclusterissuer.yaml
+kubectl apply --filename config/samples/awspcaclusterissuer_ec/rsa_certificate_awspcaclusterissuer.yaml
 
 kubectl wait --for=condition=Ready --timeout=15s awspcaclusterissuer.awspca.cert-manager.io pca-cluster-issuer-ec
 kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-cluster-issuer-ec-cert
@@ -75,6 +76,7 @@ echo "EC cert created from Cluster issuer"
 fillInCATemplate config/samples/awspcaclusterissuer_rsa/_v1beta1_awspcaclusterissuer_rsa.yaml {{RSA_CA_ARN}} $RSAARN
 kubectl apply --filename catemplate
 kubectl apply --filename config/samples/awspcaclusterissuer_rsa/rsa_certificate_awspcaclusterissuer.yaml
+kubectl apply --filename config/samples/awspcaclusterissuer_rsa/ec_certificate_awspcaclusterissuer.yaml
 
 kubectl wait --for=condition=Ready --timeout=15s awspcaclusterissuer.awspca.cert-manager.io pca-cluster-issuer-rsa
 kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-cluster-issuer-rsa-cert
