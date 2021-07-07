@@ -48,6 +48,51 @@ func TestIssuerReconcile(t *testing.T) {
 	}
 
 	tests := map[string]testCase{
+		"success-with-secret-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.SecretReference{
+							Name:      "issuer1-credentials",
+							Namespace: "ns1",
+							SecretAccessKeySelector: issuerapi.SecretSelector{
+								Key: "fake-secret-access-key",
+							},
+							AccessKeyIDSelector: issuerapi.SecretSelector{
+								Key: "fake-access-key-id",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionUnknown,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"fake-access-key-id":     []byte("ZXhhbXBsZQ=="),
+						"fake-secret-access-key": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: metav1.ConditionTrue,
+			expectedResult:               ctrl.Result{},
+		},
 		"success-issuer": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
 			objects: []client.Object{
@@ -57,7 +102,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -96,7 +141,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Name: "clusterissuer1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name: "clusterissuer1-credentials",
 						},
 						Region: "us-east-1",
@@ -133,7 +178,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -172,7 +217,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -211,7 +256,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -241,6 +286,49 @@ func TestIssuerReconcile(t *testing.T) {
 			expectedError:                errNoAccessKeyID,
 			expectedResult:               ctrl.Result{},
 		},
+		"failure-issuer-no-access-key-specified-with-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.SecretReference{
+							Name:      "issuer1-credentials",
+							Namespace: "ns1",
+							AccessKeyIDSelector: issuerapi.SecretSelector{
+								Key: "fake-access-key-id",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionUnknown,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: metav1.ConditionFalse,
+			expectedError:                errNoAccessKeyID,
+			expectedResult:               ctrl.Result{},
+		},
 		"failure-issuer-no-secret-access-key-specified": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
 			objects: []client.Object{
@@ -250,7 +338,7 @@ func TestIssuerReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
+						SecretRef: issuerapi.SecretReference{
 							Name:      "issuer1-credentials",
 							Namespace: "ns1",
 						},
@@ -273,6 +361,49 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Data: map[string][]byte{
 						"AWS_ACCESS_KEY_ID": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: metav1.ConditionFalse,
+			expectedError:                errNoSecretAccessKey,
+			expectedResult:               ctrl.Result{},
+		},
+		"failure-issuer-no-secret-access-key-specified-with-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.SecretReference{
+							Name:      "issuer1-credentials",
+							Namespace: "ns1",
+							SecretAccessKeySelector: issuerapi.SecretSelector{
+								Key: "fake-secret-access-key",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionUnknown,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
 					},
 				},
 			},

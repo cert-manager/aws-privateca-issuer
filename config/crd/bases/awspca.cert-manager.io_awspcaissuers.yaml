@@ -46,6 +46,15 @@ spec:
                 description: Needs to be specified if you want to authorize with AWS
                   using an access and secret key
                 properties:
+                  accessKeyIDSelector:
+                    description: Specifies the secret key where the AWS Access Key
+                      ID exists
+                    properties:
+                      key:
+                        description: The key of the entry in the Secret resource's
+                          `data` field to be used.
+                        type: string
+                    type: object
                   name:
                     description: Name is unique within a namespace to reference a
                       secret resource.
@@ -54,6 +63,15 @@ spec:
                     description: Namespace defines the space within which the secret
                       name must be unique.
                     type: string
+                  secretAccessKeySelector:
+                    description: Specifies the secret key where the AWS Secret Access
+                      Key exists
+                    properties:
+                      key:
+                        description: The key of the entry in the Secret resource's
+                          `data` field to be used.
+                        type: string
+                    type: object
                 type: object
             type: object
           status:
