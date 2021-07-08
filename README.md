@@ -36,6 +36,8 @@ You can check the chart configuration in the default [values](https://github.com
 
 As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
 
+Alternatively, you can supply arbitrary secrets for the access and secret keys with the `accessKeyIDSelector` and `secretAccessKeySelector` fields in the clusterissuer and/or issuer manifests.
+
 Access to AWS can also be configured using an EC2 instance role.
 
 A minimal policy to use the issuer with an authority would look like follows:
