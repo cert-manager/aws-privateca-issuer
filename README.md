@@ -26,7 +26,7 @@ Then install AWS PCA Issuer using Helm:
 
 ```shell
 helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
-helm install awspca/aws-pca-issuer --generate-name
+helm install awspca/aws-privateca-issuer --generate-name
 ```
 
 You can check the chart configuration in the default [values](https://github.com/cert-manager/aws-privateca-issuer/blob/master/charts/aws-pca-issuer/values.yaml) file.
