@@ -23,6 +23,7 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
@@ -77,47 +78,16 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	config := aws.Config{}
+	var cfg, cfgErr = r.getConfig(ctx, spec)
 
-	if spec.Region != "" {
-		config.Region = spec.Region
-	}
-
-	if spec.SecretRef.Name != "" {
-		secretNamespaceName := types.NamespacedName{
-			Namespace: spec.SecretRef.Namespace,
-			Name:      spec.SecretRef.Name,
-		}
-
-		secret := new(core.Secret)
-		if err := r.Client.Get(ctx, secretNamespaceName, secret); err != nil {
-			log.Error(err, "failed to retrieve AWS secret")
-			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "Failed to retrieve secret: %v", err)
-			return ctrl.Result{}, err
-		}
-
-		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
-		if !ok {
-			err := errNoAccessKeyID
-			log.Error(err, "secret value AWS_ACCESS_KEY_ID was not found")
-			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_ACCESS_KEY_ID was not found")
-			return ctrl.Result{}, err
-		}
-
-		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
-		if !ok {
-			err := errNoSecretAccessKey
-			log.Error(err, "secret value AWS_SECRET_ACCESS_KEY was not found")
-			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", "secret value AWS_SECRET_ACCESS_KEY was not found")
-			return ctrl.Result{}, err
-		}
-
-		config.Credentials = credentials.NewStaticCredentialsProvider(
-			string(accessKey), string(secretKey), "")
+	if cfgErr != nil {
+		log.Error(cfgErr, "Error loading config")
+		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", cfgErr.Error())
+		return ctrl.Result{}, err
 	}
 
 	if r.GetCallerIdentity {
-		id, err := sts.NewFromConfig(config).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+		id, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			log.Error(err, "failed to sts.GetCallerIdentity")
 			return ctrl.Result{}, err
@@ -125,7 +95,8 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Info("sts.GetCallerIdentity", "arn", id.Arn, "account", id.Account, "user_id", id.UserId)
 	}
 
-	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(config, spec.Arn))
+	log.Info("Calling StoreProvisioner")
+	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(cfg, spec.Arn))
 
 	return ctrl.Result{}, r.setStatus(ctx, issuer, metav1.ConditionTrue, "Verified", "Issuer verified")
 }
@@ -152,4 +123,41 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 		return fmt.Errorf(errNoRegionInSpec.Error())
 	}
 	return nil
+}
+
+func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+	if spec.Region != "" {
+		return config.LoadDefaultConfig(ctx,
+			config.WithRegion("us-east-1"),
+			config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody),
+		)
+	}
+
+	if spec.SecretRef.Name != "" {
+		secretNamespaceName := types.NamespacedName{
+			Namespace: spec.SecretRef.Namespace,
+			Name:      spec.SecretRef.Name,
+		}
+
+		secret := new(core.Secret)
+		if err := r.Client.Get(ctx, secretNamespaceName, secret); err != nil {
+			return aws.Config{}, errors.New(fmt.Sprintln("Failed to retrieve secret: %v", err))
+		}
+
+		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
+		if !ok {
+			return aws.Config{}, errNoAccessKeyID
+		}
+
+		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
+		if !ok {
+			return aws.Config{}, errNoSecretAccessKey
+		}
+
+		return config.LoadDefaultConfig(ctx,
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
+		)
+	}
+
+	return aws.Config{}, nil
 }

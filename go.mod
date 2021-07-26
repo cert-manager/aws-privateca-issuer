@@ -3,10 +3,11 @@ module github.com/cert-manager/aws-privateca-issuer
 go 1.15
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.5.0
-	github.com/aws/aws-sdk-go-v2/credentials v1.2.0
+	github.com/aws/aws-sdk-go-v2 v1.7.1
+	github.com/aws/aws-sdk-go-v2/config v1.5.0
+	github.com/aws/aws-sdk-go-v2/credentials v1.3.1
 	github.com/aws/aws-sdk-go-v2/service/acmpca v1.4.0
-	github.com/aws/aws-sdk-go-v2/service/sts v1.4.0
+	github.com/aws/aws-sdk-go-v2/service/sts v1.6.0
 	github.com/go-logr/logr v0.3.0
 	github.com/jetstack/cert-manager v1.3.1
 	github.com/stretchr/testify v1.6.1
