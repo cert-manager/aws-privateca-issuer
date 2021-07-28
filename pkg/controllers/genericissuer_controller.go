@@ -128,8 +128,7 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
 	if spec.Region != "" {
 		return config.LoadDefaultConfig(ctx,
-			config.WithRegion("us-east-1"),
-			config.WithClientLogMode(aws.LogRequestWithBody|aws.LogResponseWithBody),
+			config.WithRegion(spec.Region),
 		)
 	}
 
@@ -141,7 +140,7 @@ func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPC
 
 		secret := new(core.Secret)
 		if err := r.Client.Get(ctx, secretNamespaceName, secret); err != nil {
-			return aws.Config{}, errors.New(fmt.Sprintln("Failed to retrieve secret: %v", err))
+			return aws.Config{}, fmt.Errorf("failed to retrieve secret: %v", err)
 		}
 
 		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
