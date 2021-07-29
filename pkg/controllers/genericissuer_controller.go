@@ -83,7 +83,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	if cfgErr != nil {
 		log.Error(cfgErr, "Error loading config")
 		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", cfgErr.Error())
-		return ctrl.Result{}, err
+		return ctrl.Result{}, cfgErr
 	}
 
 	if r.GetCallerIdentity {
@@ -126,12 +126,6 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 }
 
 func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
-	if spec.Region != "" {
-		return config.LoadDefaultConfig(ctx,
-			config.WithRegion(spec.Region),
-		)
-	}
-
 	if spec.SecretRef.Name != "" {
 		secretNamespaceName := types.NamespacedName{
 			Namespace: spec.SecretRef.Namespace,
@@ -156,7 +150,11 @@ func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPC
 		return config.LoadDefaultConfig(ctx,
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
 		)
+	} else if spec.Region != "" {
+		return config.LoadDefaultConfig(ctx,
+			config.WithRegion(spec.Region),
+		)
 	}
 
-	return aws.Config{}, nil
+	return config.LoadDefaultConfig(ctx)
 }
