@@ -24,7 +24,6 @@ import (
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 
@@ -187,7 +186,7 @@ func (r *CertificateRequestReconciler) SetupWithManager(mgr ctrl.Manager) error 
 
 func isReady(issuer api.GenericIssuer) bool {
 	for _, condition := range issuer.GetStatus().Conditions {
-		if condition.Type == api.ConditionTypeReady && condition.Status == v1.ConditionTrue {
+		if condition.Type == api.ConditionTypeReady && condition.Status == metav1.ConditionTrue {
 			return true
 		}
 	}
