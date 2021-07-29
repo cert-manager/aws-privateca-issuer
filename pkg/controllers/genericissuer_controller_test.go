@@ -58,12 +58,14 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
-							SecretAccessKeySelector: issuerapi.SecretSelector{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							SecretAccessKeySelector: v1.SecretKeySelector{
 								Key: "fake-secret-access-key",
 							},
-							AccessKeyIDSelector: issuerapi.SecretSelector{
+							AccessKeyIDSelector: v1.SecretKeySelector{
 								Key: "fake-access-key-id",
 							},
 						},
@@ -103,8 +105,10 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -142,7 +146,9 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name: "clusterissuer1-credentials",
+							SecretReference: v1.SecretReference{
+								Name: "clusterissuer1-credentials",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -179,8 +185,10 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Arn: "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
 					},
@@ -218,8 +226,10 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 					},
@@ -257,8 +267,10 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -296,9 +308,11 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
-							AccessKeyIDSelector: issuerapi.SecretSelector{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							AccessKeyIDSelector: v1.SecretKeySelector{
 								Key: "fake-access-key-id",
 							},
 						},
@@ -339,8 +353,10 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -378,9 +394,11 @@ func TestIssuerReconcile(t *testing.T) {
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
-							SecretAccessKeySelector: issuerapi.SecretSelector{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							SecretAccessKeySelector: v1.SecretKeySelector{
 								Key: "fake-secret-access-key",
 							},
 						},

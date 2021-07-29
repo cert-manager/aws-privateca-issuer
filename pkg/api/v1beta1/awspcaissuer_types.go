@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,24 +40,11 @@ type AWSPCAIssuerSpec struct {
 }
 
 type SecretReference struct {
-	// Name is unique within a namespace to reference a secret resource.
-	// +optional
-	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Namespace defines the space within which the secret name must be unique.
-	// +optional
-	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// Specifies the secret key where the AWS Access Key ID exists
-	// +optional
-	AccessKeyIDSelector SecretSelector `json:"accessKeyIDSelector,omitempty"`
+	core.SecretReference `json:"secretReference,omitempty"`
+	AccessKeyIDSelector  core.SecretKeySelector `json:"accessKeyIDSelector,omitempty"`
 	// Specifies the secret key where the AWS Secret Access Key exists
 	// +optional
-	SecretAccessKeySelector SecretSelector `json:"secretAccessKeySelector,omitempty"`
-}
-
-// SecretSelector references a key within a Secret resource.
-type SecretSelector struct {
-	// The key of the entry in the Secret resource's `data` field to be used.
-	Key string `json:"key,omitempty"`
+	SecretAccessKeySelector core.SecretKeySelector `json:"secretAccessKeySelector,omitempty"`
 }
 
 // AWSPCAIssuerStatus defines the observed state of AWSPCAIssuer

@@ -47,29 +47,53 @@ spec:
                   using an access and secret key
                 properties:
                   accessKeyIDSelector:
-                    description: Specifies the secret key where the AWS Access Key
-                      ID exists
+                    description: SecretKeySelector selects a key of a Secret.
                     properties:
                       key:
-                        description: The key of the entry in the Secret resource's
-                          `data` field to be used.
+                        description: The key of the secret to select from.  Must be
+                          a valid secret key.
                         type: string
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
+                        type: string
+                      optional:
+                        description: Specify whether the Secret or its key must be
+                          defined
+                        type: boolean
+                    required:
+                    - key
                     type: object
-                  name:
-                    description: Name is unique within a namespace to reference a
-                      secret resource.
-                    type: string
-                  namespace:
-                    description: Namespace defines the space within which the secret
-                      name must be unique.
-                    type: string
                   secretAccessKeySelector:
                     description: Specifies the secret key where the AWS Secret Access
                       Key exists
                     properties:
                       key:
-                        description: The key of the entry in the Secret resource's
-                          `data` field to be used.
+                        description: The key of the secret to select from.  Must be
+                          a valid secret key.
+                        type: string
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
+                        type: string
+                      optional:
+                        description: Specify whether the Secret or its key must be
+                          defined
+                        type: boolean
+                    required:
+                    - key
+                    type: object
+                  secretReference:
+                    description: SecretReference represents a Secret Reference. It
+                      has enough information to retrieve secret in any namespace
+                    properties:
+                      name:
+                        description: Name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: Namespace defines the space within which the
+                          secret name must be unique.
                         type: string
                     type: object
                 type: object
