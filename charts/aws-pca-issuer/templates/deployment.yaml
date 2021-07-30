@@ -33,6 +33,10 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.envs }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           command:
             - /manager
           args:
