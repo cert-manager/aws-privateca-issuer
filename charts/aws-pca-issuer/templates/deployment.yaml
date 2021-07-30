@@ -40,6 +40,10 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
+          {{- with .Values.envs }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 8080
               name: http
