@@ -16,7 +16,6 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 MAKEFLAGS += --warn-undefined-variables
 SHELL := bash
-.SHELLFLAGS := -eu -o pipefail -c
 .DELETE_ON_ERROR:
 .SUFFIXES:
 .ONESHELL:
@@ -83,7 +82,7 @@ uninstall: manifests kustomize
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 .PHONY: ${INSTALL_YAML} kustomize
-${INSTALL_YAML}:
+${INSTALL_YAML}: kustomize
 	mkdir -p $(dir ${INSTALL_YAML})
 	rm -rf kustomization.yaml
 	$(KUSTOMIZE) create --resources ./config/default
