@@ -17,7 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	core "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -36,15 +36,17 @@ type AWSPCAIssuerSpec struct {
 	Region string `json:"region,omitempty"`
 	// Needs to be specified if you want to authorize with AWS using an access and secret key
 	// +optional
-	SecretRef SecretReference `json:"secretRef,omitempty"`
+	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
 }
 
-type SecretReference struct {
-	core.SecretReference `json:"secretReference,omitempty"`
-	AccessKeyIDSelector  core.SecretKeySelector `json:"accessKeyIDSelector,omitempty"`
+type AWSCredentialsSecretReference struct {
+	v1.SecretReference `json:""`
+	// Specifies the secret key where the AWS Access Key ID exists
+	// +optional
+	AccessKeyIDSelector v1.SecretKeySelector `json:"accessKeyIDSelector,omitempty"`
 	// Specifies the secret key where the AWS Secret Access Key exists
 	// +optional
-	SecretAccessKeySelector core.SecretKeySelector `json:"secretAccessKeySelector,omitempty"`
+	SecretAccessKeySelector v1.SecretKeySelector `json:"secretAccessKeySelector,omitempty"`
 }
 
 // AWSPCAIssuerStatus defines the observed state of AWSPCAIssuer
