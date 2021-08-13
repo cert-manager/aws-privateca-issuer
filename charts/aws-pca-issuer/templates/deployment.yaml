@@ -40,9 +40,12 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
-          {{- with .Values.envs }}
+          {{- if .Values.env }}
           env:
-            {{- toYaml . | nindent 12 }}
+          {{- range $key, $value := .Values.env }}
+          - name: {{ $key }}
+            value: "{{ $value }}"
+          {{- end }}
           {{- end }}
           ports:
             - containerPort: 8080

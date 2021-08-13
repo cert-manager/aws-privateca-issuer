@@ -67,4 +67,6 @@ tolerations: []
 
 affinity: {}
 
-envs: []
+env: {}
+ #var1: myvar1
+ #var2: myvar2
