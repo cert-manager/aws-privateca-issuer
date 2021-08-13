@@ -68,10 +68,5 @@ tolerations: []
 affinity: {}
 
 env: {}
-<<<<<<< HEAD
   #var1: myvar1
   #var2: myvar2
-=======
- #var1: myvar1
- #var2: myvar2
->>>>>>> 0c8b31d (changed expected env var type to make it cleaner in the values file format)
