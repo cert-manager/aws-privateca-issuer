@@ -41,6 +41,7 @@ spec:
             - -disable-approved-check
             {{- end }}
 <<<<<<< HEAD
+<<<<<<< HEAD
           {{- if .Values.env }}
           env:
           {{- range $key, $value := .Values.env }}
@@ -52,6 +53,14 @@ spec:
           env:
             {{- toYaml . | nindent 12 }}
 >>>>>>> 6eb022a (Added ability to set env vars to enable use cases such as http/https_proxy vars)
+=======
+          {{- if .Values.env }}
+          env:
+          {{- range $key, $value := .Values.env }}
+          - name: {{ $key }}
+            value: "{{ $value }}"
+          {{- end }}
+>>>>>>> 0c8b31d (changed expected env var type to make it cleaner in the values file format)
           {{- end }}
           ports:
             - containerPort: 8080
