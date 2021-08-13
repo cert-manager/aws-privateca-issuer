@@ -40,12 +40,18 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
+<<<<<<< HEAD
           {{- if .Values.env }}
           env:
           {{- range $key, $value := .Values.env }}
           - name: {{ $key }}
             value: "{{ $value }}"
           {{- end }}
+=======
+          {{- with .Values.envs }}
+          env:
+            {{- toYaml . | nindent 12 }}
+>>>>>>> 6eb022a (Added ability to set env vars to enable use cases such as http/https_proxy vars)
           {{- end }}
           ports:
             - containerPort: 8080
