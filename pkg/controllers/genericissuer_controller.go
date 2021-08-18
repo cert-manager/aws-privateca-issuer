@@ -137,12 +137,20 @@ func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPC
 			return aws.Config{}, fmt.Errorf("failed to retrieve secret: %v", err)
 		}
 
-		accessKey, ok := secret.Data["AWS_ACCESS_KEY_ID"]
+		key := "AWS_ACCESS_KEY_ID"
+		if spec.SecretRef.AccessKeyIDSelector.Key != "" {
+			key = spec.SecretRef.AccessKeyIDSelector.Key
+		}
+		accessKey, ok := secret.Data[key]
 		if !ok {
 			return aws.Config{}, errNoAccessKeyID
 		}
 
-		secretKey, ok := secret.Data["AWS_SECRET_ACCESS_KEY"]
+		key = "AWS_SECRET_ACCESS_KEY"
+		if spec.SecretRef.SecretAccessKeySelector.Key != "" {
+			key = spec.SecretRef.SecretAccessKeySelector.Key
+		}
+		secretKey, ok := secret.Data[key]
 		if !ok {
 			return aws.Config{}, errNoSecretAccessKey
 		}

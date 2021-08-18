@@ -95,9 +95,11 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -151,8 +153,10 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Name: "clusterissuer1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
-							Name: "clusterissuer1-credentials",
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name: "clusterissuer1-credentials",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -207,9 +211,11 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
@@ -325,9 +331,11 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: issuerapi.AWSPCAIssuerSpec{
-						SecretRef: v1.SecretReference{
-							Name:      "issuer1-credentials",
-							Namespace: "ns1",
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
 						},
 						Region: "us-east-1",
 						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
