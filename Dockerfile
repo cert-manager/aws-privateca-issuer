@@ -27,7 +27,11 @@ ARG pkg_version
 RUN VERSION=$pkg_version && \
     go build \
     -ldflags="-X=github.com/cert-manager/acm-pca-issuer/internal/version.Version=${VERSION} \
+<<<<<<< HEAD
     -X v1beta1.PlugInVersion=${VERSION}" \
+=======
+    -X injections.PlugInVersion=${VERSION}" \
+>>>>>>> 646b982 (Added plug-in release number to user-agent)
     -mod=readonly \
     -o manager main.go
 
