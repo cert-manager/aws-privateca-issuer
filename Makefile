@@ -68,11 +68,7 @@ test: generate fmt vet lint manifests
 # Build manager binary
 manager: generate fmt vet lint
 	go build \
-<<<<<<< HEAD
-	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1.PlugInVersion=${VERSION}" \
-=======
-	-ldflags="-X injections.PlugInVersion=${VERSION}" \
->>>>>>> 646b982 (Added plug-in release number to user-agent)
+	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION}" \
 	-o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
