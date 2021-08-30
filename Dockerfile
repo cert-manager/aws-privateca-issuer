@@ -21,11 +21,13 @@ ENV GO111MODULE=on
 # re-compile when the version changes
 RUN go build -mod=readonly ./...
 
-ARG VERSION
+ARG pkg_version
 
 # Build
-RUN go build \
-    -ldflags="-X=github.com/cert-manager/acm-pca-issuer/internal/version.Version=${VERSION}" \
+RUN VERSION=$pkg_version && \
+    go build \
+    -ldflags="-X=github.com/cert-manager/acm-pca-issuer/internal/version.Version=${VERSION} \
+    -X v1beta1.PlugInVersion=${VERSION}" \
     -mod=readonly \
     -o manager main.go
 

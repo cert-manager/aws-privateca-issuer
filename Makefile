@@ -67,7 +67,9 @@ test: generate fmt vet lint manifests
 
 # Build manager binary
 manager: generate fmt vet lint
-	go build -o bin/manager main.go
+	go build \
+	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1.PlugInVersion=${VERSION}" \
+	-o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet lint manifests
@@ -120,7 +122,7 @@ generate: controller-gen
 # Build the docker image
 docker-build: test
 	docker build \
-		--build-arg VERSION=$(VERSION) \
+		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
 		--file Dockerfile \
 		${CURDIR}

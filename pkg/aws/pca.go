@@ -76,7 +76,7 @@ func StoreProvisioner(name types.NamespacedName, provisioner GenericProvisioner)
 func NewProvisioner(config aws.Config, arn string) (p *PCAProvisioner) {
 	return &PCAProvisioner{
 		pcaClient: acmpca.NewFromConfig(config, acmpca.WithAPIOptions(
-			middleware.AddUserAgentKeyValue("aws-privateca-issuer", api.GroupVersion.Version),
+			middleware.AddUserAgentKeyValue("aws-privateca-issuer", api.PlugInVersion),
 		)),
 		arn: arn,
 	}
