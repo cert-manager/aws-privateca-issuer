@@ -51,11 +51,11 @@ kubectl delete --all awspcaclusterissuer.awspca.cert-manager.io
 kubectl delete --all awspcaissuer.awspca.cert-manager.io
 
 #Takes AWS creds from env variables
-# ACCESS_KEY_64=$(printf $AWS_ACCESS_KEY_ID | base64)
-# SECRET_KEY_64=$(printf $AWS_SECRET_ACCESS_KEY | base64)
-# cat config/samples/secret.yaml | sed "s/{{BASE64_ACCESSKEY}}/$ACCESS_KEY_64/g" | sed "s/{{BASE64_SECRETKEY}}/$SECRET_KEY_64/g" > secret
+ACCESS_KEY_64=$(printf $AWS_ACCESS_KEY_ID | base64)
+SECRET_KEY_64=$(printf $AWS_SECRET_ACCESS_KEY | base64)
+cat config/samples/secret.yaml | sed "s/{{BASE64_ACCESSKEY}}/$ACCESS_KEY_64/g" | sed "s/{{BASE64_SECRETKEY}}/$SECRET_KEY_64/g" > secret
 
-#kubectl apply --filename secret
+kubectl apply --filename secret
 
 #Test EC cert from Cluster issuer
 fillInCATemplate config/samples/awspcaclusterissuer_ec/_v1beta1_awspcaclusterissuer_ec.yaml {{EC_CA_ARN}} $ECARN
@@ -74,48 +74,48 @@ echo "EC cert created from Cluster issuer"
 sleep 5
 
 #Test RSA cert from Cluster issuer
-# fillInCATemplate config/samples/awspcaclusterissuer_rsa/_v1beta1_awspcaclusterissuer_rsa.yaml {{RSA_CA_ARN}} $RSAARN
-# kubectl apply --filename catemplate
-# sleep 15
-# kubectl apply --filename config/samples/awspcaclusterissuer_rsa/rsa_certificate_awspcaclusterissuer.yaml
-# kubectl apply --filename config/samples/awspcaclusterissuer_rsa/ec_certificate_awspcaclusterissuer.yaml
+fillInCATemplate config/samples/awspcaclusterissuer_rsa/_v1beta1_awspcaclusterissuer_rsa.yaml {{RSA_CA_ARN}} $RSAARN
+kubectl apply --filename catemplate
+sleep 15
+kubectl apply --filename config/samples/awspcaclusterissuer_rsa/rsa_certificate_awspcaclusterissuer.yaml
+kubectl apply --filename config/samples/awspcaclusterissuer_rsa/ec_certificate_awspcaclusterissuer.yaml
 
-# kubectl wait --for=condition=Ready --timeout=15s awspcaclusterissuer.awspca.cert-manager.io pca-cluster-issuer-rsa
-# kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-cluster-issuer-rsa-cert
+kubectl wait --for=condition=Ready --timeout=15s awspcaclusterissuer.awspca.cert-manager.io pca-cluster-issuer-rsa
+kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-cluster-issuer-rsa-cert
 
-# kubectl delete --filename catemplate
-# kubectl delete --filename config/samples/awspcaclusterissuer_rsa/rsa_certificate_awspcaclusterissuer.yaml
+kubectl delete --filename catemplate
+kubectl delete --filename config/samples/awspcaclusterissuer_rsa/rsa_certificate_awspcaclusterissuer.yaml
 
-# sleep 5
-# echo "RSA cert created from Cluster issuer"
+sleep 5
+echo "RSA cert created from Cluster issuer"
 
-# #Test EC cert from Namespaced Issuer
-# fillInCATemplate config/samples/awspcaissuer_ec/_v1beta1_awspcaissuer_ec.yaml {{EC_CA_ARN}} $ECARN
-# kubectl apply --filename catemplate
-# sleep 15
-# kubectl apply --filename config/samples/awspcaissuer_ec/ec_certificate_awspcaissuer.yaml
+#Test EC cert from Namespaced Issuer
+fillInCATemplate config/samples/awspcaissuer_ec/_v1beta1_awspcaissuer_ec.yaml {{EC_CA_ARN}} $ECARN
+kubectl apply --filename catemplate
+sleep 15
+kubectl apply --filename config/samples/awspcaissuer_ec/ec_certificate_awspcaissuer.yaml
 
-# kubectl wait --for=condition=Ready --timeout=15s awspcaissuer.awspca.cert-manager.io pca-issuer-ec
-# kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-issuer-ec-cert
+kubectl wait --for=condition=Ready --timeout=15s awspcaissuer.awspca.cert-manager.io pca-issuer-ec
+kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-issuer-ec-cert
 
-# kubectl delete --filename catemplate
-# kubectl delete --filename config/samples/awspcaissuer_ec/ec_certificate_awspcaissuer.yaml
+kubectl delete --filename catemplate
+kubectl delete --filename config/samples/awspcaissuer_ec/ec_certificate_awspcaissuer.yaml
 
-# echo "EC cert created from Namespaced issuer"
-# sleep 5
+echo "EC cert created from Namespaced issuer"
+sleep 5
 
-# #Test RSA cert from Namespaced Issuer
-# fillInCATemplate config/samples/awspcaissuer_rsa/_v1beta1_awspcaissuer_rsa.yaml {{RSA_CA_ARN}} $RSAARN
-# kubectl apply --filename catemplate
-# sleep 15
-# kubectl apply --filename config/samples/awspcaissuer_rsa/rsa_certificate_awspcaissuer.yaml
+#Test RSA cert from Namespaced Issuer
+fillInCATemplate config/samples/awspcaissuer_rsa/_v1beta1_awspcaissuer_rsa.yaml {{RSA_CA_ARN}} $RSAARN
+kubectl apply --filename catemplate
+sleep 15
+kubectl apply --filename config/samples/awspcaissuer_rsa/rsa_certificate_awspcaissuer.yaml
 
-# kubectl wait --for=condition=Ready --timeout=15s awspcaissuer.awspca.cert-manager.io pca-issuer-rsa
-# kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-issuer-rsa-cert
+kubectl wait --for=condition=Ready --timeout=15s awspcaissuer.awspca.cert-manager.io pca-issuer-rsa
+kubectl wait --for=condition=Ready --timeout=15s  certificates.cert-manager.io pca-issuer-rsa-cert
 
-# kubectl delete --filename catemplate
-# kubectl delete --filename config/samples/awspcaissuer_rsa/rsa_certificate_awspcaissuer.yaml
+kubectl delete --filename catemplate
+kubectl delete --filename config/samples/awspcaissuer_rsa/rsa_certificate_awspcaissuer.yaml
 
-# echo "RSA cert created from Namepsaced issuer"
+echo "RSA cert created from Namepsaced issuer"
 
 cleanup
