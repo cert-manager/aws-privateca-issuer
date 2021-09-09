@@ -44,11 +44,13 @@ aws acm-pca get-certificate \
     --certificate-authority-arn $CAARN \
     --certificate-arn $CERTARN \
     --output text \
+    --region $region \
     --endpoint https://acm-pca.$region.amazonaws.com > cert.pem
 
 aws acm-pca import-certificate-authority-certificate \
     --certificate-authority-arn $CAARN \
     --certificate fileb://cert.pem \
+    --region $region \
     --endpoint https://acm-pca.$region.amazonaws.com
 
 #output the active CA's ARN

@@ -43,7 +43,7 @@ OS := $(shell go env GOOS)
 ARCH := $(shell go env GOARCH)
 
 # Kind
-KIND_VERSION := 0.9.0
+KIND_VERSION := 0.11.1
 KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
