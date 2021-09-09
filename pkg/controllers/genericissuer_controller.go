@@ -160,11 +160,11 @@ func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPC
 				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
 				config.WithRegion(spec.Region),
 			)
-		} else {
-			return config.LoadDefaultConfig(ctx,
-				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-			)
 		}
+
+		return config.LoadDefaultConfig(ctx,
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
+		)
 	} else if spec.Region != "" {
 		return config.LoadDefaultConfig(ctx,
 			config.WithRegion(spec.Region),
