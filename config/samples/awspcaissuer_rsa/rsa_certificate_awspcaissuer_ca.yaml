@@ -1,0 +1,20 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pca-issuer-rsa-ca-cert
+  namespace: default
+spec:
+  isCA: true
+  subject:
+    organizations:
+    - aws
+  dnsNames:
+    - issuer-rsa-example.com
+  privateKey:
+    algorithm: "RSA"
+    size: 2048
+  secretName: pca-issuer-rsa-ca-cert-tls
+  issuerRef:
+    kind: AWSPCAIssuer
+    name: pca-issuer-rsa
+    group: awspca.cert-manager.io

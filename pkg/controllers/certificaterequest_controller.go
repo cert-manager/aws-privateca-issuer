@@ -132,11 +132,6 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
-	if cr.Spec.IsCA {
-		log.Info("CA Certificates are not currently supported via the PCA external issuer")
-		return ctrl.Result{}, nil
-	}
-
 	issuerName := types.NamespacedName{
 		Namespace: cr.Namespace,
 		Name:      cr.Spec.IssuerRef.Name,
