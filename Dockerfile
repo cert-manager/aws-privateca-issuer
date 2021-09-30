@@ -1,6 +1,8 @@
 # Build the manager binary
 FROM golang:1.16 as builder
 WORKDIR /workspace
+
+ENV GOPROXY=direct
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum

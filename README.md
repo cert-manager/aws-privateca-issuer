@@ -18,6 +18,22 @@ It will ensure certificates are valid and up to date periodically, and attempt t
 
 This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS PCA.
 
+## Known Issues
+
+1. STS GetCallerIdentity failing because of a region not specified bug
+
+    There is currently a known issue with the plugin that is preventing certificate issuance due to STS GetCallerIdentity failing because of a region not specified bug, regardless of whether a region was specified or not (https://github.com/cert-manager/aws-privateca-issuer/issues/54). There is an existing pull request to fix this (https://github.com/cert-manager/aws-privateca-issuer/pull/53), but we are holding off on accepting any pull requests until our testing is redesigned. To fix this issue until then, please checkout the cleanup branch by running
+
+        git fetch -a
+        git checkout cleanup
+
+    Also, please be sure you are using the plugin with an IAM user, as that is the most reliable workflow https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey
+    This user must have minimum permissions listed here: https://github.com/cert-manager/aws-privateca-issuer#configuration
+
+        export AWS_SECRET_ACCESS_KEY=<Secret Access Key you generated>
+        export AWS_ACCESS_KEY_ID=<Access Key you generated>
+
+
 ## Setup
 
 Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes/).
@@ -128,3 +144,21 @@ If at any point, ```make runtests``` encounters an error, the integration tests 
 1. Check the secret with the AWS credentials: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY values have to be base64 encoded.
 
 2. If the generated CertificateRequest shows no events, it is very likely that you're using an older version of cert-manager which doesn't support approval check. Disable approval check at the issuer deployment.
+
+## Help & Feedback
+
+For help, please consider the following venues (in order):
+
+* Check the [Troubleshooting section](#troubleshooting)
+* [Search open issues](https://github.com/cert-manager/aws-privateca-issuer/issues)
+* [File an issue](https://github.com/cert-manager/aws-privateca-issuer/issues/new)
+* Please ask questions in the slack channel [#cert-manager-aws-privateca-issuer](https://kubernetes.slack.com/archives/C02FEDR3FN2)
+
+
+## Contributing
+
+We welcome community contributions and pull requests.
+
+See our [contribution guide](CONTRIBUTING.md) for more information on how to report issues, set up a development environment, and submit code.
+
+We adhere to the [Amazon Open Source Code of Conduct](https://aws.github.io/code-of-conduct).
