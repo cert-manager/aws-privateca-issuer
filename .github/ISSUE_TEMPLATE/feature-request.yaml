@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest an idea for this project
+title: "[Feature Request]: "
+labels: ["enhancement"]
+assignees:
+  - 
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request!
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Describe why this change is needed
+      description: A clear and concise description of what the problem is, and why this change is needed?
+    validations:
+      required: false
+  - type: textarea
+    id: solution-user
+    attributes:
+      label: Describe solutions and alternatives considered (optional)
+      description: A clear and concise description of what you want to happen, alternative solutions or features you've considered.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives-user
+    attributes:
+      label:  Is there anything else you would like to add?
+    validations:
+      required: false
+  
