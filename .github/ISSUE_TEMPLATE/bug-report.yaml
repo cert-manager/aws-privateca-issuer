@@ -1,0 +1,82 @@
+name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug"]
+assignees:
+  - 
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: Describe the expected outcome
+    validations:
+      required: true
+  - type: textarea
+    id: actual-outcome
+    attributes:
+      label: Describe the actual outcome
+    validations:
+      required: true
+  - type: textarea
+    id: steps-reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: false   
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output.
+      render: shell
+  - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: What version are you using?
+      options:
+        - 0.3.1 (Latest)
+        - 0.3.0
+        - 0.2.1
+        - 0.2.0
+    validations:
+      required: true
+  - type: checkboxes
+    id: help-used
+    attributes:
+      label: Have you tried the following?
+      options:
+        - label: Check the [Troubleshooting section](../#troubleshooting)
+          required: true
+        - label: Search open [issues](https://github.com/cert-manager/aws-privateca-issuer/issues)
+          required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      description: Select the category that best fits the issue. Please refer [Categories of Issues](../blob/master/docs/issue-categories.md) for more details.
+      options:
+        - Authentication Issue
+        - Supported Workflow Broken
+        - Build Issues
+        - Broken Testing Infrastructure
+        - Incorrect Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: Assign a severity level to this issue. Please refer [Severity of Issues](../blob/master/docs/severity.md) for more details.
+      options:
+        - Severity 1
+        - Severity 2
+        - Severity 3
+        - Severity 4
+    validations:
+      required: true

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Troubleshooting
+    url: https://github.com/cert-manager/aws-privateca-issuer/#troubleshooting
+    about: Check the basic troubleshooting steps here
+  - name: Search open issues
+    url: https://github.com/cert-manager/aws-privateca-issuer/issues
+    about: Check for any open issues or Known Issue announcements
+  - name: Slack Channel
+    url: https://kubernetes.slack.com/archives/C02FEDR3FN2
+    about: "Ask question on our slack channel #cert-manager-aws-privateca-issuer"
