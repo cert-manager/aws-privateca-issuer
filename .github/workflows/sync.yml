@@ -1,0 +1,54 @@
+# workflows to sync certain files when changes are pushed to the master branch
+name: Sync
+
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'README.md'
+      - 'config/crd/bases/**.yaml'
+
+env:
+  GITHUB_USER_NAME: github-actions
+  GITHUB_USER_EMAIL: github-actions@github.com
+  GH_PAGES_BRANCH: gh-pages
+
+jobs:
+  sync-readme:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.GH_PAGES_BRANCH }}
+      - name: Push README to gh-pages branch
+        run: |
+          git config user.name "$GITHUB_USER_NAME"
+          git config user.email "$GITHUB_USER_EMAIL"
+          git fetch -a
+          git checkout $GITHUB_SHA -- README.md
+          mv README.md index.md
+          git add index.md README.md
+          if git commit -m "Sync readme from commit $GITHUB_SHA"; then
+            git push origin $GH_PAGES_BRANCH
+          else
+            echo "Nothing committed, not pushing."
+          fi
+
+  sync-crds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Copy CRDs to helm chart and push
+        run: |
+          git config user.name "$GITHUB_USER_NAME"
+          git config user.email "$GITHUB_USER_EMAIL"
+          cp config/crd/bases/*.yaml charts/aws-pca-issuer/crds/
+          git add charts
+          if git commit -m "Sync CRDs from config to charts from commit $GITHUB_SHA"; then
+            git push origin master
+          else
+            echo "Nothing committed, not pushing"
+          fi
