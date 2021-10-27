@@ -1,4 +1,3 @@
-# workflows to sync certain files when changes are pushed to the master branch
 name: Sync
 
 on:
@@ -7,15 +6,23 @@ on:
       - 'master'
     paths:
       - 'README.md'
+  pull_request:
+    branches:
+      - 'master'
+    paths:
       - 'config/crd/bases/**.yaml'
+      - 'charts/aws-pca-issuer/crds/**.yaml'
 
 env:
   GITHUB_USER_NAME: github-actions
   GITHUB_USER_EMAIL: github-actions@github.com
   GH_PAGES_BRANCH: gh-pages
+  CONFIG_DIR: config/crd/bases
+  CHARTS_DIR: charts/aws-pca-issuer/crds
 
 jobs:
   sync-readme:
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -36,19 +43,81 @@ jobs:
             echo "Nothing committed, not pushing."
           fi
 
+  # Check if CRDs are modified in charts or config or both.
+  # Unfortunately we cannot overwrite contributor's changes
+  # using the update-pull-request-action, so we check which
+  # CRDs were changed and copy those over the unchanged CRDs.
+  # If both CRDs are changed and not equal, we fail the workflow
+  # and post a comment on the PR informing the contributor
+  # that the CRDs must be identical.
   sync-crds:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Copy CRDs to helm chart and push
+
+      - name: Check which CRDs are modified
+        id: which-crd-modified
         run: |
-          git config user.name "$GITHUB_USER_NAME"
-          git config user.email "$GITHUB_USER_EMAIL"
-          cp config/crd/bases/*.yaml charts/aws-pca-issuer/crds/
-          git add charts
-          if git commit -m "Sync CRDs from config to charts from commit $GITHUB_SHA"; then
-            git push origin master
+          URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files"
+          FILES=$(curl -s -X GET -G $URL --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' | jq -r '.[] | .filename')
+
+          changed_config=$( (echo $FILES | grep -q -E "${CONFIG_DIR}/[[:graph:]]*\.yaml" && echo true) || echo false )
+          changed_charts=$( (echo $FILES | grep -q -E "${CHARTS_DIR}/[[:graph:]]*\.yaml" && echo true) || echo false )
+
+          if $changed_config && ! $changed_charts; then
+            echo "::set-output name=result::config"
+          elif $changed_charts && ! $changed_config; then
+            echo "::set-output name=result::charts"
           else
-            echo "Nothing committed, not pushing"
+            echo "::set-output name=result::both"
           fi
+
+      - name: Copy changed config CRDs to chart
+        if: ${{ steps.which-crd-modified.outputs.result == 'config' }}
+        run: |
+          cp ${CONFIG_DIR}/*.yaml ${CHARTS_DIR}
+
+      - name: Copy changed chart CRDs to config
+        if: ${{ steps.which-crd-modified.outputs.result == 'charts' }}
+        run: |
+          cp ${CHARTS_DIR}/*.yaml ${CONFIG_DIR}
+
+      - name: Verify both CRDs are the same
+        if: ${{ steps.which-crd-modified.outputs.result == 'both' }}
+        run: |
+          for config_file in $CONFIG_DIR/*.yaml; do
+            chart_file=$CHARTS_DIR/$(basename $config_file)
+            if ! diff $config_file $chart_file; then
+              echo "${config_file} and ${chart_file} are different"
+              exit 1
+            fi
+          done
+
+      - name: Update pull request with synced CRDs
+        if: ${{ steps.which-crd-modified.outputs.result != 'both' }}
+        uses: gr2m/create-or-update-pull-request-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: ${{ github.head_ref }}
+          path: "."
+          commit-message: "Sync CRDs in config and charts directories from commit ${{ github.sha }}"
+          author: "${{ env.GITHUB_USER_NAME }} <${{ env.GITHUB_USER_EMAIL }}>"
+
+      - name: Comment on pull request that CRDs were synced
+        if: ${{ steps.which-crd-modified.outputs.result != 'both' }}
+        uses: thollander/actions-comment-pull-request@v1
+        with:
+          message: 'Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. These CRDs have been synced and the commit has been added to this PR for review.'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on pull request that CRDs were unable to be synced
+        if: ${{ failure() }}
+        uses: thollander/actions-comment-pull-request@v1
+        with:
+          message: |
+            Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. 
+            Since both CRDs were modified in this commit(s), they were unable to be automatically synced. Please update the pull request with identical CRDs for this workflow to pass.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
