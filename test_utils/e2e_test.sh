@@ -7,7 +7,7 @@ cleanup() {
     ./test_utils/delete_ca.sh $REGION $ECARN
     echo "Deleted CA $ECARN"
     ./test_utils/delete_ca.sh $REGION $RSAARN
-    echo "Deleted CA $RSAARN" 
+    echo "Deleted CA $RSAARN"
 }
 
 report_err() {
