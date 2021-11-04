@@ -5,6 +5,3 @@ metadata:
 spec:
   arn: {{RSA_CA_ARN}}
   region: {{REGION}}
-  secretRef:
-    namespace: default
-    name: pca-secret

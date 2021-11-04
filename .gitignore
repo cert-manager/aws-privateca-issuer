@@ -28,5 +28,7 @@ testbin/*
 secret
 catemplate
 kustomization.yaml
+jwks
+openid-configuration
 build
 build/*
