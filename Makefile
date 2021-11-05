@@ -1,6 +1,6 @@
 # The version which will be reported by the --version argument of each binary
 # and which will be used as the Docker image tag
-VERSION ?= $(shell git describe --tags)
+VERSION ?= $(shell git describe --tags | awk -F"-" '{print $$1}')
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -72,7 +72,9 @@ e2etest:
 
 # Build manager binary
 manager: generate fmt vet lint
-	go build -o bin/manager main.go
+	go build \
+	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION}" \
+	-o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
 run: generate fmt vet lint manifests
@@ -125,7 +127,7 @@ generate: controller-gen
 # Build the docker image
 docker-build: test
 	docker build \
-		--build-arg VERSION=$(VERSION) \
+		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
 		--file Dockerfile \
 		${CURDIR}
