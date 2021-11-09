@@ -96,9 +96,9 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		return nil, nil, fmt.Errorf("failed to decode CSR")
 	}
 
-	validityDays := int64(30)
+	validityExpiration := int64(time.Now().Unix()) + 30*24*3600
 	if cr.Spec.Duration != nil {
-		validityDays = int64(cr.Spec.Duration.Hours() / 24)
+		validityExpiration += int64(cr.Spec.Duration.Hours()) * 3600
 	}
 
 	tempArn := templateArn(p.arn, cr.Spec)
@@ -117,8 +117,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
 		Validity: &acmpcatypes.Validity{
-			Type:  acmpcatypes.ValidityPeriodTypeDays,
-			Value: &validityDays,
+			Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+			Value: &validityExpiration,
 		},
 		IdempotencyToken: aws.String(token),
 	}
