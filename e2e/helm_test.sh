@@ -61,11 +61,11 @@ main() {
 
   set -e
 
-  echo -n "Installing the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
+  echo "Installing the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
 
   helm install "$DEPLOYMENT_NAME" "$HELM_CHART_NAME" --create-namespace --namespace "$K8S_NAMESPACE" 1>/dev/null || exit 1
 
-  echo -n "ok."
+  echo "Helm chart installed."
 
   DEPLOYMENT_NAME=$(kubectl get deployments -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
 
@@ -74,6 +74,8 @@ main() {
     exit 1
   fi
 
+  echo "$DEPLOYMENT_NAME deployment found."
+
   POD_NAME=$(kubectl get pods -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
 
   if [ -z "$POD_NAME" ]; then
@@ -81,17 +83,18 @@ main() {
     exit 1
   fi
 
-  POD_STATUS=$(kubectl get pod/"$POD_NAME" -n $K8S_NAMESPACE -ojson | jq -r ".status.phase")
-  [[ $POD_STATUS == Pending ]] && echo "pod status is $POD_STATUS . Waiting ... " && sleep 10
+  kubectl wait --for=condition=ready pod  "$POD_NAME" -n $K8S_NAMESPACE --timeout=30s 1>/dev/null || exit 1
+
   POD_STATUS=$(kubectl get pod/"$POD_NAME" -n $K8S_NAMESPACE -ojson | jq -r ".status.phase")
   [[ $POD_STATUS != Running ]] && echo "pod status is $POD_STATUS . Exiting ... " && exit 1
-  echo "ok."
+  echo "$POD_NAME pod found and status is $POD_STATUS"
 
   LOGS=$(kubectl logs pod/"$POD_NAME" -n $K8S_NAMESPACE)
   if [ -z "$LOGS" ]; then
     echo "[ERROR] No controller logs found for pod $POD_NAME. Exiting ..."
     exit 1
   fi
+  echo "Logs found."
 
   if echo "$LOGS" | grep -q "ERROR"; then
     echo "[ERROR] Found following ERROR statements in controller logs."
@@ -101,15 +104,13 @@ main() {
     echo "[ERROR] Exiting ..."
     exit 1
   fi
-  echo "ok."
+  echo "No error statements found in Logs"
 
-  echo -n "uninstalling the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
+  echo "uninstalling the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
   helm uninstall --namespace "$K8S_NAMESPACE" "$DEPLOYMENT_NAME" 1>/dev/null || exit 1
-  echo "ok."
 
-  echo -n "deleting $K8S_NAMESPACE namespace ... "
+  echo "deleting $K8S_NAMESPACE namespace ... "
   kubectl delete namespace "$K8S_NAMESPACE" 1>/dev/null || exit 1
-  echo "ok."
 
   echo "Helm Test Finished Successfully"
 
