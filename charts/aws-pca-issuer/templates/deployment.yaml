@@ -40,6 +40,11 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http
@@ -70,3 +75,4 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       terminationGracePeriodSeconds: 10
+
