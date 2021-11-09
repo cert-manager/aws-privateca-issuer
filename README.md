@@ -160,7 +160,7 @@ Before running ```make cluster``` we will need to do the following:
 	   "Action": "sts:AssumeRoleWithWebIdentity",  
 	   "Condition": {  
 	     "StringEquals": {  
-	       "${OIDC_URL}:sub:system:serviceaccount:aws-privateca-issuer:aws-privateca-issuer-sa"  
+	       "${OIDC_URL}:sub": "system:serviceaccount:aws-privateca-issuer:aws-privateca-issuer-sa"  
 	     }  
 	   }  
 	 }  
