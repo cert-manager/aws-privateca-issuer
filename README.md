@@ -33,6 +33,9 @@ This project acts as an addon (see https://cert-manager.io/docs/configuration/ex
         export AWS_SECRET_ACCESS_KEY=<Secret Access Key you generated>
         export AWS_ACCESS_KEY_ID=<Access Key you generated>
 
+2. Validity durations under 24 hours causing failures
+
+    There is currently a known issue that is preventing issuance of certificates with validity durations under 24h due to a typecasting issue from float64 to int64 (https://github.com/cert-manager/aws-privateca-issuer/issues/69). There is an existing pull request to fix this (https://github.com/cert-manager/aws-privateca-issuer/pull/70), but we are holding off on accepting any pull requests until we merge in https://github.com/cert-manager/aws-privateca-issuer/pull/65. To fix this issue until then, please use validity durations that are greater than 24h.
 
 ## Setup
 
