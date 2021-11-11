@@ -33,6 +33,9 @@ This project acts as an addon (see https://cert-manager.io/docs/configuration/ex
         export AWS_SECRET_ACCESS_KEY=<Secret Access Key you generated>
         export AWS_ACCESS_KEY_ID=<Access Key you generated>
 
+2. Validity durations under 24 hours causing failures
+
+    There is currently a known issue that is preventing issuance of certificates with validity durations under 24h due to a typecasting issue from float64 to int64 (https://github.com/cert-manager/aws-privateca-issuer/issues/69). There is an existing pull request to fix this (https://github.com/cert-manager/aws-privateca-issuer/pull/70), but we are holding off on accepting any pull requests until we merge in https://github.com/cert-manager/aws-privateca-issuer/pull/65. To fix this issue until then, please use validity durations that are greater than 24h.
 
 ## Setup
 
@@ -142,7 +145,7 @@ Before running ```make cluster``` we will need to do the following:
 - ```iam:CreateAccessKey``` and ```iam:DeleteAccessKey```: This allow us to create and delete access keys to be used to validate that authentication via K8 secrets is functional. If the user was set via $PLUGIN_USER_NAME_OVERRIDE
 - ```s3:PutObject``` and ```s3::PutObjectAcl``` these can be scoped down to the s3 bucket you created above
 
-\- [An AWS IAM OIDC Provider](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html). Before creating the OIDC provider, set a temporary value for $OIDC_IAM_ROLE (```export OIDC_IAM_ROLE=arn:aws:iam::000000000000:role/oidc-kind-cluster-role``` and run ```make cluster && make install-eks-cluster && make kind-cluster-delete```). This needs to be done otherwise you may see an error complaining about the absense of a file .well-known/openid-configuration. Running these commands helps bootstrap the S3 bucket so that the OIDC provider can be created. Set the provider url of the OIDC provider to be ```$OIDC_S3_BUCKET_NAME.s3.us-east-1.amazonaws.com/cluster/my-oidc-cluster]```. Set the audience to be ```sts.amazonaws.com```.
+\- [An AWS IAM OIDC Provider](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html). Before creating the OIDC provider, set a temporary value for $OIDC_IAM_ROLE (```export OIDC_IAM_ROLE=arn:aws:iam::000000000000:role/oidc-kind-cluster-role``` and run ```make cluster && make install-eks-webhook && make kind-cluster-delete```). This needs to be done otherwise you may see an error complaining about the absense of a file .well-known/openid-configuration. Running these commands helps bootstrap the S3 bucket so that the OIDC provider can be created. Set the provider url of the OIDC provider to be ```$OIDC_S3_BUCKET_NAME.s3.us-east-1.amazonaws.com/cluster/my-oidc-cluster]```. Set the audience to be ```sts.amazonaws.com```.
 
 \- An IAM role that has a trust relationship with the IAM OIDC Provider that was just created. An inline policy for this role can be grabbed from [Configuration](#configuration) except you can't scope it to a particular CA since those will be created during the test run. This role will be used to test authentication in the plugin via IRSA. The trust relationship should look something like:
 ```
@@ -157,7 +160,7 @@ Before running ```make cluster``` we will need to do the following:
 	   "Action": "sts:AssumeRoleWithWebIdentity",  
 	   "Condition": {  
 	     "StringEquals": {  
-	       "${OIDC_URL}:sub:system:serviceaccount:aws-privateca-issuer:aws-privateca-issuer-sa"  
+	       "${OIDC_URL}:sub": "system:serviceaccount:aws-privateca-issuer:aws-privateca-issuer-sa"  
 	     }  
 	   }  
 	 }  
