@@ -38,7 +38,7 @@ jobs:
           git checkout $GITHUB_SHA -- README.md
           mv README.md index.md
           git add index.md README.md
-          if git commit -m "Sync readme from commit $GITHUB_SHA"; then
+          if git commit -m "Sync readme from commit $GITHUB_SHA" --signoff; then
             git push origin $GH_PAGES_BRANCH
           else
             echo "Nothing committed, not pushing."
