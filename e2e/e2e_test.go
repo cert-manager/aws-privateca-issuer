@@ -192,6 +192,27 @@ func TestMain(m *testing.M) {
 				Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
 			},
 		},
+		//Basic RSA Certificate with Validity < 24h
+		{
+			certName: "rsa-cert-low-validity",
+			spec: cmv1.CertificateSpec{
+				Subject: &cmv1.X509Subject{
+					Organizations: []string{"aws"},
+				},
+				DNSNames: []string{"rsa-cert.aws.com"},
+				PrivateKey: &cmv1.CertificatePrivateKey{
+					Algorithm: cmv1.RSAKeyAlgorithm,
+					Size:      2048,
+				},
+				Duration: &metav1.Duration{
+					Duration: 20 * time.Hour,
+				},
+				RenewBefore: &metav1.Duration{
+					Duration: 5 * time.Hour,
+				},
+				Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
+			},
+		},
 	}
 
 	/*
