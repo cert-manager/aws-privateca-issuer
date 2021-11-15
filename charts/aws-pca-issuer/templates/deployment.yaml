@@ -55,6 +55,11 @@ spec:
               port: 8081
             initialDelaySeconds: 5
             periodSeconds: 10
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: "{{ $value }}"
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}
