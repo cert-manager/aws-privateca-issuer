@@ -268,16 +268,15 @@ deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster
 
 .PHONY: install-local
 install-local: docker-build docker-push-local
-	helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
 	#install plugin from local docker repo
 	sleep 15
-	helm install aws-privateca-issuer awspca/aws-privateca-issuer -n ${NAMESPACE} \
+	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
 	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
 	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always
 
 .PHONY: uninstall-local
 uninstall-local:
-	helm uninstall aws-privateca-issuer -n ${NAMESPACE}
+	helm uninstall issuer -n ${NAMESPACE}
 
 .PHONY: upgrade-local
 upgrade-local: uninstall-local install-local
