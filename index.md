@@ -107,6 +107,41 @@ Please note that if you are using [KIAM](https://github.com/uswitch/kiam) for au
 
 There is a custom AWS authentication method we have coded into our plugin that allows a user to define a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) with AWS Creds passed in, example [here](config/samples/secret.yaml). The user applies that file with their creds and then references the secret in their Issuer CRD when running the plugin, example [here](config/samples/awspcaclusterissuer_ec/_v1beta1_awspcaclusterissuer_ec.yaml#L8-L10).
 
+## Supported workflows
+
+AWS Private Certificate Authority(PCA) Issuer Plugin supports the following integrations and use cases:
+
+* Integration with [cert-manager 1.4+](https://cert-manager.io/docs/installation/supported-releases/) and corresponding Kubernetes versions.
+
+* Authentication methods:
+    * [KIAM v4.0](https://github.com/uswitch/kiam)
+    * [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - IAM roles for service accounts
+    * [Kubernetes Secrets](#authentication)
+    * [EC2 Instance Profiles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)
+
+* AWS Private CA features:
+    * [End-to-End TLS encryption on Amazon Elastic Kubernetes Service](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/)(Amazon EKS).
+    * [TLS-enabled Kubernetes clusters with AWS Private CA and Amazon EKS](https://aws.amazon.com/blogs/security/tls-enabled-kubernetes-clusters-with-acm-private-ca-and-amazon-eks-2/)
+    * Cross Account CA sharing with supported Cross Account templates
+    * [Supported PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties): CodeSigningCertificate/V1; EndEntityClientAuthCertificate/V1; EndEntityServerAuthCertificate/V1; OCSPSigningCertificate/V1; EndEntityCertificate/V1; BlankEndEntityCertificate_CSRPassthrough/V1
+
+
+## Mapping Cert-Manager Usage Types to AWS PCA Template Arns
+
+The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/master/pkg/aws/pca.go#L177).
+
+Depending on which UsageTypes are set in the Cert-Manager certificate, different AWS PCA templates will be used.
+This table shows how the UsageTypes are being translated into which template to use when making an IssueCertificate request:
+
+| Cert-Manager Usage Type(s) | AWS PCA Template ARN                                             |
+| -------------------------- | ---------------------------------------------------------------- |
+| CodeSigning                | acm-pca:::template/CodeSigningCertificate/V1                     |
+| ClientAuth                 | acm-pca:::template/EndEntityClientAuthCertificate/V1             |
+| ServerAuth                 | acm-pca:::template/EndEntityServerAuthCertificate/V1             |
+| OCSPSigning                | acm-pca:::template/OCSPSigningCertificate/V1                     |
+| ClientAuth, ServerAuth     | acm-pca:::template/EndEntityCertificate/V1                       |
+| Everything Else            | acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1   |
+
 ## Understanding/Running the tests
 
 ### Running the Unit Tests
@@ -191,8 +226,6 @@ After creating this role run ```export OIDC_IAM_ROLE=<IAM role arn you created a
 
 Getting IRSA to work on Kind was heavily inspired by the following blog: https://reece.tech/posts/oidc-k8s-to-aws/
 
-
-
 If you want to also test that cross account issuers are working, you will need:
 
 \- A seperate AWS account that has a role that trust the caller who kicks off the end-to-end test via the CLI, the role will need a policy with the following permissions
@@ -202,30 +235,11 @@ If you want to also test that cross account issuers are working, you will need:
 
 Soon these test should be automatically run on each PR, but for the time being each PR will have a core-collaborator for the project run the tests manually to ensure no regressions on the supported workflows
 
-
 ### Contributing to the End-to-End test
 
 The test are fairly straightforward, they will take a set of "issuer templates" (Base name for a aws-pca-issuer as well as a AWSIssuerSpec) and a set of "certificate templates" (Base name for type of certificate as well as a certificate spec). The tests will then take every certificate spec and apply it to each issuer spec. The test will ensure all issuers made from issuer specs reach a ready state as well as ensure that each certificate issued off a issuer reaches a ready state. The issuers with the different certificates is verified to be working for both cluster and namespace issuers.
 
 For the most part, updating end-to-end will be updating these "issuer specs" and "certificate specs" which reside within e2e/e2e_test.go. If the test need updating beyond that, the core logic for the test is also embedded in e2e/e2e_test.go. The other files within the e2e folder are mainly utilities that shouldn't require frequent update
-
-## Supported workflows
-
-AWS Private Certificate Authority(PCA) Issuer Plugin supports the following integrations and use cases:
-
-* Integration with [cert-manager 1.4+](https://cert-manager.io/docs/installation/supported-releases/) and corresponding Kubernetes versions.
-
-* Authentication methods:
-    * [KIAM v4.0](https://github.com/uswitch/kiam)
-    * [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - IAM roles for service accounts
-    * [Kubernetes Secrets](#authentication)
-    * [EC2 Instance Profiles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)
-
-* AWS Private CA features:
-    * [End-to-End TLS encryption on Amazon Elastic Kubernetes Service](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/)(Amazon EKS).
-    * [TLS-enabled Kubernetes clusters with AWS Private CA and Amazon EKS](https://aws.amazon.com/blogs/security/tls-enabled-kubernetes-clusters-with-acm-private-ca-and-amazon-eks-2/)
-    * Cross Account CA sharing with supported Cross Account templates
-    * [Supported PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties): CodeSigningCertificate/V1; EndEntityClientAuthCertificate/V1; EndEntityServerAuthCertificate/V1; OCSPSigningCertificate/V1; EndEntityCertificate/V1; BlankEndEntityCertificate_CSRPassthrough/V1
 
 ## Troubleshooting
 
