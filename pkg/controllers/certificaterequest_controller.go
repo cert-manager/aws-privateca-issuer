@@ -166,7 +166,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	pem, ca, err := provisioner.Sign(ctx, cr)
+	pem, ca, err := provisioner.Sign(ctx, cr, log)
 	if err != nil {
 		log.Error(err, "failed to request certificate from PCA")
 		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())

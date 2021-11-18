@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/go-logr/logr"
 	logrtesting "github.com/go-logr/logr/testing"
 	cmutil "github.com/jetstack/cert-manager/pkg/api/util"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
@@ -46,7 +47,7 @@ type fakeProvisioner struct {
 	err    error
 }
 
-func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error) {
+func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error) {
 	return p.cert, p.caCert, p.err
 }
 
