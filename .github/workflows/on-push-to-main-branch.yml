@@ -1,0 +1,47 @@
+name: On Push to Main Branch
+
+on:
+  push:
+    branches: [ master ]
+
+env:
+  ECR_REPO: public.ecr.aws/z0d6s8x8
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup Dockerx
+      uses: docker/setup-buildx-action@v1
+    - name: Setup AWS Credentials
+      uses: aws-actions/configure-aws-credentials@master
+      with:
+        role-to-assume: arn:aws:iam::783680406432:role/GithubActionsPublishRole-test-us-east-1
+        aws-region: us-east-1
+    - name: Login to Public ECR
+      uses: docker/login-action@v1
+      with:
+        registry: public.ecr.aws
+      env:
+        AWS_REGION: us-east-1
+    - name: Setup Push to ECR
+      run: |
+        export VERSION=$(git describe --tags)
+        export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)-test
+        echo VERSION=$VERSION >> $GITHUB_ENV
+        echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
+    - name: Build and push container images
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        tags: |
+          ${{ env.TAG_BASE }}:latest
+          ${{ env.TAG_BASE }}:${{ env.VERSION }}
+        push: true

@@ -1,0 +1,186 @@
+# This is a basic workflow to help you get started with Actions
+
+name: testing
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  pull_request_target:
+    types: [ labeled ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  start-runner:
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
+    runs-on: ubuntu-latest
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
+          aws-region: us-east-1
+      - name: Configure EC2 Runner Parameters
+        run: |
+          AWS_REGION=us-east-1
+          VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=is-default,Values=true' --query 'Vpcs[0].VpcId' --output text)
+          SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[0].SubnetId' --output text)
+          SG_ID=$(aws ec2 describe-security-groups --filters 'Name=group-name,Values=default' --query 'SecurityGroups[0].GroupId' --output text)
+          AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 --query 'Parameter.Value' --output text) 
+          echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
+          echo SUBNET_ID=$SUBNET_ID >> $GITHUB_ENV
+          echo SG_ID=$SG_ID >> $GITHUB_ENV
+          echo AMI=$AMI >> $GITHUB_ENV
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        with:
+          mode: start
+          github-token: GithubToken-test-us-east-1
+          ec2-image-id: ${{ env.AMI }}
+          ec2-instance-type: t3.medium
+          subnet-id: ${{ env.SUBNET_ID }}
+          security-group-id: ${{ env.SG_ID }}
+          iam-role-name: K8sPluginInstanceProfile-test-us-east-1
+          ec2-launch-template: GithubRunnerLaunchTemplate-test-us-east-1
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "ec2-github-runner"},
+              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
+            ]
+
+  do-the-job:
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
+    name: Do the job on the runner
+    needs: start-runner # required to start the main job when the runner is ready
+    runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
+    steps:
+      - name: Install Git
+        run: sudo yum install git -y
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Install Go
+        run: |
+          mkdir /home/ec2-user/.cache
+          mkdir /home/ec2-user/.cache/go-build
+          mkdir /home/ec2-user/.cache/go-mod
+          mkdir /home/ec2-user/go
+          sudo yum install golang -y
+          GOPATH="/home/ec2-user/go"
+          GOCACHE="/home/ec2-user/.cache/go-build"
+          GOMODCACHE="/home/ec2-user/.cache/go-mod"
+          echo GOPATH=$GOPATH >> $GITHUB_ENV
+          echo GOCACHE=$GOCACHE >> $GITHUB_ENV
+          echo GOMODCACHE=$GOMODCACHE >> $GITHUB_ENV
+      - name: Setup Cache variables
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+      - name: Go-Build Cache # Cache go build cache, used to speedup go test
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+      - name: Go-Mod Cache # Cache go mod cache, used to speedup builds
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      - name: Install Docker
+        run: |
+          sudo amazon-linux-extras install docker -y
+          sudo service docker start
+      - name: Install AWS CLI v2
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl    
+      - name: Install Jq
+        run: |
+          sudo yum install jq -y
+      - name: Install Helm
+        run: |
+          curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+      - name: Setup test environment
+        run: |
+          export PLUGIN_USER_NAME_OVERRIDE=K8sPluginUser-test-us-east-1
+          export PLUGIN_CROSS_ACCOUNT_ROLE=arn:aws:iam::874411242420:role/CrossAccountTestingRole-crossaccount-us-east-1
+          export HOME=$GITHUB_WORKSPACE
+          echo PLUGIN_USER_NAME_OVERRIDE=$PLUGIN_USER_NAME_OVERRIDE >> $GITHUB_ENV
+          echo PLUGIN_CROSS_ACCOUNT_ROLE=$PLUGIN_CROSS_ACCOUNT_ROLE >> $GITHUB_ENV
+          echo HOME=$HOME >> $GITHUB_ENV
+      - name: Run test cases with EC2 Instance Profiles and K8s Secret
+        run: |
+          make cluster
+          make e2etest
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs
+          export E2E_ARTIFACTS_DIRECTORY=logs
+          make kind-export-logs
+          aws s3 cp --recursive logs s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}/
+      - name: Terminate Kind cluster and setup for next test
+        if: ${{ always() }}
+        run: |
+          make kind-cluster-delete
+          export OIDC_IAM_ROLE=arn:aws:iam::783680406432:role/IrsaTestingRole-test-us-east-1
+          export OIDC_S3_BUCKET_NAME=aws-privateca-issuer-irsa-test-us-east-1
+          echo OIDC_IAM_ROLE=$OIDC_IAM_ROLE >> $GITHUB_ENV
+          echo OIDC_S3_BUCKET_NAME=$OIDC_S3_BUCKET_NAME >> $GITHUB_ENV
+      - name: Run test cases with IRSA and K8s Secret
+        if: ${{ always() }}
+        run: |
+          make cluster
+          make install-eks-webhook
+          make e2etest
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs-irsa
+          export E2E_ARTIFACTS_DIRECTORY=logs-irsa
+          make kind-export-logs
+          aws s3 cp --recursive logs-irsa s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-irsa/
+          
+  stop-runner:
+    name: Stop self-hosted EC2 runner
+    needs:
+      - start-runner # required to get output from the start-runner job
+      - do-the-job # required to wait when the main job is done
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && always() }} # required to stop the runner even if the error happened in the previous jobs
+    steps:
+      - name: Setup AWS Credentials
+        uses: aws-actions/configure-aws-credentials@master
+        with:
+          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
+          aws-region: us-east-1
+      - name: Setup AWS Region
+        run: |
+          AWS_REGION=us-east-1
+          echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
+      - name: Stop EC2 runner
+        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        with:
+          mode: stop
+          github-token: GithubToken-test-us-east-1
+          label: ${{ needs.start-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}

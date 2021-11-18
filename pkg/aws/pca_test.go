@@ -28,6 +28,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
+
+	testLog "github.com/go-logr/logr/testing"
+
 	v1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/stretchr/testify/assert"
 )
@@ -341,8 +344,7 @@ func TestPCASign(t *testing.T) {
 				},
 			}
 
-			leaf, chain, err := tc.provisioner.Sign(context.TODO(), cr)
-
+			leaf, chain, err := tc.provisioner.Sign(context.TODO(), cr, testLog.NullLogger{})
 			if tc.expectFailure && err == nil {
 				fmt.Print(err.Error())
 				assert.Fail(t, "Expected an error but received none")

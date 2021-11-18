@@ -31,6 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	injections "github.com/cert-manager/aws-privateca-issuer/pkg/api/injections"
+	"github.com/go-logr/logr"
 	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -39,7 +40,7 @@ var collection = new(sync.Map)
 
 // GenericProvisioner abstracts over the Provisioner type for mocking purposes
 type GenericProvisioner interface {
-	Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error)
+	Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error)
 }
 
 // acmPCAClient abstracts over the methods used from acmpca.Client
@@ -90,7 +91,7 @@ func idempotencyToken(cr *cmapi.CertificateRequest) string {
 }
 
 // Sign takes a certificate request and signs it using PCA
-func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest) ([]byte, []byte, error) {
+func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error) {
 	block, _ := pem.Decode(cr.Spec.Request)
 	if block == nil {
 		return nil, nil, fmt.Errorf("failed to decode CSR")
@@ -133,6 +134,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest)
 		CertificateArn:          aws.String(*issueOutput.CertificateArn),
 		CertificateAuthorityArn: aws.String(p.arn),
 	}
+
+	log.Info("Created certificate with arn: " + *issueOutput.CertificateArn)
 
 	waiter := acmpca.NewCertificateIssuedWaiter(p.pcaClient)
 	err = waiter.Wait(ctx, &getParams, 5*time.Minute)
