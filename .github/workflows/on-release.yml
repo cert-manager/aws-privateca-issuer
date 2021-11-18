@@ -46,9 +46,9 @@ jobs:
             ${{ env.TAG_BASE }}:latest
             ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
           push: true
-#       - name: Publish Helm chart
-#         uses: divyansh-gupta/helm-gh-pages@12f5926e622ccae035cf5a3bb8d67ae6db7dc4b7
-#         with:
-#           token: ${{ secrets.GITHUB_TOKEN }}
-#           linting: "off"
-#           app_version: ${{ steps.tag.outputs.tag }}
+      - name: Publish Helm chart
+        uses: divyansh-gupta/helm-gh-pages@12f5926e622ccae035cf5a3bb8d67ae6db7dc4b7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          linting: "off"
+          app_version: ${{ steps.tag.outputs.tag }}
