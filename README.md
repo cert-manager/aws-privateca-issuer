@@ -18,25 +18,6 @@ It will ensure certificates are valid and up to date periodically, and attempt t
 
 This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS PCA.
 
-## Known Issues
-
-1. STS GetCallerIdentity failing because of a region not specified bug
-
-    There is currently a known issue with the plugin that is preventing certificate issuance due to STS GetCallerIdentity failing because of a region not specified bug, regardless of whether a region was specified or not (https://github.com/cert-manager/aws-privateca-issuer/issues/54). There is an existing pull request to fix this (https://github.com/cert-manager/aws-privateca-issuer/pull/53), but we are holding off on accepting any pull requests until our testing is redesigned. To fix this issue until then, please checkout the cleanup branch by running
-
-        git fetch -a
-        git checkout cleanup
-
-    Also, please be sure you are using the plugin with an IAM user, as that is the most reliable workflow https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html#Using_CreateAccessKey
-    This user must have minimum permissions listed in the [Configuration](#configuration) section.
-
-        export AWS_SECRET_ACCESS_KEY=<Secret Access Key you generated>
-        export AWS_ACCESS_KEY_ID=<Access Key you generated>
-
-2. Validity durations under 24 hours causing failures
-
-    There is currently a known issue that is preventing issuance of certificates with validity durations under 24h due to a typecasting issue from float64 to int64 (https://github.com/cert-manager/aws-privateca-issuer/issues/69). There is an existing pull request to fix this (https://github.com/cert-manager/aws-privateca-issuer/pull/70), but we are holding off on accepting any pull requests until we merge in https://github.com/cert-manager/aws-privateca-issuer/pull/65. To fix this issue until then, please use validity durations that are greater than 24h.
-
 ## Setup
 
 Install cert-manager first (https://cert-manager.io/docs/installation/kubernetes/).
