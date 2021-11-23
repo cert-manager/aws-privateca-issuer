@@ -241,7 +241,7 @@ func TestPCATemplateArn(t *testing.T) {
 			},
 		},
 		"other": {
-			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1",
+			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1",
 			keyUsages: []v1.KeyUsage{
 				v1.UsageTimestamping,
 			},
