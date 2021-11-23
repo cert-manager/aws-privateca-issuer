@@ -200,7 +200,7 @@ func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
 		}
 	}
 
-	return prefix + "acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1"
+	return prefix + "acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1"
 }
 
 func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {
