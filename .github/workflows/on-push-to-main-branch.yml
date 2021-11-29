@@ -36,15 +36,17 @@ jobs:
         AWS_REGION: us-east-1
     - name: Setup Push to ECR
       run: |
+        export PLUGIN_VERSION=$(git describe --tags)
         export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)-test
         echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
+        echo PLUGIN_VERSION=$PLUGIN_VERSION >> $GITHUB_ENV
     - name: Build and push container images
       uses: docker/build-push-action@v2
       with:
         build-args: |
-          pkg_version=${{steps.tag.outputs.tag}}
+          pkg_version=${{ env.PLUGIN_VERSION }}
         context: .
         tags: |
           ${{ env.TAG_BASE }}:latest
-          ${{ env.TAG_BASE }}:${{ env.VERSION }}
+          ${{ env.TAG_BASE }}:${{ env.PLUGIN_VERSION }}
         push: true

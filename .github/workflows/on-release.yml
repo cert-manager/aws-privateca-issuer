@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           build-args: |
-            pkg_version=${{steps.tag.outputs.tag}}
+            pkg_version=${{ steps.tag.outputs.tag }}
           context: .
           tags: |
             ${{ env.TAG_BASE }}:latest
