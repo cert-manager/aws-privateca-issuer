@@ -38,7 +38,7 @@ As of now, the only configurable settings are access to AWS. So you can use `AWS
 
 Alternatively, you can supply arbitrary secrets for the access and secret keys with the `accessKeyIDSelector` and `secretAccessKeySelector` fields in the clusterissuer and/or issuer manifests.
 
-Access to AWS can also be configured using an EC2 instance role.
+Access to AWS can also be configured using an EC2 instance role or [IAM Roles for Service Accounts] (https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
 
 A minimal policy to use the issuer with an authority would look like follows:
 
