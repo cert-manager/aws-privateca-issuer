@@ -33,16 +33,11 @@ body:
       label: Relevant log output
       description: Please copy and paste any relevant log output.
       render: shell
-  - type: dropdown
+  - type: textarea
     id: version
     attributes:
       label: Version
       description: What version are you using?
-      options:
-        - 0.3.1 (Latest)
-        - 0.3.0
-        - 0.2.1
-        - 0.2.0
     validations:
       required: true
   - type: checkboxes
