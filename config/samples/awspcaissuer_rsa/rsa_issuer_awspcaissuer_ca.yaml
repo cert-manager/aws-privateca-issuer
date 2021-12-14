@@ -1,9 +1,0 @@
----
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: aws-pca-issuer-ca
-  namespace: default
-spec:
-  ca:
-    secretName: pca-issuer-rsa-ca-cert-tls

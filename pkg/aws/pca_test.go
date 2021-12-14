@@ -198,58 +198,78 @@ func TestPCATemplateArn(t *testing.T) {
 	)
 
 	type testCase struct {
-		expectedSuffix string
-		keyUsages      []v1.KeyUsage
+		expectedSuffix  string
+		certificateSpec v1.CertificateRequestSpec
 	}
 	tests := map[string]testCase{
 		"client": {
 			expectedSuffix: ":acm-pca:::template/EndEntityClientAuthCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageClientAuth,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageClientAuth,
+				},
 			},
 		},
 		"server": {
 			expectedSuffix: ":acm-pca:::template/EndEntityServerAuthCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageServerAuth,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageServerAuth,
+				},
 			},
 		},
 		"client server": {
 			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageClientAuth,
-				v1.UsageServerAuth,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageClientAuth,
+					v1.UsageServerAuth,
+				},
 			},
 		},
 		"server client": {
 			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageServerAuth,
-				v1.UsageClientAuth,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageServerAuth,
+					v1.UsageClientAuth,
+				},
 			},
 		},
 		"code signing": {
 			expectedSuffix: ":acm-pca:::template/CodeSigningCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageCodeSigning,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageCodeSigning,
+				},
 			},
 		},
 		"ocsp signing": {
 			expectedSuffix: ":acm-pca:::template/OCSPSigningCertificate/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageOCSPSigning,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageOCSPSigning,
+				},
 			},
 		},
 		"other": {
 			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1",
-			keyUsages: []v1.KeyUsage{
-				v1.UsageTimestamping,
+			certificateSpec: v1.CertificateRequestSpec{
+				Usages: []v1.KeyUsage{
+					v1.UsageTimestamping,
+				},
+			},
+		},
+		"isCA default": {
+			expectedSuffix: ":acm-pca:::template/SubordinateCACertificate_PathLen0/V1",
+			certificateSpec: v1.CertificateRequestSpec{
+				IsCA: true,
 			},
 		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+			spec := tc.certificateSpec
 
 			response := templateArn(arn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "returns expected template")
@@ -258,7 +278,7 @@ func TestPCATemplateArn(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+			spec := tc.certificateSpec
 
 			response := templateArn(govArn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "us-gov returns expected template")
@@ -267,7 +287,7 @@ func TestPCATemplateArn(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			spec := v1.CertificateRequestSpec{Usages: tc.keyUsages}
+			spec := tc.certificateSpec
 
 			response := templateArn(fakeArn, spec)
 			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "fake arn returns expected template")

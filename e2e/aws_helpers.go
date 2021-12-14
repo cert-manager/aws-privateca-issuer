@@ -312,7 +312,7 @@ func assumeRole(ctx context.Context, cfg aws.Config, roleName string, region str
 	return xaConfig
 }
 
-func shareCA(ctx context.Context, cfg aws.Config, xaCfg aws.Config, xaCAArn string) string {
+func shareCA(ctx context.Context, cfg aws.Config, xaCfg aws.Config, xaCAArn string, permissionArn string) string {
 
 	callerAccount := getAccountID(ctx, cfg)
 
@@ -322,6 +322,9 @@ func shareCA(ctx context.Context, cfg aws.Config, xaCfg aws.Config, xaCAArn stri
 		Name:         aws.String("CM_XA_RESOURCE_SHARE"),
 		ResourceArns: []string{xaCAArn},
 		Principals:   []string{callerAccount},
+		PermissionArns: []string{
+			permissionArn,
+		},
 	}
 
 	resourceOutput, resourceErr := xaRAMClient.CreateResourceShare(ctx, &resourceInput)
