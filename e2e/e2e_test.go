@@ -31,7 +31,7 @@ var (
 	issuerSpecs      []issuerTemplate
 	certificateSpecs []certTemplate
 
-	rsaCaArn, ecCaArn, xaCAArn, accessKey, secretKey, policyArn, resourceShareArn string
+	rsaCaArn, ecCaArn, xaCAArn, accessKey, secretKey, policyArn, endEntityResourceShareArn, subordinateCAResourceShareArn string
 
 	region = "us-east-1"
 	ctx    = context.TODO()
@@ -99,7 +99,12 @@ func TestMain(m *testing.M) {
 
 		log.Printf("Created XA CA with arn %s", xaCAArn)
 
-		resourceShareArn = shareCA(ctx, cfg, xaCfg, xaCAArn)
+		endEntityResourcePermission := "arn:aws:ram::aws:permission/AWSRAMDefaultPermissionCertificateAuthority"
+		subordinateCAResourcePermission := "arn:aws:ram::aws:permission/AWSRAMSubordinateCACertificatePathLen0IssuanceCertificateAuthority"
+
+		endEntityResourceShareArn = shareCA(ctx, cfg, xaCfg, xaCAArn, endEntityResourcePermission)
+		subordinateCAResourceShareArn = shareCA(ctx, cfg, xaCfg, xaCAArn, subordinateCAResourcePermission)
+
 	} else {
 		log.Print("Cross account role not present in PLUGIN_CROSS_ACCOUNT_ROLE, skipping cross account testing")
 	}
@@ -123,7 +128,6 @@ func TestMain(m *testing.M) {
 	* Create a shared suite of Issuers and Certificates Specs to be used in
 	* validing Cluster and Namepsace issuers
 	 */
-
 	issuerSpecs = []issuerTemplate{
 		//Basic RSA Issuer
 		{
@@ -213,6 +217,27 @@ func TestMain(m *testing.M) {
 				Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
 			},
 		},
+		//Default isCA certificate
+		{
+			certName: "sub-ca-certificate",
+			spec: cmv1.CertificateSpec{
+				Subject: &cmv1.X509Subject{
+					Organizations: []string{"aws"},
+				},
+				DNSNames: []string{"rsa-cert.aws.com"},
+				PrivateKey: &cmv1.CertificatePrivateKey{
+					Algorithm: cmv1.RSAKeyAlgorithm,
+					Size:      2048,
+				},
+				Duration: &metav1.Duration{
+					Duration: 20 * time.Hour,
+				},
+				RenewBefore: &metav1.Duration{
+					Duration: 5 * time.Hour,
+				},
+				IsCA: true,
+			},
+		},
 	}
 
 	/*
@@ -242,8 +267,9 @@ func TestMain(m *testing.M) {
 
 	//Delete XA testing resources
 	if xaRoleExists {
-		deleteResourceShare(ctx, xaCfg, resourceShareArn)
-		log.Printf("Deleted resource share associated with XA CA")
+		deleteResourceShare(ctx, xaCfg, endEntityResourceShareArn)
+		deleteResourceShare(ctx, xaCfg, subordinateCAResourceShareArn)
+		log.Printf("Deleted resource shares associated with XA CA")
 
 		deleteCertificateAuthority(ctx, xaCfg, xaCAArn)
 		log.Printf("Deleted the XA CA")

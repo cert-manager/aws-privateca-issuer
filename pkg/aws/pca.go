@@ -181,6 +181,10 @@ func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
 	arn := strings.SplitAfterN(caArn, ":", 3)
 	prefix := arn[0] + arn[1]
 
+	if spec.IsCA {
+		return prefix + "acm-pca:::template/SubordinateCACertificate_PathLen0/V1"
+	}
+
 	if len(spec.Usages) == 1 {
 		switch spec.Usages[0] {
 		case cmapi.UsageCodeSigning:
