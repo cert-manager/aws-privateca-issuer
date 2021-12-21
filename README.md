@@ -162,6 +162,7 @@ Before running ```make cluster``` we will need to do the following:
 * [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 * [Helm](https://helm.sh/docs/intro/install/)
+* [GNU Make](https://www.gnu.org/software/make/) Ensure you have version 3.82+
 
 \- (Optional) You will need a AWS IAM User to test authentication via K8 secrets. You can provide an already existing user into the test via ```export PLUGIN_USER_NAME_OVERRIDE=<IAM User Name>```.  This IAM User should have a policy attached to it that follows with the policy listed in [Configuration](#configuration). This user will be used to test authentication in the plugin via K8 secrets.
 
