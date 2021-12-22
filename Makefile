@@ -274,6 +274,15 @@ install-local: docker-build docker-push-local
 	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
 	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always
 
+.PHONY: install-latest
+install-latest: 
+	#install plugin from local docker repo
+	sleep 15
+	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
+	--set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
+	--set image.tag=latest --set image.pullPolicy=Always
+
 .PHONY: uninstall-local
 uninstall-local:
 	helm uninstall issuer -n ${NAMESPACE}
@@ -285,6 +294,8 @@ upgrade-local: uninstall-local install-local
 .PHONY: cluster
 cluster: manager create-local-registry kind-cluster deploy-cert-manager install-local
 
+.PHONY: cluster-latest
+cluster-latest: manager kind-cluster deploy-cert-manager install-latest
 # ==================================
 # Download: tools in ${BIN}
 # ==================================
