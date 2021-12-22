@@ -274,8 +274,8 @@ install-local: docker-build docker-push-local
 	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
 	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always
 
-.PHONY: install-latest
-install-latest: 
+.PHONY: install-test-ecr
+install-test-ecr: 
 	#install plugin from local docker repo
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
@@ -294,8 +294,8 @@ upgrade-local: uninstall-local install-local
 .PHONY: cluster
 cluster: manager create-local-registry kind-cluster deploy-cert-manager install-local
 
-.PHONY: cluster-latest
-cluster-latest: manager kind-cluster deploy-cert-manager install-latest
+.PHONY: cluster-test-ecr
+cluster-test-ecr: manager kind-cluster deploy-cert-manager install-test-ecr
 # ==================================
 # Download: tools in ${BIN}
 # ==================================
