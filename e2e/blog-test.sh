@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+
+set_variables() {
+    K8S_NAMESPACE="aws-privateca-issuer"
+    HELM_CHART_NAME="awspca/aws-privateca-issuer"
+    AWS_REGION="us-east-1"
+    INTERFACE=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+    export SUBNET=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/subnet-id)
+    CLUSTER_NAME=pca-external-issuer
+    tag_subnet
+    create_ca
+}
+
+tag_subnet() {
+    aws ec2 create-tags --resources $SUBNET --tags Key=kubernetes.io/cluster/$CLUSTER_NAME,Value=shared Key=kubernetes.io/role/elb,Value=1
+}
+
+create_ca() {
+
+    export CA_ARN=$(aws acm-pca create-certificate-authority --certificate-authority-configuration file://blog-test/ca_config.json --certificate-authority-type "ROOT" --query 'CertificateAuthorityArn' --output text)
+
+    aws acm-pca wait certificate-authority-csr-created --certificate-authority-arn $CA_ARN
+
+    aws acm-pca get-certificate-authority-csr --certificate-authority-arn $CA_ARN --output text --region us-east-1 >blog-test/ca.csr
+
+    CERTIFICATE_ARN=$(aws acm-pca issue-certificate --certificate-authority-arn $CA_ARN --csr fileb://blog-test/ca.csr --signing-algorithm SHA256WITHRSA --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1 --validity Value=365,Type=DAYS --query 'CertificateArn' --output text)
+
+    aws acm-pca wait certificate-issued --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN
+
+    aws acm-pca get-certificate --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN --output text >blog-test/cert.pem
+
+    aws acm-pca import-certificate-authority-certificate --certificate-authority-arn $CA_ARN --certificate fileb://blog-test/cert.pem
+
+}
+
+delete_ca() {
+
+    aws acm-pca update-certificate-authority --certificate-authority-arn $CA_ARN --status "DISABLED"
+
+    aws acm-pca delete-certificate-authority --certificate-authority-arn $CA_ARN --permanent-deletion-time-in-days 7
+
+}
+
+clean_up() {
+    set +e
+
+    kubectl delete -f blog-test/test-nlb-tls-app.yaml >/dev/null 2>&1
+
+    kubectl delete -f blog-test/nlb-lab-tls.yaml >/dev/null 2>&1
+
+    kubectl delete -f blog-test/test-cluster-issuer.yaml >/dev/null 2>&1
+
+    helm uninstall aws-load-balancer-controller -n kube-system >/dev/null 2>&1
+
+    delete_ca
+
+}
+
+install_aws_load_balancer() {
+    kubectl create serviceaccount aws-load-balancer-controller -n kube-system >/dev/null 2>&1
+    kubectl annotate serviceaccount aws-load-balancer-controller -n kube-system iam.amazonaws.com/role=$OIDC_IAM_ROLE >/dev/null 2>&1
+    helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
+    kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master" >/dev/null 2>&1
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEYS" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
+}
+
+main() {
+
+    set_variables
+
+    DEPLOYMENT_NAME=$(kubectl get deployments -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
+
+    if [ -z "$DEPLOYMENT_NAME" ]; then
+        echo "[ERROR] Found empty ACK controller deployment name. Exiting ..."
+        exit 1
+    fi
+
+    echo "$DEPLOYMENT_NAME deployment found."
+
+    POD_NAME=$(kubectl get pods -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
+
+    if [ -z "$POD_NAME" ]; then
+        echo "[ERROR] Found empty ACK controller pod name. Exiting ..."
+        exit 1
+    fi
+
+    echo "$POD_NAME pod found."
+
+    install_aws_load_balancer
+
+    echo "AWS Load Balancer installed."
+
+    envsubst <blog-test/cluster-issuer.yaml >blog-test/test-cluster-issuer.yaml
+
+    kubectl apply -f blog-test/test-cluster-issuer.yaml 1>/dev/null || exit 1
+
+    kubectl apply -f blog-test/nlb-lab-tls.yaml 1>/dev/null || exit 1
+
+    CERTIFICATE_NAME=$(kubectl get certificate -ojson | jq -r ".items[0].metadata.name")
+
+    if [ -z "$CERTIFICATE_NAME" ]; then
+        echo "[ERROR] Found empty certificate name. Exiting ..."
+        exit 1
+    fi
+
+    echo "$CERTIFICATE_NAME certificate found."
+
+    envsubst <blog-test/nlb-tls-app.yaml >blog-test/test-nlb-tls-app.yaml
+
+    kubectl create serviceaccount aws-load-balancer-controller >/dev/null 2>&1
+    kubectl annotate serviceaccount aws-load-balancer-controller iam.amazonaws.com/role=$OIDC_IAM_ROLE >/dev/null 2>&1
+
+    kubectl apply -f blog-test/test-nlb-tls-app.yaml 1>/dev/null || exit 1
+
+    APP_POD_NAME=$(kubectl get pods -ojson | jq -r ".items[0].metadata.name")
+
+    if [ -z "$APP_POD_NAME" ]; then
+        echo "[ERROR] Found empty Application pod name. Exiting ..."
+        exit 1
+    fi
+
+    echo "$APP_POD_NAME app pod found"
+
+    timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
+
+    LOAD_BALANCER_HOSTNAME=$(kubectl get service nlb-tls-app -ojson | jq -r ".status.loadBalancer.ingress[0].hostname")
+
+    echo "Load balancer Hostname $LOAD_BALANCER_HOSTNAME"
+
+    sleep 300
+
+    openssl s_client -connect $LOAD_BALANCER_HOSTNAME:6443
+
+    echo "Blog Test Finished Successfully"
+
+    clean_up
+
+}
+
+main

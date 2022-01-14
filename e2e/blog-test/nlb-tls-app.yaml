@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nlb-tls-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nlb-tls-app
+  template:
+    metadata:
+      labels:
+        app: nlb-tls-app
+    spec:
+      serviceAccountName: aws-load-balancer-controller
+      containers:
+        - name: nlb-tls-app
+          image: nginxdemos/nginx-hello:plain-text
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: $AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              value: $AWS_SECRET_ACCESS_KEY
+          ports:
+            - containerPort: 6443
+          volumeMounts:
+            - name: secret
+              mountPath: /etc/nginx/ssl
+              readOnly: true
+            - name: config-volume
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: secret
+          secret:
+            secretName: nlb-tls-app-secret
+        - name: config-volume
+          configMap:
+            name: secure-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nlb-tls-app
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-subnets: $SUBNET
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
+
+spec:
+  ports:
+    - port: 6443
+      targetPort: 6443
+      nodePort: 30000
+      protocol: TCP
+      name: https
+  selector:
+    app: nlb-tls-app
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secure-config
+data:
+  app.conf: |-
+    server {
+      listen 8443 ssl proxy_protocol;
+      real_ip_header proxy_protocol;
+      set_real_ip_from 192.168.0.0/16;
+      server_name <your_server_name>;
+
+      ssl_certificate /etc/nginx/ssl/tls.crt;
+      ssl_certificate_key /etc/nginx/ssl/tls.key;
+
+      default_type text/plain;
+
+      location / {
+        return 200 "hello from pod $hostname\n";
+      }
+    }

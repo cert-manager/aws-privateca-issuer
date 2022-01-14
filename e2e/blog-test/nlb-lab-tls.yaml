@@ -1,0 +1,22 @@
+kind: Certificate
+apiVersion: cert-manager.io/v1
+metadata:
+  name: nlb-lab-tls-cert
+spec:
+  commonName: www.nlb-lab.com
+  dnsNames:
+    - www.nlb-lab.com
+    - nlb-lab.com
+  duration: 2160h0m0s
+  issuerRef:
+    group: awspca.cert-manager.io
+    kind: AWSPCAClusterIssuer
+    name: demo-test-root-ca
+  renewBefore: 360h0m0s
+  secretName: nlb-tls-app-secret
+  usages:
+    - server auth
+    - client auth
+  privateKey:
+    algorithm: "RSA"
+    size: 2048
