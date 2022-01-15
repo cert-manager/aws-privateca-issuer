@@ -3,16 +3,41 @@
 set_variables() {
     K8S_NAMESPACE="aws-privateca-issuer"
     HELM_CHART_NAME="awspca/aws-privateca-issuer"
+    CLUSTER_NAME=pca-external-issuer
     AWS_REGION="us-east-1"
     INTERFACE=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
     export SUBNET=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/subnet-id)
-    CLUSTER_NAME=pca-external-issuer
+    export SECURITY_GROUP_ID=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/security-group-ids)
+    export VPC_ID=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/vpc-id)
+    export PORT=6443
     tag_subnet
+    add_inbound_rule
     create_ca
 }
 
 tag_subnet() {
     aws ec2 create-tags --resources $SUBNET --tags Key=kubernetes.io/cluster/$CLUSTER_NAME,Value=shared Key=kubernetes.io/role/elb,Value=1
+}
+
+add_inbound_rule() {
+    aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID --protocol tcp --port $PORT --cidr "0.0.0.0/0" >/dev/null 2>&1
+}
+
+create_target_group() {
+    TARGET_GROUP_ARN=$(aws elbv2 create-target-group --name blog-test --target-type instance --protocol TCP --port $PORT --vpc-id $VPC_ID | jq -r ".TargetGroups[0].TargetGroupArn")
+
+    aws elbv2 register-targets --target-group-arn $TARGET_GROUP_ARN --targets Id=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id),Port=$PORT
+
+    export LOAD_BALANCER_HOSTNAME=$(kubectl get service nlb-tls-app -ojson | jq -r ".status.loadBalancer.ingress[0].hostname")
+
+    LOAD_BALANCER_NAME=$(cut -d'.' -f1 <<<"$LOAD_BALANCER_HOSTNAME" | sed 's/\(.*\)-/\1\//')
+
+    LOAD_BALANCER_ARN=arn:aws:elasticloadbalancing:$AWS_REGION:$(aws sts get-caller-identity | jq -r ".Account"):loadbalancer/net/$LOAD_BALANCER_NAME
+
+    LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn $LOAD_BALANCER_ARN | jq -r ".Listeners[0].ListenerArn")
+
+    aws elbv2 modify-listener --listener-arn $LISTENER_ARN --protocol TCP --port $PORT --default-actions Type=forward,TargetGroupArn=$TARGET_GROUP_ARN >/dev/null 2>&1
+
 }
 
 create_ca() {
@@ -123,13 +148,11 @@ main() {
 
     timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
 
-    LOAD_BALANCER_HOSTNAME=$(kubectl get service nlb-tls-app -ojson | jq -r ".status.loadBalancer.ingress[0].hostname")
-
-    echo "Load balancer Hostname $LOAD_BALANCER_HOSTNAME"
+    create_target_group
 
     sleep 300
 
-    openssl s_client -connect $LOAD_BALANCER_HOSTNAME:6443
+    openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT
 
     echo "Blog Test Finished Successfully"
 
