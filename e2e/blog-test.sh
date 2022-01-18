@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
 set_variables() {
+    HOME_DIR=$(pwd)
+    export E2E_DIR="$HOME_DIR/e2e"
     K8S_NAMESPACE="aws-privateca-issuer"
     HELM_CHART_NAME="awspca/aws-privateca-issuer"
     CLUSTER_NAME=pca-external-issuer
@@ -42,19 +44,19 @@ create_target_group() {
 
 create_ca() {
 
-    export CA_ARN=$(aws acm-pca create-certificate-authority --certificate-authority-configuration file://blog-test/ca_config.json --certificate-authority-type "ROOT" --query 'CertificateAuthorityArn' --output text)
+    export CA_ARN=$(aws acm-pca create-certificate-authority --certificate-authority-configuration file://$E2E_DIR/blog-test/ca_config.json --certificate-authority-type "ROOT" --query 'CertificateAuthorityArn' --output text)
 
     aws acm-pca wait certificate-authority-csr-created --certificate-authority-arn $CA_ARN
 
-    aws acm-pca get-certificate-authority-csr --certificate-authority-arn $CA_ARN --output text --region us-east-1 >blog-test/ca.csr
+    aws acm-pca get-certificate-authority-csr --certificate-authority-arn $CA_ARN --output text --region us-east-1 >$E2E_DIR/blog-test/ca.csr
 
-    CERTIFICATE_ARN=$(aws acm-pca issue-certificate --certificate-authority-arn $CA_ARN --csr fileb://blog-test/ca.csr --signing-algorithm SHA256WITHRSA --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1 --validity Value=365,Type=DAYS --query 'CertificateArn' --output text)
+    CERTIFICATE_ARN=$(aws acm-pca issue-certificate --certificate-authority-arn $CA_ARN --csr fileb://$E2E_DIR/blog-test/ca.csr --signing-algorithm SHA256WITHRSA --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1 --validity Value=365,Type=DAYS --query 'CertificateArn' --output text)
 
     aws acm-pca wait certificate-issued --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN
 
-    aws acm-pca get-certificate --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN --output text >blog-test/cert.pem
+    aws acm-pca get-certificate --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN --output text >$E2E_DIR/blog-test/cert.pem
 
-    aws acm-pca import-certificate-authority-certificate --certificate-authority-arn $CA_ARN --certificate fileb://blog-test/cert.pem
+    aws acm-pca import-certificate-authority-certificate --certificate-authority-arn $CA_ARN --certificate fileb://$E2E_DIR/blog-test/cert.pem
 
 }
 
@@ -69,11 +71,11 @@ delete_ca() {
 clean_up() {
     set +e
 
-    kubectl delete -f blog-test/test-nlb-tls-app.yaml >/dev/null 2>&1
+    kubectl delete -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml >/dev/null 2>&1
 
-    kubectl delete -f blog-test/nlb-lab-tls.yaml >/dev/null 2>&1
+    kubectl delete -f $E2E_DIR/blog-test/nlb-lab-tls.yaml >/dev/null 2>&1
 
-    kubectl delete -f blog-test/test-cluster-issuer.yaml >/dev/null 2>&1
+    kubectl delete -f $E2E_DIR/blog-test/test-cluster-issuer.yaml >/dev/null 2>&1
 
     helm uninstall aws-load-balancer-controller -n kube-system >/dev/null 2>&1
 
@@ -115,11 +117,11 @@ main() {
 
     echo "AWS Load Balancer installed."
 
-    envsubst <blog-test/cluster-issuer.yaml >blog-test/test-cluster-issuer.yaml
+    envsubst <$E2E_DIR/blog-test/cluster-issuer.yaml >$E2E_DIR/blog-test/test-cluster-issuer.yaml
 
-    kubectl apply -f blog-test/test-cluster-issuer.yaml 1>/dev/null || exit 1
+    kubectl apply -f $E2E_DIR/blog-test/test-cluster-issuer.yaml 1>/dev/null || exit 1
 
-    kubectl apply -f blog-test/nlb-lab-tls.yaml 1>/dev/null || exit 1
+    kubectl apply -f $E2E_DIR/blog-test/nlb-lab-tls.yaml 1>/dev/null || exit 1
 
     CERTIFICATE_NAME=$(kubectl get certificate -ojson | jq -r ".items[0].metadata.name")
 
@@ -130,12 +132,12 @@ main() {
 
     echo "$CERTIFICATE_NAME certificate found."
 
-    envsubst <blog-test/nlb-tls-app.yaml >blog-test/test-nlb-tls-app.yaml
+    envsubst <$E2E_DIR/blog-test/nlb-tls-app.yaml >$E2E_DIR/blog-test/test-nlb-tls-app.yaml
 
     kubectl create serviceaccount aws-load-balancer-controller >/dev/null 2>&1
     kubectl annotate serviceaccount aws-load-balancer-controller iam.amazonaws.com/role=$OIDC_IAM_ROLE >/dev/null 2>&1
 
-    kubectl apply -f blog-test/test-nlb-tls-app.yaml 1>/dev/null || exit 1
+    kubectl apply -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml 1>/dev/null || exit 1
 
     APP_POD_NAME=$(kubectl get pods -ojson | jq -r ".items[0].metadata.name")
 
@@ -152,7 +154,7 @@ main() {
 
     sleep 300
 
-    openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT
+    echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT
 
     echo "Blog Test Finished Successfully"
 
