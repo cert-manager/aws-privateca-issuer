@@ -73,6 +73,9 @@ e2etest: test
 helm-test:
 	$$SHELL e2e/helm_test.sh
 
+blog-test: cluster
+	$$SHELL e2e/blog_test.sh
+
 # Build manager binary
 manager: generate fmt vet lint
 	go build \
