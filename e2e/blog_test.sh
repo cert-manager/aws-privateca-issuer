@@ -84,11 +84,9 @@ clean_up() {
 }
 
 install_aws_load_balancer() {
-    kubectl create serviceaccount aws-load-balancer-controller -n kube-system >/dev/null 2>&1
-    kubectl annotate serviceaccount aws-load-balancer-controller -n kube-system iam.amazonaws.com/role=$OIDC_IAM_ROLE >/dev/null 2>&1
     helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
     kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master" >/dev/null 2>&1
-    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEYS" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEYS" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
 }
 
 main() {
@@ -133,9 +131,6 @@ main() {
     echo "$CERTIFICATE_NAME certificate found."
 
     envsubst <$E2E_DIR/blog-test/nlb-tls-app.yaml >$E2E_DIR/blog-test/test-nlb-tls-app.yaml
-
-    kubectl create serviceaccount aws-load-balancer-controller >/dev/null 2>&1
-    kubectl annotate serviceaccount aws-load-balancer-controller iam.amazonaws.com/role=$OIDC_IAM_ROLE >/dev/null 2>&1
 
     kubectl apply -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml 1>/dev/null || exit 1
 

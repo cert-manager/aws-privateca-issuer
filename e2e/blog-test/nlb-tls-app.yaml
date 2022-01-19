@@ -12,7 +12,6 @@ spec:
       labels:
         app: nlb-tls-app
     spec:
-      serviceAccountName: aws-load-balancer-controller
       containers:
         - name: nlb-tls-app
           image: nginxdemos/nginx-hello:plain-text
