@@ -3,7 +3,7 @@ entries:
   aws-pca-issuer:
   - apiVersion: v2
     appVersion: v0.3.1
-    created: "2022-01-20T20:01:59.528960033Z"
+    created: "2021-07-29T19:49:40.598929085Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: 2947e925e35732bb8c4143080c7cd01ac39ee53058d2deaddc68128bbc921831
     name: aws-pca-issuer
@@ -13,7 +13,7 @@ entries:
     version: 0.1.2
   - apiVersion: v2
     appVersion: v0.2.1
-    created: "2022-01-20T20:01:59.528237962Z"
+    created: "2021-05-07T06:06:30.762668994Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: 0867fc85ddea6c1c5c0889911521ed63fa7b1f6023de842cf397754cb427b8cd
     name: aws-pca-issuer
@@ -23,7 +23,7 @@ entries:
     version: 0.1.1
   - apiVersion: v2
     appVersion: v0.2.0
-    created: "2022-01-20T20:01:59.52756959Z"
+    created: "2021-04-27T07:33:46.70437909Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: 883a5f7e1f7da5e5d76ac98c22b5b3aabbcd0af3fccc8bada66b1155406fd5a8
     name: aws-pca-issuer
@@ -34,7 +34,7 @@ entries:
   aws-privateca-issuer:
   - apiVersion: v2
     appVersion: v1.1.0
-    created: "2022-01-20T20:01:59.531164602Z"
+    created: "2021-12-21T16:13:16.214384969Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: a8be4957c3e75da6024517172a0e1ff67bef2e23c9b49b66c143afdddae60fb3
     name: aws-privateca-issuer
@@ -44,7 +44,7 @@ entries:
     version: 1.1.0
   - apiVersion: v2
     appVersion: v1.0.0
-    created: "2022-01-20T20:01:59.530359853Z"
+    created: "2021-11-19T19:40:43.729256048Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: fcaa982bbdc7fbb55a32d4ecfbd69edbae811b71e354dedc0bfded96af282c14
     name: aws-privateca-issuer
@@ -54,7 +54,7 @@ entries:
     version: 1.0.0
   - apiVersion: v2
     appVersion: v0.3.1
-    created: "2022-01-20T20:01:59.529636005Z"
+    created: "2021-07-29T19:49:40.598929085Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
     digest: 35d9e273aaae6f7ae89f28e76da80b09330f1fc833f0404cc6256ed6a9fe08b1
     name: aws-privateca-issuer
