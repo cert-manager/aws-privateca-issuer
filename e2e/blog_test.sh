@@ -87,20 +87,17 @@ install_aws_load_balancer() {
     helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
     kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master" >/dev/null 2>&1
     helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEYS" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
+    kubectl wait --for=condition=Available --timeout=60s deployments -n kube-system aws-load-balancer-controller 1>/dev/null || exit 1
+    echo "AWS Load Balancer installed."
 }
 
 main() {
 
     set_variables
 
-    DEPLOYMENT_NAME=$(kubectl get deployments -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
+    kubectl wait --for=condition=Available --timeout 0 deployments issuer-aws-privateca-issuer -n $K8S_NAMESPACE 1>/dev/null || exit 1
 
-    if [ -z "$DEPLOYMENT_NAME" ]; then
-        echo "[ERROR] Found empty ACK controller deployment name. Exiting ..."
-        exit 1
-    fi
-
-    echo "$DEPLOYMENT_NAME deployment found."
+    echo "issuer-aws-privateca-issuer deployment found."
 
     POD_NAME=$(kubectl get pods -n $K8S_NAMESPACE -ojson | jq -r ".items[0].metadata.name")
 
@@ -113,43 +110,33 @@ main() {
 
     install_aws_load_balancer
 
-    echo "AWS Load Balancer installed."
-
     envsubst <$E2E_DIR/blog-test/cluster-issuer.yaml >$E2E_DIR/blog-test/test-cluster-issuer.yaml
 
     kubectl apply -f $E2E_DIR/blog-test/test-cluster-issuer.yaml 1>/dev/null || exit 1
 
+    kubectl wait --for=condition=Ready --timeout=60s awspcaclusterissuer.awspca.cert-manager.io demo-test-root-ca 1>/dev/null || exit 1
+
+    echo "demo-test-root-ca awspcaclusterissuer found."
+
     kubectl apply -f $E2E_DIR/blog-test/nlb-lab-tls.yaml 1>/dev/null || exit 1
 
-    CERTIFICATE_NAME=$(kubectl get certificate -ojson | jq -r ".items[0].metadata.name")
+    kubectl wait --for=condition=Ready --timeout=15s certificates.cert-manager.io nlb-lab-tls-cert 1>/dev/null || exit 1
 
-    if [ -z "$CERTIFICATE_NAME" ]; then
-        echo "[ERROR] Found empty certificate name. Exiting ..."
-        exit 1
-    fi
-
-    echo "$CERTIFICATE_NAME certificate found."
+    echo "nlb-lab-tls-cert certificate found."
 
     envsubst <$E2E_DIR/blog-test/nlb-tls-app.yaml >$E2E_DIR/blog-test/test-nlb-tls-app.yaml
 
     kubectl apply -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml 1>/dev/null || exit 1
 
-    APP_POD_NAME=$(kubectl get pods -ojson | jq -r ".items[0].metadata.name")
+    kubectl wait --for=condition=Available --timeout 60s deployments nlb-tls-app 1>/dev/null || exit 1
 
-    if [ -z "$APP_POD_NAME" ]; then
-        echo "[ERROR] Found empty Application pod name. Exiting ..."
-        exit 1
-    fi
-
-    echo "$APP_POD_NAME app pod found"
+    echo "nlb-tls-app deployment found."
 
     timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
 
     create_target_group
 
-    sleep 300
-
-    echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT
+    timeout 300s bash -c 'until echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT; do : ; done'
 
     echo "Blog Test Finished Successfully"
 

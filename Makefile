@@ -73,7 +73,7 @@ e2etest: test
 helm-test:
 	$$SHELL e2e/helm_test.sh
 
-blog-test: cluster
+blog-test:
 	$$SHELL e2e/blog_test.sh
 
 # Build manager binary
