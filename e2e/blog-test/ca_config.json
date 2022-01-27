@@ -1,0 +1,7 @@
+{
+    "KeyAlgorithm": "RSA_2048",
+    "SigningAlgorithm": "SHA256WITHRSA",
+    "Subject": {
+        "CommonName": "Blog-test"
+    }
+}

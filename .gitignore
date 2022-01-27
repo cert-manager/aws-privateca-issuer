@@ -32,3 +32,9 @@ jwks
 openid-configuration
 build
 build/*
+
+
+ca.csr
+cert.pem
+test-cluster-issuer.yaml
+test-nlb-tls-app.yaml

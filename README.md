@@ -224,6 +224,12 @@ The test are fairly straightforward, they will take a set of "issuer templates" 
 
 For the most part, updating end-to-end will be updating these "issuer specs" and "certificate specs" which reside within e2e/e2e_test.go. If the test need updating beyond that, the core logic for the test is also embedded in e2e/e2e_test.go. The other files within the e2e folder are mainly utilities that shouldn't require frequent update
 
+### Other Tests
+
+1. Test to ensure that the workflow laid out in the blog [Setting up end-to-end TLS encryption on Amazon EKS with the new AWS Load Balancer Controller](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/) is functional. To run the test: ```make cluster && make install-eks-webhook && make blog-test```
+
+2. Test that pulls down the latest release via Helm, checks that the plugin was installed correctly, with the correct version, then gets deleted correctly. To run the test ```make cluster && make install-eks-webhook && make helm-test```
+
 ## Troubleshooting
 
 1. Check the secret with the AWS credentials: AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY values have to be base64 encoded.
