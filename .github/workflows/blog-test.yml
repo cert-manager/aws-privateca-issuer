@@ -51,10 +51,87 @@ jobs:
               {"Key": "GitHubRepository", "Value": "${{ github.repository }}"}
             ]
 
+  test-blog:
+    name: Run the blog test
+    needs:
+      - start-runner
+    runs-on: ${{ needs.start-runner.outputs.label }}
+    steps:
+      - name: Install Git
+        run: sudo yum install git -y
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Install Go
+        run: |
+          mkdir /home/ec2-user/.cache
+          mkdir /home/ec2-user/.cache/go-build
+          mkdir /home/ec2-user/.cache/go-mod
+          mkdir /home/ec2-user/go
+          sudo yum install golang -y
+          GOPATH="/home/ec2-user/go"
+          GOCACHE="/home/ec2-user/.cache/go-build"
+          GOMODCACHE="/home/ec2-user/.cache/go-mod"
+          echo GOPATH=$GOPATH >> $GITHUB_ENV
+          echo GOCACHE=$GOCACHE >> $GITHUB_ENV
+          echo GOMODCACHE=$GOMODCACHE >> $GITHUB_ENV
+      - name: Setup Cache variables
+        id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+      - name: Go-Build Cache # Cache go build cache, used to speedup go test
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+      - name: Go-Mod Cache # Cache go mod cache, used to speedup builds
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+      - name: Install Docker
+        run: |
+          sudo amazon-linux-extras install docker -y
+          sudo service docker start
+      - name: Install AWS CLI v2
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+      - name: Install Jq
+        run: |
+          sudo yum install jq -y
+      - name: Install Helm
+        run: |
+          curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+      - name: Setup Environment
+        run: |
+          export PLUGIN_USER_NAME_OVERRIDE=K8sPluginUser-dev-solonish-us-east-1
+          export OIDC_IAM_ROLE=arn:aws:iam::892721419421:role/IrsaTestingRole-dev-solonish-us-east-1
+          export OIDC_S3_BUCKET_NAME=aws-privateca-issuer-irsa-dev-solonish-us-east-1
+
+          echo PLUGIN_USER_NAME_OVERRIDE=$PLUGIN_USER_NAME_OVERRIDE >> $GITHUB_ENV
+          echo OIDC_IAM_ROLE=$OIDC_IAM_ROLE >> $GITHUB_ENV
+          echo OIDC_S3_BUCKET_NAME=$OIDC_S3_BUCKET_NAME >> $GITHUB_ENV
+      - name: Run Blog Test
+        run: |
+          make cluster
+          make install-eks-webhook
+          make blog-test
+
   stop-runner:
     name: Stop self-hosted EC2 runner
     needs:
       - start-runner # required to get output from the start-runner job
+      - test-blog
     runs-on: ubuntu-latest
     permissions:
       id-token: write
