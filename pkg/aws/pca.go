@@ -36,6 +36,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
+const DEFAULT_DURATION = 30 * 24 * 3600
+
 var collection = new(sync.Map)
 
 // GenericProvisioner abstracts over the Provisioner type for mocking purposes
@@ -55,6 +57,7 @@ type PCAProvisioner struct {
 	pcaClient        acmPCAClient
 	arn              string
 	signingAlgorithm *acmpcatypes.SigningAlgorithm
+	clock            func() time.Time
 }
 
 // GetProvisioner gets a provisioner that has previously been stored
@@ -97,9 +100,9 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return nil, nil, fmt.Errorf("failed to decode CSR")
 	}
 
-	validityExpiration := int64(time.Now().Unix()) + 30*24*3600
+	validityExpiration := int64(p.now().Unix()) + DEFAULT_DURATION
 	if cr.Spec.Duration != nil {
-		validityExpiration = int64(time.Now().Unix()) + int64(cr.Spec.Duration.Seconds())
+		validityExpiration = int64(p.now().Unix()) + int64(cr.Spec.Duration.Seconds())
 	}
 
 	tempArn := templateArn(p.arn, cr.Spec)
@@ -175,6 +178,14 @@ func getSigningAlgorithm(ctx context.Context, p *PCAProvisioner) error {
 
 	p.signingAlgorithm = &describeOutput.CertificateAuthority.CertificateAuthorityConfiguration.SigningAlgorithm
 	return nil
+}
+
+func (p *PCAProvisioner) now() time.Time {
+	if p.clock != nil {
+		return p.clock()
+	}
+
+	return time.Now()
 }
 
 func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
