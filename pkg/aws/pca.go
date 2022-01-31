@@ -99,7 +99,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 
 	validityExpiration := int64(time.Now().Unix()) + 30*24*3600
 	if cr.Spec.Duration != nil {
-		validityExpiration += int64(cr.Spec.Duration.Hours()) * 3600
+		validityExpiration = int64(time.Now().Unix()) + int64(cr.Spec.Duration.Seconds())
 	}
 
 	tempArn := templateArn(p.arn, cr.Spec)
