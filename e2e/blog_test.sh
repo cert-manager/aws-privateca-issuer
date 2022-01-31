@@ -95,7 +95,7 @@ main() {
 
     set_variables
 
-    kubectl wait --for=condition=Available --timeout 0 deployments issuer-aws-privateca-issuer -n $K8S_NAMESPACE 1>/dev/null || exit 1
+    kubectl wait --for=condition=Available --timeout 60s deployments issuer-aws-privateca-issuer -n $K8S_NAMESPACE 1>/dev/null || exit 1
 
     echo "issuer-aws-privateca-issuer deployment found."
 
