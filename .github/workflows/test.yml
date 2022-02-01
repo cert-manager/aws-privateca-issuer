@@ -134,7 +134,7 @@ jobs:
     name: Stop self-hosted EC2 runner
     needs:
       - start-runner # required to get output from the start-runner job
-      # - test-blog
+      - test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
