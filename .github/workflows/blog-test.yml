@@ -131,6 +131,10 @@ jobs:
           make cluster
           make install-eks-webhook
           make e2etest
+      - name: Terminate Kind cluster and setup for next test
+        if: ${{ always() }}
+        run: |
+          make kind-cluster-delete
       - name: Run Blog Test
         run: |
           make cluster
