@@ -112,20 +112,44 @@ jobs:
       - name: Install Helm
         run: |
           curl -sSL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-      - name: Setup Environment
+      - name: Setup test environment
         run: |
           export PLUGIN_USER_NAME_OVERRIDE=K8sPluginUser-dev-solonish-us-east-1
+          export HOME=$GITHUB_WORKSPACE
+          echo PLUGIN_USER_NAME_OVERRIDE=$PLUGIN_USER_NAME_OVERRIDE >> $GITHUB_ENV
+          echo HOME=$HOME >> $GITHUB_ENV
+      - name: Terminate Kind cluster and setup for next test
+        if: ${{ always() }}
+        run: |
           export OIDC_IAM_ROLE=arn:aws:iam::892721419421:role/IrsaTestingRole-dev-solonish-us-east-1
           export OIDC_S3_BUCKET_NAME=aws-privateca-issuer-irsa-dev-solonish-us-east-1
-
-          echo PLUGIN_USER_NAME_OVERRIDE=$PLUGIN_USER_NAME_OVERRIDE >> $GITHUB_ENV
           echo OIDC_IAM_ROLE=$OIDC_IAM_ROLE >> $GITHUB_ENV
           echo OIDC_S3_BUCKET_NAME=$OIDC_S3_BUCKET_NAME >> $GITHUB_ENV
+      - name: Run test cases with IRSA and K8s Secret
+        if: ${{ always() }}
+        run: |
+          make cluster
+          make install-eks-webhook
+          make e2etest
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs-irsa
+          export E2E_ARTIFACTS_DIRECTORY=logs-irsa
+          make kind-export-logs
+          aws s3 cp --recursive logs-irsa s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-irsa/
       - name: Run Blog Test
         run: |
           make cluster
           make install-eks-webhook
           make blog-test
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs-blog
+          export E2E_ARTIFACTS_DIRECTORY=logs-blog
+          make kind-export-logs
+          aws s3 cp --recursive logs-blog s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-blog/
 
   stop-runner:
     name: Stop self-hosted EC2 runner
