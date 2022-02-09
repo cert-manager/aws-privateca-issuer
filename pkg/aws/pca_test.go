@@ -23,11 +23,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
+	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 
 	testLog "github.com/go-logr/logr/testing"
 
@@ -170,6 +173,7 @@ func (m *errorACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.Is
 
 type workingACMPCAClient struct {
 	acmPCAClient
+	issueCertInput *acmpca.IssueCertificateInput
 }
 
 func (m *workingACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
@@ -183,6 +187,7 @@ func (m *workingACMPCAClient) DescribeCertificateAuthority(_ context.Context, in
 }
 
 func (m *workingACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.IssueCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.IssueCertificateOutput, error) {
+	m.issueCertInput = input
 	return &acmpca.IssueCertificateOutput{CertificateArn: &certArn}, nil
 }
 
@@ -328,7 +333,6 @@ func TestIdempotencyToken(t *testing.T) {
 }
 
 func TestPCASign(t *testing.T) {
-
 	type testCase struct {
 		provisioner   PCAProvisioner
 		expectFailure bool
@@ -351,7 +355,6 @@ func TestPCASign(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-
 			key, _ := rsa.GenerateKey(rand.Reader, 2048)
 			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
 
@@ -374,7 +377,77 @@ func TestPCASign(t *testing.T) {
 				assert.Equal(t, []byte(tc.expectedCert), leaf)
 				assert.Equal(t, []byte(tc.expectedChain), chain)
 			}
+		})
+	}
+}
+
+func TestPCASignValidity(t *testing.T) {
+	now := time.Now()
+	client := &workingACMPCAClient{}
+	provisioner := PCAProvisioner{arn: arn, pcaClient: client}
+	provisioner.clock = func() time.Time { return now }
+	type testCase struct {
+		duration      *metav1.Duration
+		expectedInput *acmpca.IssueCertificateInput
+	}
+
+	tests := map[string]testCase{
+		"default": {
+			duration: nil,
+			expectedInput: &acmpca.IssueCertificateInput{
+				CertificateAuthorityArn: aws.String(arn),
+				Validity: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) + DEFAULT_DURATION),
+				},
+			},
+		},
+		"duration specified": {
+			duration: ptrDuration(metav1.Duration{Duration: 3 * time.Hour}),
+			expectedInput: &acmpca.IssueCertificateInput{
+				CertificateAuthorityArn: aws.String(arn),
+				Validity: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) + int64(3*time.Hour.Seconds())),
+				},
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			client.issueCertInput = nil
+			key, _ := rsa.GenerateKey(rand.Reader, 2048)
+			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
+
+			cr := &v1.CertificateRequest{
+				Spec: v1.CertificateRequestSpec{
+					Request: pem.EncodeToMemory(&pem.Block{
+						Bytes: csrBytes,
+						Type:  "CERTIFICATE REQUEST",
+					}),
+					Duration: tc.duration,
+				},
+			}
+
+			_, _, _ = provisioner.Sign(context.TODO(), cr, testLog.NullLogger{})
+			got := client.issueCertInput
+			if got == nil {
+				assert.Fail(t, "Expected certificate input, got none")
+			} else {
+				assert.Equal(t, *got.CertificateAuthorityArn, *tc.expectedInput.CertificateAuthorityArn, name)
+				assert.Equal(t, got.Validity.Type, tc.expectedInput.Validity.Type, name)
+				assert.Equal(t, *got.Validity.Value, *tc.expectedInput.Validity.Value, name)
+			}
 
 		})
 	}
+}
+
+func ptrInt(i int64) *int64 {
+	return &i
+}
+
+func ptrDuration(d metav1.Duration) *metav1.Duration {
+	return &d
 }
