@@ -12,4 +12,7 @@ jobs:
         with:
           labels:
             'safe to test'
+          #We want to make this false because if the label
+          #isn't there, we don't want to fail. Worst case
+          #the label stays and we remove/re-add.
           fail_on_error: 'false'
