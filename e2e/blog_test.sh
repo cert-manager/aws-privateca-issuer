@@ -86,7 +86,7 @@ clean_up() {
 install_aws_load_balancer() {
     helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
     kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master" >/dev/null 2>&1
-    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEYS" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set image.repository=docker.io/amazon/aws-alb-ingress-controller --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" --set env.AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
     kubectl wait --for=condition=Available --timeout=60s deployments -n kube-system aws-load-balancer-controller 1>/dev/null || exit 1
     echo "AWS Load Balancer installed."
 }
@@ -95,7 +95,7 @@ main() {
 
     set_variables
 
-    kubectl wait --for=condition=Available --timeout 0 deployments issuer-aws-privateca-issuer -n $K8S_NAMESPACE 1>/dev/null || exit 1
+    kubectl wait --for=condition=Available --timeout 60s deployments issuer-aws-privateca-issuer -n $K8S_NAMESPACE 1>/dev/null || exit 1
 
     echo "issuer-aws-privateca-issuer deployment found."
 
@@ -136,7 +136,7 @@ main() {
 
     create_target_group
 
-    timeout 300s bash -c 'until echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT; do : ; done'
+    timeout 600s bash -c 'until echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT; do : ; done' || exit 1
 
     echo "Blog Test Finished Successfully"
 
