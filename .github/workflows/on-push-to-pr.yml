@@ -1,0 +1,15 @@
+name: On Push to PR
+
+on:
+  pull_request:
+    types: [synchronize]
+
+jobs:
+  remove-label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: divyansh-gupta/action-remove-labels@v1.3.0
+        with:
+          labels:
+            'safe to test'
+          fail_on_error: 'false'
