@@ -8,7 +8,7 @@ jobs:
   remove-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: bmsiegel/action-remove-labels@v1.3.0
+      - uses: bmsiegel/action-remove-labels@257be11d185d92d42c463be64144a718c1fdc2ab
         with:
           labels:
             'safe to test'
