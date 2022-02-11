@@ -444,7 +444,7 @@ func TestIssuerReconcile(t *testing.T) {
 
 			controller := GenericIssuerReconciler{
 				Client:   fakeClient,
-				Log:      &logrtesting.TestLogger{T: t},
+				Log:      logrtesting.NewTestLogger(t),
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(10),
 			}
