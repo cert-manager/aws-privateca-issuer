@@ -4,7 +4,7 @@
 # to for triaging and handling of incoming issues.
 #
 # DO NOT REPORT SECURITY VULNERABILITIES DIRECTLY TO THESE NAMES, FOLLOW THE
-# INSTRUCTIONS AT https://github.com/jetstack/cert-manager/blob/master/SECURITY.md
+# INSTRUCTIONS AT https://github.com/jetstack/cert-manager/blob/main/SECURITY.md
 
 anbaig
 paramsethi

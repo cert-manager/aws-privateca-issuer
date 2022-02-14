@@ -2,7 +2,7 @@ name: On Push to Main Branch
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 env:
   ECR_REPO: public.ecr.aws/z0d6s8x8

@@ -18,8 +18,8 @@ Signed-off-by: Joe Bloggs <joe@example.com>
 ```
 
 This can easily be done with the `--signoff` option to `git commit`.
-You can also mass sign-off a whole PR with `git rebase --signoff master`, replacing
-`master` with the branch you are creating a pull request again if not master.
+You can also mass sign-off a whole PR with `git rebase --signoff main`, replacing
+`main` with the branch you are creating a pull request again if not main.
 
 By doing this you state that you can certify the following (from https://developercertificate.org/):
 

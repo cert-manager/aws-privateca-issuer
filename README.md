@@ -109,7 +109,7 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
 
 ## Mapping Cert-Manager Usage Types to AWS PCA Template Arns
 
-The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/master/pkg/aws/pca.go#L177).
+The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/main/pkg/aws/pca.go#L177).
 
 Depending on which UsageTypes are set in the Cert-Manager certificate, different AWS PCA templates will be used.
 This table shows how the UsageTypes are being translated into which template to use when making an IssueCertificate request:
