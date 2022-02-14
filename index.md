@@ -109,7 +109,7 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
 
 ## Mapping Cert-Manager Usage Types to AWS PCA Template Arns
 
-The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/master/pkg/aws/pca.go#L177).
+The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/main/pkg/aws/pca.go#L177).
 
 Depending on which UsageTypes are set in the Cert-Manager certificate, different AWS PCA templates will be used.
 This table shows how the UsageTypes are being translated into which template to use when making an IssueCertificate request:
@@ -156,7 +156,7 @@ Before running ```make cluster``` we will need to do the following:
 
 \- Have the following tools on your machine:
 * [Git](https://git-scm.com/)
-* [Golang v1.13+](https://golang.org/)
+* [Golang v1.17+](https://golang.org/)
 * [Docker v17.03+](https://docs.docker.com/install/)
 * [Kind v0.9.0+](https://kind.sigs.k8s.io/docs/user/quick-start/) -> This will be installed via running the test
 * [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
