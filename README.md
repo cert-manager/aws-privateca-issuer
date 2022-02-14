@@ -156,7 +156,7 @@ Before running ```make cluster``` we will need to do the following:
 
 \- Have the following tools on your machine:
 * [Git](https://git-scm.com/)
-* [Golang v1.13+](https://golang.org/)
+* [Golang v1.17+](https://golang.org/)
 * [Docker v17.03+](https://docs.docker.com/install/)
 * [Kind v0.9.0+](https://kind.sigs.k8s.io/docs/user/quick-start/) -> This will be installed via running the test
 * [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
