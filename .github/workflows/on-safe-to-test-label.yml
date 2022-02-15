@@ -69,13 +69,19 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Install Development Tools
+        run: |
+          sudo yum groupinstall "Development Tools" -y
       - name: Install Go
         run: |
           mkdir /home/ec2-user/.cache
           mkdir /home/ec2-user/.cache/go-build
           mkdir /home/ec2-user/.cache/go-mod
           mkdir /home/ec2-user/go
-          sudo yum install golang -y
+          GOVERSION=go1.17.7
+          wget https://go.dev/dl/$GOVERSION.linux-amd64.tar.gz
+          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-amd64.tar.gz
+          PATH="$PATH:/usr/local/go/bin"
           GOPATH="/home/ec2-user/go"
           GOCACHE="/home/ec2-user/.cache/go-build"
           GOMODCACHE="/home/ec2-user/.cache/go-mod"
@@ -85,8 +91,8 @@ jobs:
       - name: Setup Cache variables
         id: go-cache-paths
         run: |
-          echo "::set-output name=go-build::$(go env GOCACHE)"
-          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+          echo "::set-output name=go-build::${{ env.GOCACHE }}"
+          echo "::set-output name=go-mod::${{ env.GOMODCACHE }}"
       - name: Go-Build Cache # Cache go build cache, used to speedup go test
         uses: actions/cache@v2
         with:
