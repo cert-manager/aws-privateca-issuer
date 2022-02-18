@@ -191,3 +191,20 @@ jobs:
           github-token: GithubToken-test-us-east-1
           label: ${{ needs.start-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}
+
+  remove-safe-to-test:
+    name: Remove Safe to Test Label
+    needs:
+      - stop-runner
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
+    steps:
+      - name: Remove Label
+        uses: divyansh-gupta/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
+        with:
+          labels:
+            'safe to test'
+          #We want to make this false because if we run into some edge case
+          #we don't want to fail out. Worst case
+          #the label stays and we remove/re-add.
+          fail_on_error: 'false'
