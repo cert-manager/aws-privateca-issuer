@@ -11,5 +11,3 @@ updates:
       interval: "daily"
       time: "09:30"
       timezone: "America/New_York"
-    labels:
-      - "safe to test"
