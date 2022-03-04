@@ -1,15 +1,15 @@
-# workflows to sync certain files when changes are pushed to the master branch
+# workflows to sync certain files when changes are pushed to the main branch
 name: Sync
 
 on:
   push:
     branches:
-      - 'master'
+      - 'main'
     paths:
       - 'README.md'
   pull_request_target:
     branches:
-      - 'master'
+      - 'main'
     paths:
       - 'config/crd/bases/**.yaml'
       - 'charts/aws-pca-issuer/crds/**.yaml'

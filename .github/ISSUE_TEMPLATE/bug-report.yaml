@@ -53,7 +53,7 @@ body:
     id: category
     attributes:
       label: Category
-      description: Select the category that best fits the issue. Please refer [Categories of Issues](../blob/master/docs/issue-categories.md) for more details.
+      description: Select the category that best fits the issue. Please refer [Categories of Issues](../blob/main/docs/issue-categories.md) for more details.
       options:
         - Authentication Issue
         - Supported Workflow Broken
@@ -67,7 +67,7 @@ body:
     id: severity
     attributes:
       label: Severity
-      description: Assign a severity level to this issue. Please refer [Severity of Issues](../blob/master/docs/severity.md) for more details.
+      description: Assign a severity level to this issue. Please refer [Severity of Issues](../blob/main/docs/severity.md) for more details.
       options:
         - Severity 1
         - Severity 2

@@ -4,7 +4,7 @@ name: testing
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push or pull request events but only for the main branch
   pull_request_target:
     types: [ labeled ]
   # Allows you to run this workflow manually from the Actions tab
@@ -12,7 +12,7 @@ on:
 
 jobs:
   start-runner:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') }}
+    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -31,7 +31,7 @@ jobs:
           AWS_REGION=us-east-1
           VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=is-default,Values=true' --query 'Vpcs[0].VpcId' --output text)
           SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query 'Subnets[0].SubnetId' --output text)
-          SG_ID=$(aws ec2 describe-security-groups --filters 'Name=group-name,Values=default' --query 'SecurityGroups[0].GroupId' --output text)
+          SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=default" --query 'SecurityGroups[0].GroupId' --output text)
           AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2 --query 'Parameter.Value' --output text) 
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
           echo SUBNET_ID=$SUBNET_ID >> $GITHUB_ENV
@@ -39,7 +39,7 @@ jobs:
           echo AMI=$AMI >> $GITHUB_ENV
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        uses: divyansh-gupta/ec2-github-runner@82c9d554a7e7946be1b2003eaac45af59c9f78fd
         with:
           mode: start
           github-token: GithubToken-test-us-east-1
@@ -56,7 +56,7 @@ jobs:
             ]
 
   do-the-job:
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') }}
+    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
     name: Do the job on the runner
     needs: start-runner # required to start the main job when the runner is ready
     runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
@@ -69,24 +69,31 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+      - name: Install Development Tools
+        run: |
+          sudo yum groupinstall "Development Tools" -y
       - name: Install Go
         run: |
           mkdir /home/ec2-user/.cache
           mkdir /home/ec2-user/.cache/go-build
           mkdir /home/ec2-user/.cache/go-mod
           mkdir /home/ec2-user/go
-          sudo yum install golang -y
+          GOVERSION=go1.17.7
+          wget https://go.dev/dl/$GOVERSION.linux-amd64.tar.gz
+          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-amd64.tar.gz
+          PATH="$PATH:/usr/local/go/bin"
           GOPATH="/home/ec2-user/go"
           GOCACHE="/home/ec2-user/.cache/go-build"
           GOMODCACHE="/home/ec2-user/.cache/go-mod"
           echo GOPATH=$GOPATH >> $GITHUB_ENV
           echo GOCACHE=$GOCACHE >> $GITHUB_ENV
           echo GOMODCACHE=$GOMODCACHE >> $GITHUB_ENV
+          echo PATH=$PATH >> $GITHUB_ENV
       - name: Setup Cache variables
         id: go-cache-paths
         run: |
-          echo "::set-output name=go-build::$(go env GOCACHE)"
-          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+          echo "::set-output name=go-build::${{ env.GOCACHE }}"
+          echo "::set-output name=go-mod::${{ env.GOMODCACHE }}"
       - name: Go-Build Cache # Cache go build cache, used to speedup go test
         uses: actions/cache@v2
         with:
@@ -156,6 +163,22 @@ jobs:
           export E2E_ARTIFACTS_DIRECTORY=logs-irsa
           make kind-export-logs
           aws s3 cp --recursive logs-irsa s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-irsa/
+      - name: Terminate Kind cluster
+        if: ${{ always() }}
+        run: |
+          make kind-cluster-delete
+      - name: Run Blog Test
+        run: |
+          make cluster
+          make install-eks-webhook
+          make blog-test
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs-blog
+          export E2E_ARTIFACTS_DIRECTORY=logs-blog
+          make kind-export-logs
+          aws s3 cp --recursive logs-blog s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-blog/
           
   stop-runner:
     name: Stop self-hosted EC2 runner
@@ -166,7 +189,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
+    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always()) || (contains(github.event_name, 'workflow_dispatch')) }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
@@ -178,9 +201,26 @@ jobs:
           AWS_REGION=us-east-1
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
       - name: Stop EC2 runner
-        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        uses: divyansh-gupta/ec2-github-runner@82c9d554a7e7946be1b2003eaac45af59c9f78fd
         with:
           mode: stop
           github-token: GithubToken-test-us-east-1
           label: ${{ needs.start-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}
+
+  remove-safe-to-test:
+    name: Remove Safe to Test Label
+    needs:
+      - stop-runner
+    runs-on: ubuntu-latest
+    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
+    steps:
+      - name: Remove Label
+        uses: divyansh-gupta/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
+        with:
+          labels:
+            'safe to test'
+          #We want to make this false because if we run into some edge case
+          #we don't want to fail out. Worst case
+          #the label stays and we remove/re-add.
+          fail_on_error: 'false'

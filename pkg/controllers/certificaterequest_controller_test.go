@@ -383,7 +383,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				Build()
 			controller := CertificateRequestReconciler{
 				Client:   fakeClient,
-				Log:      &logrtesting.TestLogger{T: t},
+				Log:      logrtesting.NewTestLogger(t),
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(10),
 			}
