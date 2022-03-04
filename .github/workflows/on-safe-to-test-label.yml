@@ -39,7 +39,7 @@ jobs:
           echo AMI=$AMI >> $GITHUB_ENV
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        uses: divyansh-gupta/ec2-github-runner@82c9d554a7e7946be1b2003eaac45af59c9f78fd
         with:
           mode: start
           github-token: GithubToken-test-us-east-1
@@ -201,7 +201,7 @@ jobs:
           AWS_REGION=us-east-1
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
       - name: Stop EC2 runner
-        uses: divyansh-gupta/ec2-github-runner@cc04b23befe52cc1f2e4e8ae8047d1c3b7dc40af
+        uses: divyansh-gupta/ec2-github-runner@82c9d554a7e7946be1b2003eaac45af59c9f78fd
         with:
           mode: stop
           github-token: GithubToken-test-us-east-1
