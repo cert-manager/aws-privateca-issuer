@@ -5,8 +5,6 @@ replicaCount: 1
 image:
   repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
 
 # Disable waiting for CertificateRequests to be Approved before signing
 disableApprovedCheck: false
