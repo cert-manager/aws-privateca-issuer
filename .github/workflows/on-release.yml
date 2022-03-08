@@ -21,6 +21,8 @@ jobs:
       - name: Get release version
         id: tag
         uses: divyansh-gupta/action-get-tag@727a6f0a561be04e09013531e73a3983a65e3479
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
       - name: Setup Dockerx
         uses: docker/setup-buildx-action@v1
       - name: Setup AWS Credentials
@@ -44,6 +46,7 @@ jobs:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
           context: .
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.TAG_BASE }}:latest
             ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
