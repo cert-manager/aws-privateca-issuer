@@ -33,6 +33,16 @@ entries:
     version: 0.1.0
   aws-privateca-issuer:
   - apiVersion: v2
+    appVersion: v1.2.1
+    created: "2022-03-28T18:59:42.798097057Z"
+    description: An addon for cert-manager to sign certificates using AWS PCA
+    digest: 76406d6ca46adfac170eaed000c3761ec8a312fd9e09689fc57d5b6071de8087
+    name: aws-privateca-issuer
+    type: application
+    urls:
+    - https://cert-manager.github.io/aws-privateca-issuer/aws-privateca-issuer-1.2.1.tgz
+    version: 1.2.1
+  - apiVersion: v2
     appVersion: v1.2.0
     created: "2022-02-07T17:12:21.212292806Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
@@ -72,4 +82,4 @@ entries:
     urls:
     - https://cert-manager.github.io/aws-privateca-issuer/aws-privateca-issuer-0.1.2.tgz
     version: 0.1.2
-generated: "2022-02-07T17:12:21.211413339Z"
+generated: "2022-03-28T18:59:42.797341852Z"
