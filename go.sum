@@ -176,8 +176,8 @@ github.com/aws/aws-sdk-go-v2/service/iam v1.18.0 h1:ZYpP40/QE7/R0zDxdrZyGGUijX26
 github.com/aws/aws-sdk-go-v2/service/iam v1.18.0/go.mod h1:9wRsXAkRJ7qBWIDTFYa66Cx+oQJsPEnBYCPrinanpS8=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.0 h1:YQ3fTXACo7xeAqg0NiqcCmBOXJruUfh+4+O2qxF2EjQ=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.0/go.mod h1:R31ot6BgESRCIoxwfKtIHzZMo/vsZn2un81g9BJ4nmo=
-github.com/aws/aws-sdk-go-v2/service/ram v1.16.0 h1:XtWJUs8q5hKOKKa0avqTLLeIaOf+C1pYlx/fRk473BQ=
-github.com/aws/aws-sdk-go-v2/service/ram v1.16.0/go.mod h1:entMHv66vtlheMQTeV1OpEje8F69j6XRNz3zz+IJrCA=
+github.com/aws/aws-sdk-go-v2/service/ram v1.16.3 h1:FI/ugmfH8G0crS+f9dlwQgKpQevgbzFaI0mqd35M9dA=
+github.com/aws/aws-sdk-go-v2/service/ram v1.16.3/go.mod h1:PTSH0S4XzNMtm8hSA9wio0UtcH0AxPrlHIb9yZ5n0T4=
 github.com/aws/aws-sdk-go-v2/service/sso v1.11.0 h1:gZLEXLH6NiU8Y52nRhK1jA+9oz7LZzBK242fi/ziXa4=
 github.com/aws/aws-sdk-go-v2/service/sso v1.11.0/go.mod h1:d1WcT0OjggjQCAdOkph8ijkr5sUwk1IH/VenOn7W1PU=
 github.com/aws/aws-sdk-go-v2/service/sts v1.16.0 h1:0+X/rJ2+DTBKWbUsn7WtF0JvNk/fRf928vkFsXkbbZs=
