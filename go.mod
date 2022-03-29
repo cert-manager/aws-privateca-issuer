@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ram v1.16.3
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.2
 	github.com/go-logr/logr v1.2.2
-	github.com/jetstack/cert-manager v1.7.1
+	github.com/jetstack/cert-manager v1.7.2
 	github.com/stretchr/testify v1.7.1
 	k8s.io/api v0.23.5
 	k8s.io/apimachinery v0.23.5
