@@ -3,6 +3,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "aws-privateca-issuer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
   {{- with .Values.serviceMonitor.annotations }}
