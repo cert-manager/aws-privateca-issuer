@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.11.2
 	github.com/aws/aws-sdk-go-v2/service/acmpca v1.17.2
 	github.com/aws/aws-sdk-go-v2/service/iam v1.18.2
-	github.com/aws/aws-sdk-go-v2/service/ram v1.16.3
+	github.com/aws/aws-sdk-go-v2/service/ram v1.16.5
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.3
 	github.com/go-logr/logr v1.2.3
 	github.com/jetstack/cert-manager v1.7.2
