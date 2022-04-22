@@ -36,7 +36,7 @@
             "fileMatch": ["^.github/workflows/on-safe-to-test-label.yml$"],
             "matchStrings": ["GOVERSION=go(?<currentValue>.*?)\\n"],
             "depNameTemplate": "golang",
-            "datasourceTemplate": "go"
+            "datasourceTemplate": "docker"
         }
     ],
     "timezone": "America/New_York"   
