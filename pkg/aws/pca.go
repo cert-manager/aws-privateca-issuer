@@ -32,7 +32,7 @@ import (
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	injections "github.com/cert-manager/aws-privateca-issuer/pkg/api/injections"
 	"github.com/go-logr/logr"
-	cmapi "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 

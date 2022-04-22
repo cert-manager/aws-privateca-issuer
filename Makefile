@@ -266,7 +266,7 @@ kind-export-logs:
 
 .PHONY: deploy-cert-manager
 deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
-	kubectl apply --filename=https://github.com/jetstack/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
+	kubectl apply --filename=https://github.com/cert-manager/cert-manager/releases/download/v${CERT_MANAGER_VERSION}/cert-manager.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
 .PHONY: install-local
