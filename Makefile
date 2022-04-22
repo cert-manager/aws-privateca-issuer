@@ -48,7 +48,7 @@ KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= 1.7.0
+CERT_MANAGER_VERSION ?= v1.8.0
 
 # Controller tools
 CONTROLLER_GEN_VERSION := 0.5.0

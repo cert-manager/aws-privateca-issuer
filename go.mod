@@ -6,17 +6,17 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.16.2
 	github.com/aws/aws-sdk-go-v2/config v1.15.3
 	github.com/aws/aws-sdk-go-v2/credentials v1.11.2
-	github.com/aws/aws-sdk-go-v2/service/acmpca v1.17.2
-	github.com/aws/aws-sdk-go-v2/service/iam v1.18.2
-	github.com/aws/aws-sdk-go-v2/service/ram v1.16.3
+	github.com/aws/aws-sdk-go-v2/service/acmpca v1.17.4
+	github.com/aws/aws-sdk-go-v2/service/iam v1.18.3
+	github.com/aws/aws-sdk-go-v2/service/ram v1.16.5
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.3
 	github.com/go-logr/logr v1.2.3
-	github.com/jetstack/cert-manager v1.7.2
+	github.com/jetstack/cert-manager v1.8.0
 	github.com/stretchr/testify v1.7.1
-	k8s.io/api v0.23.5
-	k8s.io/apimachinery v0.23.5
-	k8s.io/client-go v0.23.5
-	k8s.io/utils v0.0.0-20211116205334-6203023598ed
+	k8s.io/api v0.23.6
+	k8s.io/apimachinery v0.23.6
+	k8s.io/client-go v0.23.6
+	k8s.io/utils 3a6ce19ff2f9
 	sigs.k8s.io/controller-runtime v0.11.2
 )
 
