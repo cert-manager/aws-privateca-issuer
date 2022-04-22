@@ -20,7 +20,7 @@ import (
 	"flag"
 	"os"
 
-	certmanager "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
+	certmanager "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
