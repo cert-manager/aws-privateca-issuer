@@ -1,0 +1,44 @@
+{
+    "extends": [
+        ":automergeDisabled",
+        "config:base",
+        ":gitSignOff"
+    ],
+    "ignorePaths" : [
+        "config/manager/kustomization.yaml",
+        ".github/workflows/on-push-to-main-branch.yml",
+        ".github/workflows/on-release.yml",
+        ".github/workflows/sync.yml"
+    ],
+    "masterIssue": true,
+    "packageRules": [{
+        "matchPackagePatterns": [
+            "*"
+        ],
+        "matchUpdateTypes": [
+            "minor",
+            "patch",
+            "digest"
+        ],
+        "groupName": "all non-major dependencies",
+        "groupSlug": "all-minor-patch"
+    }],
+    "prConcurrentLimit": 3,
+    "prHourlyLimit": 1,
+    "regexManagers": [
+        {
+            "fileMatch": ["^Makefile$"],
+            "matchStrings": ["CERT_MANAGER_VERSION \\?= (?<currentValue>.*?)\\n"],
+            "depNameTemplate": "cert-manager/cert-manager",
+            "datasourceTemplate": "github-releases"
+        },
+        {
+            "fileMatch": ["^.github/workflows/on-safe-to-test-label.yml$"],
+            "matchStrings": ["GOVERSION=go(?<currentValue>.*?)\\n"],
+            "depNameTemplate": "golang",
+            "datasourceTemplate": "go"
+        }
+    ],
+    "timezone": "America/New_York"   
+}
+
