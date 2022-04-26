@@ -2,6 +2,7 @@
     "extends": [
         ":automergeDisabled",
         "config:base",
+        ":disableDependencyDashboard",
         ":gitSignOff"
     ],
     "ignorePaths" : [
