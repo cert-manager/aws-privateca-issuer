@@ -78,14 +78,17 @@ jobs:
           mkdir /home/ec2-user/.cache/go-build
           mkdir /home/ec2-user/.cache/go-mod
           mkdir /home/ec2-user/go
+          mkdir /home/ec2-user/go/bin
           GOVERSION=go1.18.1
           wget https://go.dev/dl/$GOVERSION.linux-amd64.tar.gz
           sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-amd64.tar.gz
           PATH="$PATH:/usr/local/go/bin"
           GOPATH="/home/ec2-user/go"
+          GOBIN="/home/ec2-user/go/bin"
           GOCACHE="/home/ec2-user/.cache/go-build"
           GOMODCACHE="/home/ec2-user/.cache/go-mod"
           echo GOPATH=$GOPATH >> $GITHUB_ENV
+          echo GOBIN=$GOBIN >> $GITHUB_ENV
           echo GOCACHE=$GOCACHE >> $GITHUB_ENV
           echo GOMODCACHE=$GOMODCACHE >> $GITHUB_ENV
           echo PATH=$PATH >> $GITHUB_ENV
