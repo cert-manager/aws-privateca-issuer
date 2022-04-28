@@ -2,16 +2,15 @@
     "extends": [
         ":automergeDisabled",
         "config:base",
-        ":disableDependencyDashboard",
         ":gitSignOff"
     ],
+    "dependencyDashboard": false,
     "ignorePaths" : [
         "config/manager/kustomization.yaml",
         ".github/workflows/on-push-to-main-branch.yml",
         ".github/workflows/on-release.yml",
         ".github/workflows/sync.yml"
     ],
-    "masterIssue": true,
     "packageRules": [{
         "matchPackagePatterns": [
             "*"
