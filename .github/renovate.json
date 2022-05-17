@@ -39,6 +39,11 @@
             "datasourceTemplate": "docker"
         }
     ],
+    "vulnerabilityAlerts": {
+        "schedule": [],
+        "commitMessagePrefix": ["[SECURITY]"],
+        "automerge": false
+    },
     "schedule": [
         "after 9am on Monday",
         "before 12pm on Monday"
