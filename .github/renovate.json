@@ -1,53 +1,56 @@
 {
-    "extends": [
-        ":automergeDisabled",
-        "config:base",
-        ":gitSignOff"
+  "extends": [
+    ":automergeDisabled",
+    "config:base",
+    ":gitSignOff"
+  ],
+  "dependencyDashboard": false,
+  "ignorePaths" : [
+    "config/manager/kustomization.yaml",
+    ".github/workflows/on-push-to-main-branch.yml",
+    ".github/workflows/on-release.yml",
+    ".github/workflows/sync.yml"
+  ],
+  "ignoreDeps": [
+    "k8s.io/client-go"
+  ],
+  "packageRules": [{
+    "matchPackagePatterns": [
+      "*"
     ],
-    "dependencyDashboard": false,
-    "ignorePaths" : [
-        "config/manager/kustomization.yaml",
-        ".github/workflows/on-push-to-main-branch.yml",
-        ".github/workflows/on-release.yml",
-        ".github/workflows/sync.yml"
+    "matchUpdateTypes": [
+      "minor",
+      "patch",
+      "digest"
     ],
-    "packageRules": [{
-        "matchPackagePatterns": [
-            "*"
-        ],
-        "matchUpdateTypes": [
-            "minor",
-            "patch",
-            "digest"
-        ],
-        "groupName": "all non-major dependencies",
-        "groupSlug": "all-minor-patch"
-    }],
-    "prConcurrentLimit": 3,
-    "prHourlyLimit": 1,
-    "regexManagers": [
-        {
-            "fileMatch": ["^Makefile$"],
-            "matchStrings": ["CERT_MANAGER_VERSION \\?= (?<currentValue>.*?)\\n"],
-            "depNameTemplate": "cert-manager/cert-manager",
-            "datasourceTemplate": "github-releases"
-        },
-        {
-            "fileMatch": ["^.github/workflows/on-safe-to-test-label.yml$"],
-            "matchStrings": ["GOVERSION=go(?<currentValue>.*?)\\n"],
-            "depNameTemplate": "golang",
-            "datasourceTemplate": "docker"
-        }
-    ],
-    "vulnerabilityAlerts": {
-        "schedule": [],
-        "commitMessagePrefix": ["[SECURITY]"],
-        "automerge": false
+    "groupName": "all non-major dependencies",
+    "groupSlug": "all-minor-patch"
+  }],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 1,
+  "regexManagers": [
+    {
+      "fileMatch": ["^Makefile$"],
+      "matchStrings": ["CERT_MANAGER_VERSION \\?= (?<currentValue>.*?)\\n"],
+      "depNameTemplate": "cert-manager/cert-manager",
+      "datasourceTemplate": "github-releases"
     },
-    "schedule": [
-        "after 9am on Monday",
-        "before 12pm on Monday"
-    ],
-    "timezone": "America/New_York"
+    {
+      "fileMatch": ["^.github/workflows/on-safe-to-test-label.yml$"],
+      "matchStrings": ["GOVERSION=go(?<currentValue>.*?)\\n"],
+      "depNameTemplate": "golang",
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "schedule": [],
+    "commitMessagePrefix": ["[SECURITY]"],
+    "automerge": false
+  },
+  "schedule": [
+    "after 9am on Monday",
+    "before 12pm on Monday"
+  ],
+  "timezone": "America/New_York"
 }
 
