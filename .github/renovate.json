@@ -44,12 +44,13 @@
   ],
   "vulnerabilityAlerts": {
     "schedule": [],
-    "commitMessagePrefix": ["[SECURITY]"],
+    "commitMessagePrefix": "[SECURITY]",
+    "commitMessageSuffix": "",
     "automerge": false
   },
   "schedule": [
-    "after 9am on Monday",
-    "before 12pm on Monday"
+    "after 9am on Wednesday",
+    "before 12pm on Wednesday"
   ],
   "timezone": "America/New_York"
 }
