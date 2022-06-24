@@ -10,14 +10,14 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iam v1.18.7
 	github.com/aws/aws-sdk-go-v2/service/ram v1.16.9
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.7
-	github.com/cert-manager/cert-manager v1.8.1
+	github.com/cert-manager/cert-manager v1.8.2
 	github.com/go-logr/logr v1.2.3
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.7.5
 	k8s.io/api v0.24.2
 	k8s.io/apimachinery v0.24.2
-	k8s.io/client-go v0.24.1
+	k8s.io/client-go v0.24.2
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
-	sigs.k8s.io/controller-runtime v0.12.1
+	sigs.k8s.io/controller-runtime v0.12.2
 )
 
 require (
@@ -89,8 +89,8 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.24.0 // indirect
-	k8s.io/component-base v0.24.0 // indirect
+	k8s.io/apiextensions-apiserver v0.24.2 // indirect
+	k8s.io/component-base v0.24.2 // indirect
 	k8s.io/klog/v2 v2.60.1 // indirect
 	k8s.io/kube-aggregator v0.23.4 // indirect
 	k8s.io/kube-openapi v0.0.0-20220328201542-3ee0da9b0b42 // indirect
