@@ -11,9 +11,6 @@
     ".github/workflows/on-release.yml",
     ".github/workflows/sync.yml"
   ],
-  "ignoreDeps": [
-    "k8s.io/client-go"
-  ],
   "packageRules": [{
     "matchPackagePatterns": [
       "*"
@@ -25,6 +22,16 @@
     ],
     "groupName": "all non-major dependencies",
     "groupSlug": "all-minor-patch"
+  }, {
+    "matchPackageNames": [
+      "k8s.io/client-go",
+      "k8s.io/api",
+      "k8s.io/apimachinery"
+    ],
+    "matchUpdateTypes": [
+      "major" 
+    ],
+    "enabled": false
   }],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 1,
