@@ -2433,6 +2433,8 @@ k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85 h1:cTdVh7LYu82xeClmfzGtgyspNh6Ux
 k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 k8s.io/utils v0.0.0-20221101230645-61b03e2f6476 h1:L14f2LWkOxG2rYsuSA3ltQnnST1vMfek/GUk+VemxD4=
 k8s.io/utils v0.0.0-20221101230645-61b03e2f6476/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
+k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2 h1:GfD9OzL11kvZN5iArC6oTS7RTj7oJOIfnislxYlqTj8=
+k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 oras.land/oras-go v1.1.0/go.mod h1:1A7vR/0KknT2UkJVWh+xMi95I/AhK8ZrxrnUSmXN0bQ=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
