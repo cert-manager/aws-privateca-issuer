@@ -69,3 +69,9 @@ affinity: {}
 env:
 
 podLabels: {}
+
+# Additional volumes on the operator container.
+volumes: []
+
+# Additional VolumeMounts on the operator container.
+volumeMounts: []
