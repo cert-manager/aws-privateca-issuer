@@ -5,6 +5,7 @@ replicaCount: 1
 image:
   repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
   pullPolicy: IfNotPresent
+  tag: ""
 
 # Disable waiting for CertificateRequests to be Approved before signing
 disableApprovedCheck: false
