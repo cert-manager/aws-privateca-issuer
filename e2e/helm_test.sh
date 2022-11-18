@@ -37,7 +37,7 @@ print_line_separation() {
 
 set_variables() {
   DIR="$( dirname -- "$0"; )"
-  K8S_NAMESPACE="aws-privateca-issuer" # also updated this for consistency
+  K8S_NAMESPACE="aws-privateca-issuer"
   HELM_CHART_NAME="$DIR/../charts/aws-pca-issuer"
   AWS_REGION="us-east-1"
   DEPLOYMENT_NAME="aws-privateca-issuer"
