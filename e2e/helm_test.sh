@@ -36,11 +36,12 @@ print_line_separation() {
 }
 
 set_variables() {
-  K8S_NAMESPACE="aws-pca-issuer"
-  HELM_CHART_NAME="awspca/aws-privateca-issuer"
+  DIR="$( dirname -- "$0"; )"
+  K8S_NAMESPACE="aws-privateca-issuer" # also updated this for consistency
+  HELM_CHART_NAME="$DIR/../charts/aws-pca-issuer"
   AWS_REGION="us-east-1"
   DEPLOYMENT_NAME="aws-privateca-issuer"
-  VALUES_FILE="test-values.yaml"
+  VALUES_FILE="$DIR/test-values.yaml"
 }
 
 clean_up() {
