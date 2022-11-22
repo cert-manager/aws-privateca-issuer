@@ -1,0 +1,9 @@
+
+volumeMounts:
+  - mountPath: /cache
+    name: cache-volume
+
+volumes:
+  - name: cache-volume
+    emptyDir:
+      sizeLimit: 500Mi

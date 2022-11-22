@@ -47,6 +47,10 @@ spec:
           ports:
             - containerPort: 8080
               name: http
+          {{- if .Values.volumeMounts }}
+          volumeMounts:
+            {{- toYaml .Values.volumeMounts | nindent 10 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -70,6 +74,10 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- end }}
+      {{- if .Values.volumes }}
+      volumes:
+        {{ toYaml .Values.volumes | nindent 6 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

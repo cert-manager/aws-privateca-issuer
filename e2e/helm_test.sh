@@ -36,10 +36,12 @@ print_line_separation() {
 }
 
 set_variables() {
-  K8S_NAMESPACE="aws-pca-issuer"
-  HELM_CHART_NAME="awspca/aws-privateca-issuer"
+  DIR="$( dirname -- "$0"; )"
+  K8S_NAMESPACE="aws-privateca-issuer"
+  HELM_CHART_NAME="$DIR/../charts/aws-pca-issuer"
   AWS_REGION="us-east-1"
   DEPLOYMENT_NAME="aws-privateca-issuer"
+  VALUES_FILE="$DIR/test-values.yaml"
 }
 
 clean_up() {
@@ -63,7 +65,7 @@ main() {
 
   echo "Installing the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
 
-  helm install "$DEPLOYMENT_NAME" "$HELM_CHART_NAME" --create-namespace --namespace "$K8S_NAMESPACE" 1>/dev/null || exit 1
+  helm install "$DEPLOYMENT_NAME" "$HELM_CHART_NAME" --create-namespace --namespace "$K8S_NAMESPACE" -f $VALUES_FILE 1>/dev/null || exit 1
 
   echo "Helm chart installed."
 
@@ -82,6 +84,13 @@ main() {
     echo "[ERROR] Found empty ACK controller pod name. Exiting ..."
     exit 1
   fi
+
+  # check if volume and volumeMount for 'cache-volume'
+  POD_VOLUMES=$(kubectl get pod/"$POD_NAME" -n $K8S_NAMESPACE -ojson | jq -r '.spec.volumes[] | select( .name == "cache-volume" )')
+  POD_VOLUME_MOUNTS=$(kubectl get pod/"$POD_NAME" -n $K8S_NAMESPACE -ojson | jq -r '.spec.containers[0].volumeMounts[] | select( .name == "cache-volume")')
+
+  [ -z "$POD_VOLUMES" ] && echo "Volume 'cache-volume' has not been found" && exit 1
+  [ -z "$POD_VOLUME_MOUNTS" ] && echo "Volume mount 'cache-volume' has not been found" && exit 1
 
   kubectl wait --for=condition=ready pod  "$POD_NAME" -n $K8S_NAMESPACE --timeout=30s 1>/dev/null || exit 1
 
