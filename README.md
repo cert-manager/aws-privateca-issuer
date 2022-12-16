@@ -117,7 +117,7 @@ This table shows how the UsageTypes are being translated into which template to 
 | Cert-Manager Usage Type(s) | AWS PCA Template ARN                                             |
 | -------------------------- | ---------------------------------------------------------------- |
 | CodeSigning                | acm-pca:::template/CodeSigningCertificate/V1                     |
-| ClientAuth                 | acm-pca:::template/EndEntityClientAuthCertificate/V1             |
+| ClientAuth                 | acm-pca:::template/EndEntityClientAuthCertificate/V1 <br/>    acm-pca:::template/SubordinateCACertificate_PathLen0/V1 <br/> acm-pca:::template/SubordinateCACertificate_PathLen1/V1 <br> acm-pca:::template/SubordinateCACertificate_PathLen2/V1 <br> acm-pca:::template/SubordinateCACertificate_PathLen3/V1 |
 | ServerAuth                 | acm-pca:::template/EndEntityServerAuthCertificate/V1             |
 | OCSPSigning                | acm-pca:::template/OCSPSigningCertificate/V1                     |
 | ClientAuth, ServerAuth     | acm-pca:::template/EndEntityCertificate/V1                       |
