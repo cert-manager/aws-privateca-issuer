@@ -170,6 +170,21 @@ jobs:
         if: ${{ always() }}
         run: |
           make kind-cluster-delete
+      - name: Run helm test
+        if: ${{ always() }}
+        run: |
+          make helm-test
+      - name: Copy Kind logs to S3
+        if: ${{ always() }}
+        run: |
+          mkdir logs-helm-test
+          export E2E_ARTIFACTS_DIRECTORY=logs-helm-test
+          make kind-export-logs
+          aws s3 cp --recursive logs-helm-test s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-logs-helm-test/
+      - name: Terminate Kind cluster
+        if: ${{ always() }}
+        run: |
+          make kind-cluster-delete
       - name: Run Blog Test
         run: |
           make cluster
