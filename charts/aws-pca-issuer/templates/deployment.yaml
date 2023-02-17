@@ -13,6 +13,7 @@ spec:
     matchLabels:
       {{- include "aws-privateca-issuer.selectorLabels" . | nindent 6 }}
   template:
+    revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
     metadata:
       {{- with .Values.podAnnotations }}
       annotations:
