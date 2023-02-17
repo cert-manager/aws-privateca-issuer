@@ -97,6 +97,7 @@ func main() {
 		Recorder:          mgr.GetEventRecorderFor("awspcaissuer-controller"),
 		GetCallerIdentity: true,
 	}
+
 	if err = (&controllers.AWSPCAIssuerReconciler{
 		Client:            mgr.GetClient(),
 		Log:               ctrl.Log.WithName("controllers").WithName("AWSPCAIssuer"),
@@ -106,15 +107,21 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "AWSPCAIssuer")
 		os.Exit(1)
 	}
-	if err = (&controllers.AWSPCAClusterIssuerReconciler{
-		Client:            mgr.GetClient(),
-		Log:               ctrl.Log.WithName("controllers").WithName("AWSPCAClusterIssuer"),
-		Scheme:            mgr.GetScheme(),
-		GenericController: genericIssuerController,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "AWSPCAClusterIssuer")
-		os.Exit(1)
+
+	if restrictToNamespace != "" {
+		setupLog.Info("restricting controller to namespace, disable AWSPCAClusterIssuer controller", "namespace", restrictToNamespace)
+	} else {
+		if err = (&controllers.AWSPCAClusterIssuerReconciler{
+			Client:            mgr.GetClient(),
+			Log:               ctrl.Log.WithName("controllers").WithName("AWSPCAClusterIssuer"),
+			Scheme:            mgr.GetScheme(),
+			GenericController: genericIssuerController,
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AWSPCAClusterIssuer")
+			os.Exit(1)
+		}
 	}
+
 	if err = (&controllers.CertificateRequestReconciler{
 		Client:   mgr.GetClient(),
 		Log:      ctrl.Log.WithName("controllers").WithName("CertificateRequest"),
