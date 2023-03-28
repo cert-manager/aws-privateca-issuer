@@ -88,3 +88,22 @@ volumes: []
 
 # Additional VolumeMounts on the operator container.
 volumeMounts: []
+
+# expects input structure similar to https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy
+# EXCEPT pod selector is defined by this helm template's `aws-privateca-issuer.selectorLabels` template function. per
+# https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy, `maxUnavailable` is mutually
+# exclusive with `minAvailable`.  you cannot choose both.
+#
+# for example:
+#   podDisruptionBudget:
+#     maxUnavailable: 1
+#
+# or:
+#   podDisruptionBudget:
+#     minAvailable: 1
+#
+# but NOT:
+#   podDisruptionBudget:
+#     minAvailable: 1
+#     maxUnavailable: 1
+podDisruptionBudget: {}
