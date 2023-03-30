@@ -1,0 +1,14 @@
+{{- if .Values.podDisruptionBudget }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "aws-privateca-issuer.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "aws-privateca-issuer.selectorLabels" . | nindent 6 }}
+  {{- toYaml .Values.podDisruptionBudget | nindent 2 }}
+{{- end }}
