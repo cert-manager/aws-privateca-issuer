@@ -407,6 +407,8 @@ github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.4 h1:Aox5KAbmFp8jLVDATqGA7ePt1
 github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.4/go.mod h1:JH7JJPS8qmOoZDES6Vrrz6znfgeV1UoPRFyaZvOeIlg=
 github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.6 h1:XW1F8c97qS6jUWXCvj/tuy1/92MVvznsyzDadEbKPv8=
 github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.6/go.mod h1:N5nRUDx9bxKk3fnV6OVIFmfMi8RmcpCofj+bJymfSHs=
+github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.7 h1:spTa+A/a5ufGan696VHwmXslEWlD9muEl6GC/jrVDb0=
+github.com/aws/aws-sdk-go-v2/service/acmpca v1.21.7/go.mod h1:N5nRUDx9bxKk3fnV6OVIFmfMi8RmcpCofj+bJymfSHs=
 github.com/aws/aws-sdk-go-v2/service/iam v1.18.3 h1:wllKL2fLtvfaNAVbXKMRmM/mD1oDNw0hXmDn8mE/6Us=
 github.com/aws/aws-sdk-go-v2/service/iam v1.18.3/go.mod h1:51xGfEjd1HXnTzw2mAp++qkRo+NyGYblZkuGTsb49yw=
 github.com/aws/aws-sdk-go-v2/service/iam v1.18.4 h1:E41guA79mjEbwJdh0zXz1d8+Zt4zxRr+b1ipiVbKXzs=
@@ -437,6 +439,8 @@ github.com/aws/aws-sdk-go-v2/service/iam v1.19.4 h1:hrBxgoUih7uy9sJTXrX0N/3TVgbm
 github.com/aws/aws-sdk-go-v2/service/iam v1.19.4/go.mod h1:F5Xt96+AfAiyMpRXHy9CKafE/KULVwj7MwgZ0a4row4=
 github.com/aws/aws-sdk-go-v2/service/iam v1.19.7 h1:10pGhchIHbjCuJWgXJ/bNm8443s4SxbQRgeSQYxOZrs=
 github.com/aws/aws-sdk-go-v2/service/iam v1.19.7/go.mod h1:lf/oAjt//UvPsmnOgPT61F+q4K6U0q4zDd1s1yx2NZs=
+github.com/aws/aws-sdk-go-v2/service/iam v1.19.8 h1:kQsBeGgm68kT0xc90spgC5qEOQGH74V2bFqgBgG21Bo=
+github.com/aws/aws-sdk-go-v2/service/iam v1.19.8/go.mod h1:lf/oAjt//UvPsmnOgPT61F+q4K6U0q4zDd1s1yx2NZs=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.3 h1:Gh1Gpyh01Yvn7ilO/b/hr01WgNpaszfbKMUgqM186xQ=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.3/go.mod h1:wlY6SVjuwvh3TVRpTqdy4I1JpBFLX4UGeKZdWntaocw=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.4 h1:b16QW0XWl0jWjLABFc1A+uh145Oqv+xDcObNk0iQgUk=
@@ -921,6 +925,8 @@ github.com/go-logr/logr v1.2.0/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbV
 github.com/go-logr/logr v1.2.2/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/logr v1.2.3 h1:2DntVwHkVopvECVRSlL5PSo9eG+cAkDCuckLubN+rq0=
 github.com/go-logr/logr v1.2.3/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
+github.com/go-logr/logr v1.2.4 h1:g01GSCwiDw2xSZfjJ2/T9M+S6pFdcNtFYsp+Y43HYDQ=
+github.com/go-logr/logr v1.2.4/go.mod h1:jdQByPbusPIv2/zmleS9BjJVeZ6kBagPoEUsqbVz/1A=
 github.com/go-logr/zapr v0.4.0/go.mod h1:tabnROwaDl0UNxkVeFRbY8bwB37GwRv0P8lg6aAiEnk=
 github.com/go-logr/zapr v1.2.0 h1:n4JnPI1T3Qq1SFEi/F8rwLrZERp2bso19PJZDB9dayk=
 github.com/go-logr/zapr v1.2.0/go.mod h1:Qa4Bsj2Vb+FAVeAKsLD8RLQ+YRJB8YDmOAKxaBQf7Ro=
@@ -2719,6 +2725,8 @@ sigs.k8s.io/controller-runtime v0.14.4 h1:Kd/Qgx5pd2XUL08eOV2vwIq3L9GhIbJ5Nxengb
 sigs.k8s.io/controller-runtime v0.14.4/go.mod h1:WqIdsAY6JBsjfc/CqO0CORmNtoCtE4S6qbPc9s68h+0=
 sigs.k8s.io/controller-runtime v0.14.5 h1:6xaWFqzT5KuAQ9ufgUaj1G/+C4Y1GRkhrxl+BJ9i+5s=
 sigs.k8s.io/controller-runtime v0.14.5/go.mod h1:WqIdsAY6JBsjfc/CqO0CORmNtoCtE4S6qbPc9s68h+0=
+sigs.k8s.io/controller-runtime v0.14.6 h1:oxstGVvXGNnMvY7TAESYk+lzr6S3V5VFxQ6d92KcwQA=
+sigs.k8s.io/controller-runtime v0.14.6/go.mod h1:WqIdsAY6JBsjfc/CqO0CORmNtoCtE4S6qbPc9s68h+0=
 sigs.k8s.io/controller-tools v0.6.2/go.mod h1:oaeGpjXn6+ZSEIQkUe/+3I40PNiDYp9aeawbt3xTgJ8=
 sigs.k8s.io/controller-tools v0.7.0/go.mod h1:bpBAo0VcSDDLuWt47evLhMLPxRPxMDInTEH/YbdeMK0=
 sigs.k8s.io/gateway-api v0.4.1 h1:Tof9/PNSZXyfDuTTe1XFvaTlvBRE6bKq1kmV6jj6rQE=
