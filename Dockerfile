@@ -16,7 +16,6 @@ COPY pkg/ pkg/
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
-ENV GOARCH=amd64
 ENV GO111MODULE=on
 
 # Do an initial compilation before setting the version so that there is less to
