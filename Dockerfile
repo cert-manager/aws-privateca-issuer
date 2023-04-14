@@ -2,6 +2,9 @@
 FROM golang:1.20 as builder
 WORKDIR /workspace
 
+ARG TARGETARCH=amd64
+ARG TARGETOS=linux
+
 ENV GOPROXY=direct
 # Copy the Go Modules manifests
 COPY go.mod go.mod
@@ -15,8 +18,8 @@ COPY main.go main.go
 COPY pkg/ pkg/
 
 ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GOARCH=amd64
+ENV GOOS=$TARGETOS
+ENV GOARCH=$TARGETARCH
 ENV GO111MODULE=on
 
 # Do an initial compilation before setting the version so that there is less to
