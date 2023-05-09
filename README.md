@@ -11,12 +11,12 @@
 
 # AWS Private CA Issuer
 
-AWS ACM Private CA is a module of the AWS Certificate Manager that can setup and manage private CAs.
+AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
 It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
 
-This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS PCA.
+This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS Private CA.
 
 ## Setup
 
@@ -64,7 +64,7 @@ A minimal policy to use the issuer with an authority would look like follows:
 
 This operator provides two custom resources that you can use.
 
-Examples can be found in the [examples](config/examples/) directory.
+Examples can be found in the [examples](config/examples/) and [samples](config/samples) directories.
 
 ### AWSPCAIssuer
 
@@ -73,6 +73,10 @@ This is a regular namespaced issuer that can be used as a reference in your Cert
 ### AWSPCAClusterIssuer
 
 This CR is identical to the AWSPCAIssuer. The only difference being that it's not namespaced and can be referenced from anywhere.
+
+### Usage with cert-manager Ingress Annotations
+
+The `cert-manager.io/cluster-issuer` annotation cannot be used to point at a `AWSPCAClusterIssuer`. Instead, use `cert-manager.io/issuer:`. Please see [this issue](https://github.com/cert-manager/aws-privateca-issuer/issues/252) for more information.
 
 ### Disable Approval Check
 
