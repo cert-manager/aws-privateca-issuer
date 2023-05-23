@@ -176,6 +176,7 @@ metadata:
   namespace: default
   annotations:
     cert-manager.io/inject-ca-from: default/pod-identity-webhook
+    cert-manager.io/inject-ca-from/watch-certificates: false
 webhooks:
   - name: pod-identity-webhook.amazonaws.com
     failurePolicy: Ignore

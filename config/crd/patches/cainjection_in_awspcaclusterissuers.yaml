@@ -4,4 +4,5 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     cert-manager.io/inject-ca-from: $(CERTIFICATE_NAMESPACE)/$(CERTIFICATE_NAME)
+    cert-manager.io/inject-ca-from/watch-certificates: false
   name: awspcaclusterissuers.awspca.cert-manager.io
