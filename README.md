@@ -11,7 +11,7 @@
 
 # AWS Private CA Issuer
 
-AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
+AWS Private Certificate Authority(PCA) is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
 It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
