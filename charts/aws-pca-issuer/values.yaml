@@ -50,6 +50,9 @@ podAnnotations: {}
 podSecurityContext:
   runAsUser: 65532
 
+# priorityClassName defines the PriorityClass to be used by the operator pods.
+priorityClassName: ""
+
 securityContext:
   allowPrivilegeEscalation: false
 
