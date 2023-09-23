@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "aws-privateca-issuer.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  namespace: {{ default .Release.Namespace .Values.namespace }}
   labels:
     {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 spec:

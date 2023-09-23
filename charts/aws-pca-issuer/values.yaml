@@ -13,6 +13,7 @@ disableApprovedCheck: false
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+namespace: ""
 
 revisionHistoryLimit: 10
 
