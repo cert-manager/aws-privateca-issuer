@@ -13,6 +13,8 @@ disableApprovedCheck: false
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# if namespace is not set the .Release.Namespace will be used as default.
 namespace: ""
 
 revisionHistoryLimit: 10
