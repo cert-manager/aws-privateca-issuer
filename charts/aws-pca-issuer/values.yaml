@@ -10,6 +10,9 @@ image:
 # Disable waiting for CertificateRequests to be Approved before signing
 disableApprovedCheck: false
 
+# Maxium duration to retry fullfilling a CertificateRequest
+maxRetryDuration: 180
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -32,7 +35,6 @@ rbac:
 service:
   type: ClusterIP
   port: 8080
-
 
 # Options for configuring a target ServiceAccount with the role to approve
 # all awspca.cert-manager.io requests.
