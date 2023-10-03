@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
 
 	"github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
@@ -49,6 +51,7 @@ type CertificateRequestReconciler struct {
 
 	Clock                  clock.Clock
 	CheckApprovedCondition bool
+	MaxRetryDuration       time.Duration
 }
 
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch;update
@@ -116,7 +119,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 
 		message := "The CertificateRequest was denied by an approval controller"
-		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonDenied, message)
+		return ctrl.Result{}, r.setPermanentStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonDenied, message)
 	}
 
 	if r.CheckApprovedCondition {
@@ -140,36 +143,49 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		issuerName.Namespace = ""
 	}
 
+	retry, err := r.HandleSignRequest(ctx, log, issuerName, cr)
+
+	if err != nil {
+		now := r.Clock.Now()
+		creationTime := cr.GetCreationTimestamp()
+		pastMaxRetryDuration := now.After(creationTime.Add(r.MaxRetryDuration))
+
+		if pastMaxRetryDuration || !retry {
+			return ctrl.Result{}, r.setPermanentStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Permanent error signing certificate: %s", err.Error())
+		}
+
+		retryAfter := 1*time.Minute + time.Duration(rand.Intn(60))*time.Second
+
+		return ctrl.Result{
+			RequeueAfter: retryAfter,
+		}, r.setTemporaryStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Temporary error signing certificate, retry again: %s", err.Error())
+	}
+
+	return ctrl.Result{}, r.setPermanentStatus(ctx, cr, cmmeta.ConditionTrue, cmapi.CertificateRequestReasonIssued, "Certificate issued")
+}
+
+func (r *CertificateRequestReconciler) HandleSignRequest(ctx context.Context, log logr.Logger, issuerName types.NamespacedName, cr *cmapi.CertificateRequest) (bool, error) {
 	iss, err := util.GetIssuer(ctx, r.Client, issuerName)
 	if err != nil {
-		log.Error(err, "failed to retrieve Issuer resource")
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "issuer could not be found")
-		return ctrl.Result{}, err
+		return true, fmt.Errorf("failed to retrieve Issuer resource: %w", err)
 	}
 
 	if !isReady(iss) {
-		err := fmt.Errorf("issuer %s is not ready", iss.GetName())
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "issuer is not ready")
-		return ctrl.Result{}, err
+		return true, fmt.Errorf("issuer %s is not ready", iss.GetName())
 	}
 
 	provisioner, ok := aws.GetProvisioner(issuerName)
 	if !ok {
-		err := fmt.Errorf("provisioner for %s not found", issuerName)
-		log.Error(err, "failed to retrieve provisioner")
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to retrieve provisioner")
-		return ctrl.Result{}, err
+		return true, fmt.Errorf("provisioner for %s not found (name: %s, namespace: %s)", issuerName, issuerName.Name, issuerName.Namespace)
 	}
 
 	pem, ca, err := provisioner.Sign(ctx, cr, log)
 	if err != nil {
-		log.Error(err, "failed to request certificate from PCA")
-		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
+		return false, fmt.Errorf("failed to sign certificat from PCA: %w", err)
 	}
 	cr.Status.Certificate = pem
 	cr.Status.CA = ca
-
-	return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionTrue, cmapi.CertificateRequestReasonIssued, "certificate issued")
+	return false, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -188,9 +204,8 @@ func isReady(issuer api.GenericIssuer) bool {
 	return false
 }
 
-func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
+func (r *CertificateRequestReconciler) setStatusInternal(ctx context.Context, cr *cmapi.CertificateRequest, permanent bool, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
 	completeMessage := fmt.Sprintf(message, args...)
-	cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, completeMessage)
 
 	eventType := core.EventTypeNormal
 	if status == cmmeta.ConditionFalse {
@@ -198,5 +213,22 @@ func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.
 	}
 	r.Recorder.Event(cr, eventType, reason, completeMessage)
 
-	return r.Client.Status().Update(ctx, cr)
+	if permanent {
+		cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, completeMessage)
+		r.Client.Status().Update(ctx, cr)
+	}
+
+	if reason == cmapi.CertificateRequestReasonFailed {
+		return fmt.Errorf(completeMessage)
+	}
+
+	return nil
+}
+
+func (r *CertificateRequestReconciler) setPermanentStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
+	return r.setStatusInternal(ctx, cr, true, status, reason, message, args...)
+}
+
+func (r *CertificateRequestReconciler) setTemporaryStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
+	return r.setStatusInternal(ctx, cr, false, status, reason, message, args...)
 }

@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	cmutil "github.com/cert-manager/cert-manager/pkg/api/util"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -73,6 +75,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 		expectedReadyConditionReason string
 		expectedCertificate          []byte
 		expectedCACertificate        []byte
+		retryDuration                time.Duration
 		mockProvisioner              createMockProvisioner
 	}
 	tests := map[string]testCase{
@@ -82,6 +85,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -137,18 +141,78 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			},
 		},
 		"success-cluster-issuer": {
-			name: types.NamespacedName{Name: "cr1"},
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
 					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "ClusterIssuer",
+						Kind:  "AWSPCAClusterIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
 						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAClusterIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "clusterissuer1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name: "clusterissuer1-credentials",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "clusterissuer1-credentials",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionTrue,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonIssued,
+			expectedError:                false,
+			expectedCertificate:          []byte("cert"),
+			expectedCACertificate:        []byte("cacert"),
+			mockProvisioner: func() {
+				awspca.StoreProvisioner(types.NamespacedName{Name: "clusterissuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
+			},
+		},
+		"success-previous-failure": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "clusterissuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "AWSPCAClusterIssuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionFalse,
 					}),
 				),
 				&issuerapi.AWSPCAClusterIssuer{
@@ -198,6 +262,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -256,6 +321,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -287,6 +353,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -312,12 +379,46 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
 			expectedError:                true,
 		},
+		"failure-provisioner-not-found-temporary": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "issuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "Issuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionUnknown,
+			expectedReadyConditionReason: "",
+			expectedError:                true,
+			retryDuration:                1 * time.Hour,
+		},
 		"failure-sign-failure": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
+					SetCreationTime(time.Now()),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -385,10 +486,12 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				WithStatusSubresource(tc.objects...).
 				Build()
 			controller := CertificateRequestReconciler{
-				Client:   fakeClient,
-				Log:      logrtesting.NewTestLogger(t),
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(10),
+				Client:           fakeClient,
+				Log:              logrtesting.NewTestLogger(t),
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(10),
+				Clock:            clock.RealClock{},
+				MaxRetryDuration: tc.retryDuration,
 			}
 
 			ctx := context.TODO()
@@ -407,16 +510,15 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			var cr cmapi.CertificateRequest
 			err = fakeClient.Get(ctx, tc.name, &cr)
 			require.NoError(t, client.IgnoreNotFound(err), "unexpected error from fake client")
-			if err == nil {
-				if tc.expectedReadyConditionStatus != "" {
-					assertCertificateRequestHasReadyCondition(t, tc.expectedReadyConditionStatus, tc.expectedReadyConditionReason, &cr)
-				}
-				if tc.expectedCertificate != nil {
-					assert.Equal(t, tc.expectedCertificate, cr.Status.Certificate)
-				}
-				if tc.expectedCACertificate != nil {
-					assert.Equal(t, tc.expectedCACertificate, cr.Status.CA)
-				}
+			if tc.expectedReadyConditionStatus != "" {
+				assertCertificateRequestHasReadyCondition(t, tc.expectedReadyConditionStatus, tc.expectedReadyConditionReason, &cr)
+			}
+
+			if tc.expectedCertificate != nil {
+				assert.Equal(t, tc.expectedCertificate, cr.Status.Certificate)
+			}
+			if tc.expectedCACertificate != nil {
+				assert.Equal(t, tc.expectedCACertificate, cr.Status.CA)
 			}
 		})
 	}
@@ -431,7 +533,14 @@ func assertCertificateRequestHasReadyCondition(t *testing.T, status cmmeta.Condi
 	validReasons := sets.NewString(
 		cmapi.CertificateRequestReasonFailed,
 		cmapi.CertificateRequestReasonIssued,
+		"",
 	)
 	assert.Contains(t, validReasons, reason, "unexpected condition reason")
 	assert.Equal(t, reason, condition.Reason, "unexpected condition reason")
+}
+
+func SetCreationTime(time time.Time) cmgen.CertificateRequestModifier {
+	return func(c *cmapi.CertificateRequest) {
+		c.SetCreationTimestamp(metav1.NewTime(time))
+	}
 }

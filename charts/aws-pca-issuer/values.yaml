@@ -14,11 +14,9 @@ image:
 # Disable waiting for CertificateRequests to be Approved before signing
 disableApprovedCheck: false
 
-# Optional secrets used for pulling the container image
-#
-# For example:
-#  imagePullSecrets:
-#  - name: secret-name
+# Maxium duration to retry fullfilling a CertificateRequest
+maxRetryDuration: 180
+
 imagePullSecrets: []
 
 # Override the name of the objects created by this chart
@@ -49,7 +47,18 @@ service:
   # Port the service should listen on
   port: 8080
 
-# Annotations to add to the issuer Pod
+# Options for configuring a target ServiceAccount with the role to approve
+# all awspca.cert-manager.io requests.
+approverRole:
+  enabled: true
+  serviceAccountName: cert-manager
+  namespace: cert-manager
+
+serviceMonitor:
+  create: false
+  annotations: {}
+  labels: {}
+
 podAnnotations: {}
 
 # Pod security context 
