@@ -32,6 +32,11 @@ func waitForIssuerReady(ctx context.Context, client *clientV1beta1.Client, name 
 					return true, nil
 				}
 			}
+
+			fmt.Println("Issuer not ready yet - Current conditions:")
+			for _, condition := range issuer.Status.Conditions {
+				fmt.Printf("Type: %s, Status: %s, Reason: %s, Message: %s\n", condition.Type, condition.Status, condition.Reason, condition.Message)
+			}
 			return false, nil
 		})
 }
@@ -50,6 +55,11 @@ func waitForClusterIssuerReady(ctx context.Context, client *clientV1beta1.Client
 				if condition.Type == issuerapi.ConditionTypeReady && condition.Status == metav1.ConditionTrue {
 					return true, nil
 				}
+			}
+
+			fmt.Println("ClusterIssuer not ready yet - Current conditions:")
+			for _, condition := range issuer.Status.Conditions {
+				fmt.Printf("Type: %s, Status: %s, Reason: %s, Message: %s\n", condition.Type, condition.Status, condition.Reason, condition.Message)
 			}
 
 			return false, nil
@@ -71,6 +81,12 @@ func waitForCertificateReady(ctx context.Context, client *cmclientv1.Certmanager
 					return true, nil
 				}
 			}
+
+			fmt.Println("Certifiate not ready yet - Current conditions:")
+			for _, condition := range certificate.Status.Conditions {
+				fmt.Printf("Type: %s, Status: %s, Reason: %s, Message: %s\n", condition.Type, condition.Status, condition.Reason, condition.Message)
+			}
+
 			return false, nil
 		})
 }

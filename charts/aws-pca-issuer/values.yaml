@@ -17,6 +17,9 @@ disableApprovedCheck: false
 # Disables Kubernetes client-side rate limiting (only use if API Priority & Fairness is enabled on the cluster).
 disableClientSideRateLimiting: false
 
+# Maxium duration to retry fullfilling a CertificateRequest
+#maxRetryDuration: 180s
+
 # Optional secrets used for pulling the container image
 #
 # For example:
@@ -55,12 +58,12 @@ service:
 # Annotations to add to the issuer Pod
 podAnnotations: {}
 
-# Pod security context 
+# Pod security context
 # +docs:property
 podSecurityContext:
   runAsUser: 65532
 
-# Container security context 
+# Container security context
 # +docs:property
 securityContext:
   allowPrivilegeEscalation: false
@@ -129,7 +132,7 @@ volumeMounts: []
 # Configures a disruption budget for the deployment.
 #
 # Expects input structure similar to https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy
-# WITHOUT the pod selector, which is handled by the chart. 
+# WITHOUT the pod selector, which is handled by the chart.
 # Per https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy, `maxUnavailable` is mutually
 # exclusive with `minAvailable`, you cannot set both.
 #
@@ -177,7 +180,7 @@ approverRole:
 # +docs:section=Monitoring
 
 serviceMonitor:
-  # Create Prometheus ServiceMonitor 
+  # Create Prometheus ServiceMonitor
   create: false
   # Annotations to add to the Prometheus ServiceMonitor
   annotations: {}

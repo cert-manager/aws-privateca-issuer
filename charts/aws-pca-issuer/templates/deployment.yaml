@@ -45,6 +45,9 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
+            {{- if .Values.maxRetryDuration }}
+            - -max-retry-duration={{ .Values.maxRetryDuration }}
+            {{- end }}
             {{- if .Values.disableClientSideRateLimiting }}
             - -disable-client-side-rate-limiting
             {{- end }}
