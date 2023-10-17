@@ -17,7 +17,7 @@ var (
 	awspcaclusterissuers = "awspcaclusterissuers"
 )
 
-//AWSPCAIssuerInterface is a interface for interacting with a AWSPCAIssuer
+// AWSPCAIssuerInterface is a interface for interacting with a AWSPCAIssuer
 type AWSPCAIssuerInterface interface {
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1beta1.AWSPCAIssuer, error)
 	Create(ctx context.Context, issuer *v1beta1.AWSPCAIssuer, opts metav1.CreateOptions) (*v1beta1.AWSPCAIssuer, error)
@@ -25,7 +25,7 @@ type AWSPCAIssuerInterface interface {
 	Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error)
 }
 
-//AWSPCAClusterIssuerInterface is a interface for interacting with a AWSPCAClusterIssuer
+// AWSPCAClusterIssuerInterface is a interface for interacting with a AWSPCAClusterIssuer
 type AWSPCAClusterIssuerInterface interface {
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1beta1.AWSPCAClusterIssuer, error)
 	Create(ctx context.Context, issuer *v1beta1.AWSPCAClusterIssuer, opts metav1.CreateOptions) (*v1beta1.AWSPCAClusterIssuer, error)
