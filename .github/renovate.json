@@ -48,7 +48,7 @@
       "depNameTemplate": "golang",
       "depTypeTemplate": "stage",
       "datasourceTemplate": "docker",
-      "versioningTemplate": "docker"
+      "versioningTemplate": "semver-coerced"
     }
   ],
   "vulnerabilityAlerts": {
