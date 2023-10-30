@@ -4,14 +4,14 @@ go 1.19
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.21.2
-	github.com/aws/aws-sdk-go-v2/config v1.19.0
+	github.com/aws/aws-sdk-go-v2/config v1.19.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.43
 	github.com/aws/aws-sdk-go-v2/service/acmpca v1.22.9
-	github.com/aws/aws-sdk-go-v2/service/iam v1.22.7
+	github.com/aws/aws-sdk-go-v2/service/iam v1.24.0
 	github.com/aws/aws-sdk-go-v2/service/ram v1.20.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.23.2
-	github.com/cert-manager/cert-manager v1.13.1
-	github.com/go-logr/logr v1.2.4
+	github.com/cert-manager/cert-manager v1.13.2
+	github.com/go-logr/logr v1.3.0
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.3
 	k8s.io/apimachinery v0.28.3
@@ -54,7 +54,7 @@ require (
 	github.com/google/uuid v1.3.1 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
+	github.com/jmespath/go-jmespath v0.4.1-0.20220621161143-b0104c826a24 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
