@@ -134,12 +134,11 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: 
+docker-build: test
 	docker build \
 		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
 		--file Dockerfile \
-		 --platform linux/amd64 \
 		${CURDIR}
 
 # Push the docker image
