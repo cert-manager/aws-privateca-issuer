@@ -57,6 +57,13 @@ func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest
 
 type createMockProvisioner func()
 
+type fakeRequeueItter struct {
+}
+
+func (r *fakeRequeueItter) RequeueAfter() time.Duration {
+	return 1 * time.Hour
+}
+
 func TestProvisonerOperation(t *testing.T) {
 	provisioner := awspca.NewProvisioner(aws.Config{}, "arn")
 	awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, provisioner)
@@ -410,6 +417,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionStatus: cmmeta.ConditionUnknown,
 			expectedReadyConditionReason: "",
 			expectedError:                true,
+			expectedResult:               ctrl.Result{RequeueAfter: 1 * time.Hour},
 			retryDuration:                1 * time.Hour,
 		},
 		"failure-sign-failure": {
@@ -490,6 +498,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(10),
 				Clock:            clock.RealClock{},
+				RequeueItter:     &fakeRequeueItter{},
 				MaxRetryDuration: tc.retryDuration,
 			}
 

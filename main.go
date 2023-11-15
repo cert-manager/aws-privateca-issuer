@@ -121,6 +121,7 @@ func main() {
 		Recorder: mgr.GetEventRecorderFor("awspcaissuer-controller"),
 
 		Clock:                  clock.RealClock{},
+		RequeueItter:           controllers.NewRequeueItter(),
 		CheckApprovedCondition: !disableApprovedCheck,
 		MaxRetryDuration:       maxRetryDuration,
 	}).SetupWithManager(mgr); err != nil {
