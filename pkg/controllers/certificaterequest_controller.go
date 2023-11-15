@@ -42,6 +42,21 @@ import (
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 )
 
+type RequeueItter interface {
+	RequeueAfter() time.Duration
+}
+
+type requeueItter struct {
+}
+
+func (r *requeueItter) RequeueAfter() time.Duration {
+	return 1*time.Minute + time.Duration(rand.Intn(60))*time.Second
+}
+
+func NewRequeueItter() RequeueItter {
+	return &requeueItter{}
+}
+
 // CertificateRequestReconciler reconciles a AWSPCAIssuer object
 type CertificateRequestReconciler struct {
 	client.Client
@@ -50,6 +65,7 @@ type CertificateRequestReconciler struct {
 	Recorder record.EventRecorder
 
 	Clock                  clock.Clock
+	RequeueItter           RequeueItter
 	CheckApprovedCondition bool
 	MaxRetryDuration       time.Duration
 }
@@ -154,10 +170,8 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, r.setPermanentStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Permanent error signing certificate: %s", err.Error())
 		}
 
-		retryAfter := 1*time.Minute + time.Duration(rand.Intn(60))*time.Second
-
 		return ctrl.Result{
-			RequeueAfter: retryAfter,
+			RequeueAfter: r.RequeueItter.RequeueAfter(),
 		}, r.setTemporaryStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "Temporary error signing certificate, retry again: %s", err.Error())
 	}
 
