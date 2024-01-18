@@ -54,6 +54,9 @@ CERT_MANAGER_VERSION ?= v1.13.3
 CONTROLLER_GEN_VERSION := 0.5.0
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
+# Helm tools
+HELM_TOOL_VERSION := v0.2.2
+
 INSTALL_YAML ?= build/install.yaml
 
 all: manager
@@ -114,6 +117,9 @@ undeploy:
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
+helm-docs: helm-tool
+	$(HELM_TOOL) inject -i charts/aws-pca-issuer/values.yaml -o charts/aws-pca-issuer/README.md --header-search "^<!-- AUTO-GENERATED -->" --footer-search "<!-- /AUTO-GENERATED -->"
+
 # Run go fmt against code
 fmt:
 	go fmt ./...
@@ -148,6 +154,10 @@ docker-push:
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen:
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+
+HELM_TOOL = $(shell pwd)/bin/helm-tool
+helm-tool:
+	$(call go-install-tool,$(HELM_TOOL),github.com/cert-manager/helm-tool@$(HELM_TOOL_VERSION))
 
 # Download kustomize locally if necessary
 KUSTOMIZE = $(shell pwd)/bin/kustomize
