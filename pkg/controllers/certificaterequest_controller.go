@@ -227,10 +227,11 @@ func (r *CertificateRequestReconciler) setStatusInternal(ctx context.Context, cr
 	}
 	r.Recorder.Event(cr, eventType, reason, completeMessage)
 
+	cmutil.SetCertificateRequestCondition(cr, api.ConditionTypeIssuing, status, reason, completeMessage)
 	if permanent {
-		cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, completeMessage)
-		r.Client.Status().Update(ctx, cr)
+		cmutil.SetCertificateRequestCondition(cr, api.ConditionTypeReady, status, reason, completeMessage)
 	}
+	r.Client.Status().Update(ctx, cr)
 
 	if reason == cmapi.CertificateRequestReasonFailed {
 		return fmt.Errorf(completeMessage)

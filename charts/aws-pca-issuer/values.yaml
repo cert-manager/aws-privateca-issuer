@@ -17,6 +17,11 @@ disableApprovedCheck: false
 # Maxium duration to retry fullfilling a CertificateRequest
 maxRetryDuration: 180
 
+# Optional secrets used for pulling the container image
+#
+# For example:
+#  imagePullSecrets:
+#  - name: secret-name
 imagePullSecrets: []
 
 # Override the name of the objects created by this chart
@@ -59,6 +64,7 @@ serviceMonitor:
   annotations: {}
   labels: {}
 
+# Annotations to add to the issuer Pod
 podAnnotations: {}
 
 # Pod security context 
