@@ -79,7 +79,7 @@ jobs:
           mkdir /home/ec2-user/.cache/go-mod
           mkdir /home/ec2-user/go
           mkdir /home/ec2-user/go/bin
-          GOVERSION=go1.22.0
+          GOVERSION=go1.21.6
           wget https://go.dev/dl/$GOVERSION.linux-amd64.tar.gz
           sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-amd64.tar.gz
           PATH="$PATH:/usr/local/go/bin"
@@ -219,7 +219,7 @@ jobs:
           AWS_REGION=us-east-1
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
       - name: Stop EC2 runner
-        uses: divyansh-gupta/ec2-github-runner@0444f5f46462bcf8d98932bc807d2f51c4945b58
+        uses: divyansh-gupta/ec2-github-runner@82c9d554a7e7946be1b2003eaac45af59c9f78fd
         with:
           mode: stop
           github-token: GithubToken-test-us-east-1
