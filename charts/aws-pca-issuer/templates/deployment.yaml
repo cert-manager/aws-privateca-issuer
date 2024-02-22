@@ -45,6 +45,9 @@ spec:
             {{- if .Values.disableApprovedCheck }}
             - -disable-approved-check
             {{- end }}
+            {{- if .Values.maxRetryDuration }}
+            - -max-retry-duration={{ .Values.maxRetryDuration }}
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http
