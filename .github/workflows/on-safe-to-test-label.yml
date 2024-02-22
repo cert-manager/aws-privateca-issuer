@@ -94,9 +94,10 @@ jobs:
           echo PATH=$PATH >> $GITHUB_ENV
       - name: Setup Cache variables
         id: go-cache-paths
+        shell: bash
         run: |
-          echo "::set-output name=go-build::${{ env.GOCACHE }}"
-          echo "::set-output name=go-mod::${{ env.GOMODCACHE }}"
+          echo "go-build=${{ env.GOCACHE }}" >> $GITHUB_OUTPUT
+          echo "go-mod=${{ env.GOMODCACHE }}" >> $GITHUB_OUTPUT
       - name: Go-Build Cache # Cache go build cache, used to speedup go test
         uses: actions/cache@v4
         with:
