@@ -145,6 +145,7 @@ docker-build: test
 		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
 		--file Dockerfile \
+		--platform=linux/amd64,linux/arm64 \
 		${CURDIR}
 
 # Push the docker image
