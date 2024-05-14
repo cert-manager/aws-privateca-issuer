@@ -6,33 +6,44 @@
   ],
   "dependencyDashboard": false,
   "ignorePaths" : [
-    "config/manager/kustomization.yaml",
-    ".github/workflows/on-push-to-main-branch.yml",
-    ".github/workflows/on-release.yml",
-    ".github/workflows/sync.yml"
+    "**/config/manager/kustomization.yaml"
   ],
-  "packageRules": [{
-    "matchPackagePatterns": [
-      "*"
-    ],
-    "matchUpdateTypes": [
-      "minor",
-      "patch",
-      "digest"
-    ],
-    "groupName": "all non-major dependencies",
-    "groupSlug": "all-minor-patch"
-  }, {
-    "matchPackageNames": [
-      "k8s.io/client-go",
-      "k8s.io/api",
-      "k8s.io/apimachinery"
-    ],
-    "matchUpdateTypes": [
-      "major" 
-    ],
-    "enabled": false
-  }],
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "matchPackageNames": [
+        "golang"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "major"
+      ],
+      "groupName": "golang",
+      "groupSlug": "golang-update"
+    },
+    {
+      "matchPackageNames": [
+        "k8s.io/client-go",
+        "k8s.io/api",
+        "k8s.io/apimachinery"
+      ],
+      "matchUpdateTypes": [
+        "major" 
+      ],
+      "enabled": false
+    }
+  ],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 1,
   "regexManagers": [
