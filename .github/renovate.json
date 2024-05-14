@@ -23,7 +23,8 @@
     },
     {
       "matchPackageNames": [
-        "golang"
+        "golang",
+        "go"
       ],
       "matchUpdateTypes": [
         "minor",
