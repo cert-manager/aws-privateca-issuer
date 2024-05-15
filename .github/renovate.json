@@ -23,21 +23,10 @@
     },
     {
       "matchPackageNames": [
-        "golang",
-        "go"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "major"
-      ],
-      "groupName": "golang",
-      "groupSlug": "golang-update"
-    },
-    {
-      "matchPackageNames": [
         "k8s.io/client-go",
         "k8s.io/api",
-        "k8s.io/apimachinery"
+        "k8s.io/apimachinery",
+        "kubernetes-sigs/controller-tools"
       ],
       "matchUpdateTypes": [
         "major" 
@@ -52,6 +41,12 @@
       "fileMatch": ["^Makefile$"],
       "matchStrings": ["CERT_MANAGER_VERSION \\?= (?<currentValue>.*?)\\n"],
       "depNameTemplate": "cert-manager/cert-manager",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "fileMatch": ["^Makefile$"],
+      "matchStrings": ["CONTROLLER_GEN_VERSION := (?<currentValue>.*?)\\n"],
+      "depNameTemplate": "kubernetes-sigs/controller-tools",
       "datasourceTemplate": "github-releases"
     },
     {
