@@ -163,7 +163,7 @@ Before running ```make cluster``` we will need to do the following:
 * [Golang v1.17+](https://golang.org/)
 * [Docker v17.03+](https://docs.docker.com/install/)
 * [Kind v0.9.0+](https://kind.sigs.k8s.io/docs/user/quick-start/) -> This will be installed via running the test
-* [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [Kubectl v1.13+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 * [Helm](https://helm.sh/docs/intro/install/)
 * [Make](https://www.gnu.org/software/make/) Need to have version 3.82+
