@@ -26,8 +26,8 @@ DOCKER_IMAGE_NAME ?= cert-manager/aws-privateca-issuer/controller
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${VERSION}
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+# Produce CRDs that work back to Kubernetes 1.13 (no version conversion)
+CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -48,10 +48,10 @@ KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.13.3
+CERT_MANAGER_VERSION ?= v1.14.5
 
 # Controller tools
-CONTROLLER_GEN_VERSION := 0.5.0
+CONTROLLER_GEN_VERSION := 0.15.0
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
 # Helm tools
@@ -153,7 +153,7 @@ docker-push:
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen:
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION))
 
 HELM_TOOL = $(shell pwd)/bin/helm-tool
 helm-tool:
