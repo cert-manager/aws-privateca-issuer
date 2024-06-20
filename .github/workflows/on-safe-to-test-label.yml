@@ -1,16 +1,20 @@
-name: testing
+name: RunTestForArchitecture
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  pull_request_target:
-    types: [ labeled ]
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      architecture:
+        required: true
+        type: string
+
+env:
+  AWS_CLI_ARCHITECTURE: ${{ inputs.architecture == 'arm64' && 'aarch64' || 'x86_64' }}
+  EC2_INSTANCE_TYPE: ${{ inputs.architecture == 'arm64' && 't4g.medium' || 't3.medium' }}
+  GO_ARCHITECTURE: ${{ inputs.architecture == 'arm64' && 'arm64' || 'amd64' }}
+  KUBECTL_ARCHITECTURE: $GO_ARCHITECTURE
 
 jobs:
   start-runner:
-    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
     runs-on: ubuntu-latest
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
@@ -30,7 +34,7 @@ jobs:
           VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=tag-key,Values=GithubActionsTesting' --query 'Vpcs[0].VpcId' --output text)
           SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting"  --query 'Subnets[0].SubnetId' --output text)
           SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting" --query 'SecurityGroups[0].GroupId' --output text)
-          AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --query 'Parameter.Value' --output text)
+          AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${{ inputs.architecture }} --query 'Parameter.Value' --output text)
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
           echo SUBNET_ID=$SUBNET_ID >> $GITHUB_ENV
           echo SG_ID=$SG_ID >> $GITHUB_ENV
@@ -42,7 +46,7 @@ jobs:
           mode: start
           github-token: GithubToken-test-us-east-1
           ec2-image-id: ${{ env.AMI }}
-          ec2-instance-type: t3.medium
+          ec2-instance-type: ${{ env.EC2_INSTANCE_TYPE }}
           subnet-id: ${{ env.SUBNET_ID }}
           security-group-id: ${{ env.SG_ID }}
           iam-role-name: K8sPluginInstanceProfile-test-us-east-1
@@ -80,8 +84,8 @@ jobs:
           mkdir /home/ec2-user/go
           mkdir /home/ec2-user/go/bin
           GOVERSION=go1.22.3
-          wget https://go.dev/dl/$GOVERSION.linux-amd64.tar.gz
-          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-amd64.tar.gz
+          wget https://go.dev/dl/$GOVERSION.linux-${{ env.GO_ARCHITECTURE }}.tar.gz
+          sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-${{ env.GO_ARCHITECTURE }}.tar.gz
           PATH="$PATH:/usr/local/go/bin"
           GOPATH="/home/ec2-user/go"
           GOBIN="/home/ec2-user/go/bin"
@@ -112,14 +116,17 @@ jobs:
         run: |
           sudo yum install docker -y
           sudo service docker start
+          sudo touch /etc/docker/daemon.json
+          sudo echo '{"features": {"containerd-snapshotter": true}}' > /etc/docker/daemon.json
+          sudo systemctl restart docker
       - name: Install AWS CLI v2
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-${{ env.AWS_CLI_ARCHITECTURE }}.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install
       - name: Install kubectl
         run: |
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${{ env.KUBECTL_ARCHITECTURE }}/kubectl"
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
       - name: Install Jq
         run: |
@@ -172,27 +179,28 @@ jobs:
         run: |
           make kind-cluster-delete
       - name: Run helm test
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') }}
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') && inputs.architecture != 'arm64' }}
         run: |
           make helm-test
       - name: Copy Kind logs to S3
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') }}
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') && inputs.architecture != 'arm64' }}
         run: |
           mkdir logs-helm-test
           export E2E_ARTIFACTS_DIRECTORY=logs-helm-test
           make kind-export-logs
           aws s3 cp --recursive logs-helm-test s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-logs-helm-test/
       - name: Terminate Kind cluster
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') }}
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') && inputs.architecture != 'arm64' }}
         run: |
           make kind-cluster-delete
       - name: Run Blog Test
+        if: ${{ inputs.architecture != 'arm64' }}
         run: |
           make cluster
           make install-eks-webhook
           make blog-test
       - name: Copy Kind logs to S3
-        if: ${{ always() }}
+        if: ${{ inputs.architecture != 'arm64' }}
         run: |
           mkdir logs-blog
           export E2E_ARTIFACTS_DIRECTORY=logs-blog
@@ -226,20 +234,3 @@ jobs:
           github-token: GithubToken-test-us-east-1
           label: ${{ needs.start-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}
-
-  remove-safe-to-test:
-    name: Remove Safe to Test Label
-    needs:
-      - stop-runner
-    runs-on: ubuntu-latest
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
-    steps:
-      - name: Remove Label
-        uses: divyansh-gupta/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
-        with:
-          labels:
-            'safe to test'
-          #We want to make this false because if we run into some edge case
-          #we don't want to fail out. Worst case
-          #the label stays and we remove/re-add.
-          fail_on_error: 'false'
