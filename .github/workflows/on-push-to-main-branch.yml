@@ -43,6 +43,7 @@ jobs:
         build-args: |
           pkg_version=${{ env.PLUGIN_VERSION }}
         context: .
+        platforms: linux/amd64,linux/arm64
         tags: |
           ${{ env.TAG_BASE }}:latest
           ${{ env.TAG_BASE }}:${{ env.PLUGIN_VERSION }}
