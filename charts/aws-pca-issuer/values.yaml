@@ -15,7 +15,7 @@ image:
 disableApprovedCheck: false
 
 # Maxium duration to retry fullfilling a CertificateRequest
-maxRetryDuration: 180
+maxRetryDuration: 180s
 
 # Optional secrets used for pulling the container image
 #
