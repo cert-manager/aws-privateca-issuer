@@ -31,7 +31,18 @@ helm install awspca/aws-privateca-issuer --generate-name
 
 You can check the chart configuration in the default [values](charts/aws-pca-issuer/values.yaml) file.
 
+**AWS PCA Issuer has released a version of this operator for ARM. You can find this image on the test ECR.**
 
+### Accessing the test ECR
+
+AWS PCA Issuer maintains a test ECR that contains versions that correspond to each commit on the main branch. These images can be accessed by setting the image repo to `public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test` and the image tag to `latest`. An example of how this is done is shown below.
+
+```shell
+helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
+helm install awspca/aws-privateca-issuer --generate-name \
+--set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
+--set image.tag=latest
+```
 ## Configuration
 
 As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
