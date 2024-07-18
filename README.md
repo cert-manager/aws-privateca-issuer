@@ -31,7 +31,7 @@ helm install awspca/aws-privateca-issuer --generate-name
 
 You can check the chart configuration in the default [values](charts/aws-pca-issuer/values.yaml) file.
 
-**AWS PCA Issuer has released a version of this operator for ARM. You can find this image on the test ECR.**
+**[AWS PCA Issuer supports ARM starting at version 1.3.0](https://github.com/cert-manager/aws-privateca-issuer/releases/tag/v1.3.0)**
 
 ### Accessing the test ECR
 
