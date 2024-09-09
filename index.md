@@ -11,10 +11,10 @@
 
 # AWS Private CA Issuer
 
-AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
+AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certificates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
-It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
+It will ensure certificates are valid, updated periodically and attempt to renew certificates at an appropriate time before expiry.
 
 This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS Private CA.
 
@@ -35,7 +35,7 @@ You can check the chart configuration in the default [values](charts/aws-pca-iss
 
 ### Accessing the test ECR
 
-AWS PCA Issuer maintains a test ECR that contains versions that correspond to each commit on the main branch. These images can be accessed by setting the image repo to `public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test` and the image tag to `latest`. An example of how this is done is shown below.
+AWS PCA Issuer maintains a test ECR that contains versions that correspond to each commit on the main branch. These images can be accessed by setting the image repo to `public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test` and the image tag to `latest`. An example of how this is done is shown below:
 
 ```shell
 helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
