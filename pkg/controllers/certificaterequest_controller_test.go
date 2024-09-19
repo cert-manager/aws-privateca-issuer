@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	cmutil "github.com/cert-manager/cert-manager/pkg/api/util"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
@@ -44,13 +45,19 @@ import (
 )
 
 type fakeProvisioner struct {
-	cert   []byte
-	caCert []byte
-	err    error
+	cert    []byte
+	caCert  []byte
+	getErr  error
+	signErr error
 }
 
-func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error) {
-	return p.cert, p.caCert, p.err
+func (p *fakeProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error {
+	metav1.SetMetaDataAnnotation(&cr.ObjectMeta, "aws-privateca-issuer/certificate-arn", "arn")
+	return p.signErr
+}
+
+func (p *fakeProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest, certArn string, log logr.Logger) ([]byte, []byte, error) {
+	return p.cert, p.caCert, p.getErr
 }
 
 type createMockProvisioner func()
@@ -67,7 +74,8 @@ func TestCertificateRequestReconcile(t *testing.T) {
 	type testCase struct {
 		name                         types.NamespacedName
 		objects                      []client.Object
-		expectedResult               ctrl.Result
+		expectedSignResult           ctrl.Result
+		expectedGetResult            ctrl.Result
 		expectedError                bool
 		expectedReadyConditionStatus cmmeta.ConditionStatus
 		expectedReadyConditionReason string
@@ -127,6 +135,8 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
+			expectedSignResult:           ctrl.Result{Requeue: true},
+			expectedGetResult:            ctrl.Result{},
 			expectedReadyConditionStatus: cmmeta.ConditionTrue,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonIssued,
 			expectedError:                false,
@@ -190,6 +200,183 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedCACertificate:        []byte("cacert"),
 			mockProvisioner: func() {
 				awspca.StoreProvisioner(types.NamespacedName{Name: "clusterissuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
+			},
+		},
+		"success-certificate-already-issued": {
+			name: types.NamespacedName{Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "clusterissuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "ClusterIssuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestReasonIssued,
+						Status: cmmeta.ConditionTrue,
+					}),
+					cmgen.SetCertificateRequestCertificate([]byte("oldCert")),
+					cmgen.SetCertificateRequestCA([]byte("oldCaCert")),
+				),
+				&issuerapi.AWSPCAClusterIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "clusterissuer1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name: "clusterissuer1-credentials",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "clusterissuer1-credentials",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionTrue,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonIssued,
+			expectedError:                false,
+			expectedCertificate:          []byte("oldCert"),
+			expectedCACertificate:        []byte("oldCaCert"),
+			mockProvisioner: func() {
+				awspca.StoreProvisioner(types.NamespacedName{Name: "clusterissuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
+			},
+		},
+		"failure-certificate-not-issued": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "issuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "Issuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedSignResult:           ctrl.Result{Requeue: true},
+			expectedGetResult:            ctrl.Result{Requeue: true},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
+			expectedError:                false,
+			mockProvisioner: func() {
+				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{getErr: &acmpcatypes.RequestInProgressException{}})
+			},
+		},
+		"failure-get-failure": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "issuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "Issuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectedSignResult:           ctrl.Result{Requeue: true},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedError:                false,
+			mockProvisioner: func() {
+				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{getErr: errors.New("Get Failure")})
 			},
 		},
 		"failure-issuer-not-ready": {
@@ -367,7 +554,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
 			expectedError:                false,
 			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{err: errors.New("Sign Failure")})
+				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{signErr: errors.New("Sign Failure")})
 			},
 		},
 	}
@@ -397,15 +584,18 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				tc.mockProvisioner()
 			}
 
-			result, err := controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name})
-			if tc.expectedError && err == nil {
+			result, signErr := controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name})
+			assert.Equal(t, tc.expectedSignResult, result, "Unexpected sign result")
+
+			result, getErr := controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name})
+			assert.Equal(t, tc.expectedGetResult, result, "Unexpected get result")
+
+			if tc.expectedError && (signErr == nil && getErr == nil) {
 				assert.Fail(t, "Expected an error but got none")
 			}
 
-			assert.Equal(t, tc.expectedResult, result, "Unexpected result")
-
 			var cr cmapi.CertificateRequest
-			err = fakeClient.Get(ctx, tc.name, &cr)
+			err := fakeClient.Get(ctx, tc.name, &cr)
 			require.NoError(t, client.IgnoreNotFound(err), "unexpected error from fake client")
 			if err == nil {
 				if tc.expectedReadyConditionStatus != "" {
@@ -431,6 +621,7 @@ func assertCertificateRequestHasReadyCondition(t *testing.T, status cmmeta.Condi
 	validReasons := sets.NewString(
 		cmapi.CertificateRequestReasonFailed,
 		cmapi.CertificateRequestReasonIssued,
+		cmapi.CertificateRequestReasonPending,
 	)
 	assert.Contains(t, validReasons, reason, "unexpected condition reason")
 	assert.Equal(t, reason, condition.Reason, "unexpected condition reason")

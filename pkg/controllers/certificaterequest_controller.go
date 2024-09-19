@@ -18,12 +18,14 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 
@@ -65,7 +67,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	log := r.Log.WithValues("certificaterequest", req.NamespacedName)
 	cr := new(cmapi.CertificateRequest)
 	if err := r.Client.Get(ctx, req.NamespacedName, cr); err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
 
@@ -161,14 +163,31 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	pem, ca, err := provisioner.Sign(ctx, cr, log)
-	if err != nil {
-		log.Error(err, "failed to request certificate from PCA")
-		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
+	certArn, exists := cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"]
+	if !exists {
+		err := provisioner.Sign(ctx, cr, log)
+		if err != nil {
+			log.Error(err, "failed to request certificate from PCA")
+			return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
+		}
+
+		return ctrl.Result{Requeue: true}, r.Client.Update(ctx, cr)
 	}
+
+	pem, ca, err := provisioner.Get(ctx, cr, certArn, log)
+	if err != nil {
+		var errorType *acmpcatypes.RequestInProgressException
+		if errors.As(err, &errorType) {
+			log.Info("certificate is still issuing")
+			return ctrl.Result{Requeue: true}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending, "waiting for certificate to be issued")
+		}
+
+		log.Error(err, "failed to issue certificate from PCA")
+		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to issue certificate from PCA: "+err.Error())
+	}
+
 	cr.Status.Certificate = pem
 	cr.Status.CA = ca
-
 	return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionTrue, cmapi.CertificateRequestReasonIssued, "certificate issued")
 }
 
@@ -197,6 +216,5 @@ func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.
 		eventType = core.EventTypeWarning
 	}
 	r.Recorder.Event(cr, eventType, reason, completeMessage)
-
 	return r.Client.Status().Update(ctx, cr)
 }

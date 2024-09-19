@@ -173,6 +173,10 @@ func (m *errorACMPCAClient) IssueCertificate(_ context.Context, input *acmpca.Is
 	return nil, errors.New("Cannot issue certificate")
 }
 
+func (m *errorACMPCAClient) GetCertificate(_ context.Context, input *acmpca.GetCertificateInput, _ ...func(*acmpca.Options)) (*acmpca.GetCertificateOutput, error) {
+	return nil, errors.New("Cannot get certificate")
+}
+
 type workingACMPCAClient struct {
 	acmPCAClient
 	issueCertInput *acmpca.IssueCertificateInput
@@ -334,7 +338,7 @@ func TestIdempotencyToken(t *testing.T) {
 	}
 }
 
-func TestPCASign(t *testing.T) {
+func TestPCAGet(t *testing.T) {
 	type testCase struct {
 		provisioner   PCAProvisioner
 		expectFailure bool
@@ -348,6 +352,54 @@ func TestPCASign(t *testing.T) {
 			expectFailure: false,
 			expectedChain: string([]byte(root + "\n")),
 			expectedCert:  string([]byte(cert + "\n" + intermediate + "\n")),
+		},
+		"failure-error-getCertificate": {
+			provisioner:   PCAProvisioner{arn: arn, pcaClient: &errorACMPCAClient{}},
+			expectFailure: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			key, _ := rsa.GenerateKey(rand.Reader, 2048)
+			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
+
+			cr := &v1.CertificateRequest{
+				Spec: v1.CertificateRequestSpec{
+					Request: pem.EncodeToMemory(&pem.Block{
+						Bytes: csrBytes,
+						Type:  "CERTIFICATE REQUEST",
+					}),
+				},
+			}
+
+			leaf, chain, err := tc.provisioner.Get(context.TODO(), cr, certArn, logr.Discard())
+
+			if tc.expectFailure && err == nil {
+				fmt.Print(err.Error())
+				assert.Fail(t, "Expected an error but received none")
+			}
+
+			if tc.expectedChain != "" && tc.expectedCert != "" {
+				assert.Equal(t, []byte(tc.expectedCert), leaf)
+				assert.Equal(t, []byte(tc.expectedChain), chain)
+			}
+		})
+	}
+}
+
+func TestPCASign(t *testing.T) {
+	type testCase struct {
+		provisioner     PCAProvisioner
+		expectFailure   bool
+		expectedCertArn string
+	}
+
+	tests := map[string]testCase{
+		"success": {
+			provisioner:     PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}},
+			expectFailure:   false,
+			expectedCertArn: "arn",
 		},
 		"failure-error-issueCertificate": {
 			provisioner:   PCAProvisioner{arn: arn, pcaClient: &errorACMPCAClient{}},
@@ -369,15 +421,15 @@ func TestPCASign(t *testing.T) {
 				},
 			}
 
-			leaf, chain, err := tc.provisioner.Sign(context.TODO(), cr, logr.Discard())
+			err := tc.provisioner.Sign(context.TODO(), cr, logr.Discard())
+
 			if tc.expectFailure && err == nil {
 				fmt.Print(err.Error())
 				assert.Fail(t, "Expected an error but received none")
 			}
 
-			if tc.expectedChain != "" && tc.expectedCert != "" {
-				assert.Equal(t, []byte(tc.expectedCert), leaf)
-				assert.Equal(t, []byte(tc.expectedChain), chain)
+			if tc.expectedCertArn != "" {
+				assert.Equal(t, cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"], tc.expectedCertArn)
 			}
 		})
 	}
@@ -432,7 +484,7 @@ func TestPCASignValidity(t *testing.T) {
 				},
 			}
 
-			_, _, _ = provisioner.Sign(context.TODO(), cr, logr.Discard())
+			_ = provisioner.Sign(context.TODO(), cr, logr.Discard())
 			got := client.issueCertInput
 			if got == nil {
 				assert.Fail(t, "Expected certificate input, got none")

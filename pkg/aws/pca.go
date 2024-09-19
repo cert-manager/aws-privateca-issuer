@@ -33,6 +33,7 @@ import (
 	injections "github.com/cert-manager/aws-privateca-issuer/pkg/api/injections"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-logr/logr"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -42,7 +43,8 @@ var collection = new(sync.Map)
 
 // GenericProvisioner abstracts over the Provisioner type for mocking purposes
 type GenericProvisioner interface {
-	Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error)
+	Get(ctx context.Context, cr *cmapi.CertificateRequest, certArn string, log logr.Logger) ([]byte, []byte, error)
+	Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error
 }
 
 // acmPCAClient abstracts over the methods used from acmpca.Client
@@ -94,10 +96,10 @@ func idempotencyToken(cr *cmapi.CertificateRequest) string {
 }
 
 // Sign takes a certificate request and signs it using PCA
-func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) ([]byte, []byte, error) {
+func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error {
 	block, _ := pem.Decode(cr.Spec.Request)
 	if block == nil {
-		return nil, nil, fmt.Errorf("failed to decode CSR")
+		return fmt.Errorf("failed to decode CSR")
 	}
 
 	validityExpiration := int64(p.now().Unix()) + DEFAULT_DURATION
@@ -112,7 +114,7 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 
 	err := getSigningAlgorithm(ctx, p)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	issueParams := acmpca.IssueCertificateInput{
@@ -130,20 +132,20 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 	issueOutput, err := p.pcaClient.IssueCertificate(ctx, &issueParams)
 
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
+	metav1.SetMetaDataAnnotation(&cr.ObjectMeta, "aws-privateca-issuer/certificate-arn", *issueOutput.CertificateArn)
+
+	log.Info("Issued certificate with arn: " + *issueOutput.CertificateArn)
+
+	return nil
+}
+
+func (p *PCAProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest, certArn string, log logr.Logger) ([]byte, []byte, error) {
 	getParams := acmpca.GetCertificateInput{
-		CertificateArn:          aws.String(*issueOutput.CertificateArn),
+		CertificateArn:          aws.String(certArn),
 		CertificateAuthorityArn: aws.String(p.arn),
-	}
-
-	log.Info("Created certificate with arn: " + *issueOutput.CertificateArn)
-
-	waiter := acmpca.NewCertificateIssuedWaiter(p.pcaClient)
-	err = waiter.Wait(ctx, &getParams, 5*time.Minute)
-	if err != nil {
-		return nil, nil, err
 	}
 
 	getOutput, err := p.pcaClient.GetCertificate(ctx, &getParams)
@@ -158,6 +160,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return nil, nil, err
 	}
 	certPem = append(certPem, chainIntCAs...)
+
+	log.Info("Created certificate with arn: ")
 
 	return certPem, rootCA, nil
 }
