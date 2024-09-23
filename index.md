@@ -97,6 +97,10 @@ signing. If using an older version of cert-manager (pre v1.3), you can disable
 this check by supplying the command line flag `-disable-approved-check` to the
 Issuer Deployment.
 
+### Disable Kubernetes Client-Side Rate Limiting
+
+The AWSPCA Issuer will throttle the rate of requests to the kubernetes API server to 5 queries per second by [default](https://pkg.go.dev/k8s.io/client-go/rest#pkg-constants). This is not necessary for newer versions of Kubernetes that have implemented [API Priority and Fairness](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/). If using a newer version of Kubernetes, you can disable this client-side rate limiting by supplying the command line flag `-disable-client-side-rate-limiting` to the Issuer Deployment.
+
 ### Authentication
 
 Please note that if you are using [KIAM](https://github.com/uswitch/kiam) for authentication, this plugin has been tested on KIAM v4.0. [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) is also tested and supported.
