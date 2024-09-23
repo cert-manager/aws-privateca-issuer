@@ -58,6 +58,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var disableApprovedCheck bool
+	var disableClientSideRateLimiting bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -66,6 +67,8 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&disableApprovedCheck, "disable-approved-check", false,
 		"Disables waiting for CertificateRequests to have an approved condition before signing.")
+	flag.BoolVar(&disableClientSideRateLimiting, "disable-client-side-rate-limiting", false,
+		"Disables Kubernetes client-side rate limiting (only use if API Priority & Fairness is enabled on the cluster).")
 
 	opts := zap.Options{
 		Development: false,
@@ -75,7 +78,15 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	config := ctrl.GetConfigOrDie()
+	if disableClientSideRateLimiting {
+		// A negative QPS and Burst indicates that the client should not have a rate limiter.
+		// Ref: https://github.com/kubernetes/kubernetes/blob/v1.24.0/staging/src/k8s.io/client-go/rest/config.go#L354-L364
+		setupLog.Info("Disabling Kubernetes client rate limiter.")
+		config.QPS = -1
+		config.Burst = -1
+	}
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme: scheme,
 		Metrics: metricsserver.Options{
 			BindAddress: metricsAddr,
