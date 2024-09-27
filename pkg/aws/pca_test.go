@@ -325,8 +325,9 @@ func TestIdempotencyToken(t *testing.T) {
 					Namespace: "fake-namespace",
 				},
 			},
-			expected: "f331cbfd0cc6569f58c12c3dbb238a4f",
+			expected: "63e69830270b95081942a3d85034fdc97bb9", // Truncated SHA-256 hash
 		},
+		
 	}
 
 	for name, tc := range tests {

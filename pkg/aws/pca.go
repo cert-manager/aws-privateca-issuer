@@ -19,7 +19,7 @@ package aws
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/pem"
 	"fmt"
 	"strings"
@@ -91,8 +91,9 @@ func NewProvisioner(config aws.Config, arn string) (p *PCAProvisioner) {
 // idempotencyToken is limited to 64 ASCII characters, so make a fixed length hash.
 // @see: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Run_Instance_Idempotency.html
 func idempotencyToken(cr *cmapi.CertificateRequest) string {
-	token := []byte(cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name)
-	return fmt.Sprintf("%x", md5.Sum(token))
+    token := []byte(cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name)
+    fullHash := fmt.Sprintf("%x", sha256.Sum256(token))
+    return fullHash[:36] // Truncate to 36 characters
 }
 
 // Sign takes a certificate request and signs it using PCA
