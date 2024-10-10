@@ -44,7 +44,7 @@ metadata:
   name: nlb-tls-app
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-subnets: $SUBNET
-    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb-ip"
     service.beta.kubernetes.io/aws-load-balancer-proxy-protocol: "*"
     service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"

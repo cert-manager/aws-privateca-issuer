@@ -30,6 +30,8 @@ create_target_group() {
 
     aws elbv2 register-targets --target-group-arn $TARGET_GROUP_ARN --targets Id=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id),Port=$PORT
 
+    echo "Registered target group"
+
     export LOAD_BALANCER_HOSTNAME=$(kubectl get service nlb-tls-app -ojson | jq -r ".status.loadBalancer.ingress[0].hostname")
 
     LOAD_BALANCER_NAME=$(cut -d'.' -f1 <<<"$LOAD_BALANCER_HOSTNAME" | sed 's/\(.*\)-/\1\//')
@@ -37,6 +39,8 @@ create_target_group() {
     LOAD_BALANCER_ARN=arn:aws:elasticloadbalancing:$AWS_REGION:$(aws sts get-caller-identity | jq -r ".Account"):loadbalancer/net/$LOAD_BALANCER_NAME
 
     LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn $LOAD_BALANCER_ARN | jq -r ".Listeners[0].ListenerArn")
+
+    echo "Modifying listener"
 
     aws elbv2 modify-listener --listener-arn $LISTENER_ARN --protocol TCP --port $PORT --default-actions Type=forward,TargetGroupArn=$TARGET_GROUP_ARN >/dev/null 2>&1
 
@@ -71,6 +75,8 @@ delete_ca() {
 clean_up() {
     set +e
 
+    echo "Cleaning up test resources"
+
     kubectl delete -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml >/dev/null 2>&1
 
     kubectl delete -f $E2E_DIR/blog-test/nlb-lab-tls.yaml >/dev/null 2>&1
@@ -80,7 +86,6 @@ clean_up() {
     helm uninstall aws-load-balancer-controller -n kube-system >/dev/null 2>&1
 
     delete_ca
-
 }
 
 install_aws_load_balancer() {
@@ -132,16 +137,21 @@ main() {
 
     echo "nlb-tls-app deployment found."
 
-    timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
+    kubectl describe service/nlb-tls-app
 
+    timeout 60s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
+
+    echo "Creating target groups"
+    
     create_target_group
+
+    echo "Waiting for target groups"
 
     timeout 600s bash -c 'until echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT; do : ; done' || exit 1
 
     echo "Blog Test Finished Successfully"
-
-    clean_up
-
 }
+
+trap clean_up EXIT
 
 main
