@@ -200,7 +200,7 @@ jobs:
           make install-eks-webhook
           make blog-test
       - name: Copy Kind logs to S3
-        if: ${{ inputs.architecture != 'arm64' }}
+        if: ${{ always() }}
         run: |
           mkdir logs-blog
           export E2E_ARTIFACTS_DIRECTORY=logs-blog
