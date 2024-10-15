@@ -282,7 +282,7 @@ kind-export-logs:
 .PHONY: deploy-cert-manager
 deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
 	helm repo add jetstack https://charts.jetstack.io --force-update
-	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set installCRDs=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
+	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set crds.enabled=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
 .PHONY: install-local

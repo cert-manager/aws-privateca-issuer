@@ -107,7 +107,7 @@ spec:
       serviceAccountName: pod-identity-webhook
       containers:
         - name: pod-identity-webhook
-          image: public.ecr.aws/perplexed/amazon-eks-pod-identity-webhook:latest
+          image: amazon/amazon-eks-pod-identity-webhook:latest
           imagePullPolicy: IfNotPresent
           command:
             - /webhook
@@ -169,7 +169,7 @@ spec:
     name: selfsigned-issuer
     kind: ClusterIssuer
 ---
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: pod-identity-webhook
@@ -179,6 +179,8 @@ metadata:
 webhooks:
   - name: pod-identity-webhook.amazonaws.com
     failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: ['v1', 'v1beta']
     clientConfig:
       service:
         name: pod-identity-webhook
