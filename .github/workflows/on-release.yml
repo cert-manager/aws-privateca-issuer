@@ -17,7 +17,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Get release version
         id: tag
         uses: divyansh-gupta/action-get-tag@727a6f0a561be04e09013531e73a3983a65e3479
