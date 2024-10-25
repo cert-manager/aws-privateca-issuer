@@ -38,11 +38,12 @@ RUN VERSION=$pkg_version && \
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM --platform=${TARGETPLATFORM:-linux/amd64} gcr.io/distroless/static:nonroot
+# FROM --platform=${TARGETPLATFORM:-linux/amd64} gcr.io/distroless/static:nonroot
+FROM alpine:latest
+RUN apk update && apk add --no-cache coreutils aws-cli
 LABEL org.opencontainers.image.authors="Jochen Ullrich <kontakt@ju-hh.de>"
 LABEL org.opencontainers.image.source=https://github.com/cert-manager/aws-privateca-issuer
 WORKDIR /
 COPY --from=builder /workspace/manager .
-USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/bin/sh", "-c", "/manager"]

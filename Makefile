@@ -48,7 +48,7 @@ KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.16.0
+CERT_MANAGER_VERSION ?= v1.14.5
 
 # Controller tools
 CONTROLLER_GEN_VERSION := 0.15.0
@@ -140,7 +140,7 @@ generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 # Build the docker image
-docker-build: test
+docker-build: 
 	docker build \
 		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
@@ -213,9 +213,9 @@ SERVICE_ACCOUNT := ${NAMESPACE}-sa
 TEST_KUBECONFIG_LOCATION := /tmp/pca_kubeconfig
 
 create-local-registry:
-	RUNNING=$$(docker inspect -f '{{.State.Running}}' ${REGISTRY_NAME} 2>/dev/null || true)
-	if [ "$$RUNNING" != 'true' ]; then
-		docker run -d --restart=always -p "127.0.0.1:${REGISTRY_PORT}:5000" --name ${REGISTRY_NAME} registry:2
+	RUNNING=$$(docker inspect -f '{{.State.Running}}' ${REGISTRY_NAME} 2>/dev/null || true); \
+	if [ "$$RUNNING" != 'true' ]; then \
+		docker run -d --restart=always -p "127.0.0.1:${REGISTRY_PORT}:5000" --name ${REGISTRY_NAME} registry:2; \
 	fi
 	sleep 15
 
@@ -226,13 +226,12 @@ docker-push-local:
 .PHONY: kind-cluster
 kind-cluster: ## Use Kind to create a Kubernetes cluster for E2E tests
 kind-cluster: ${KIND}
-	if [[ -z "$$OIDC_S3_BUCKET_NAME" ]]; then \
-		echo "OIDC_S3_BUCKET_NAME env var is not set, the cluster will not be enabled for IRSA"; \
+	if [ -z "$$CLOUDFRONT_DOMAIN_NAME" ]; then \
+		echo "CLOUDFRONT_DOMAIN_NAME env var is not set, the cluster will not be enabled for IRSA"; \
 		echo "If you wish to have IRSA enabled, recreate the cluster with OIDC_S3_BUCKET_NAME  set"; \
-		cp e2e/kind_config/config.yaml /tmp/config.yaml;
+		cp e2e/kind_config/config.yaml /tmp/config.yaml; \
 	else \
-		cat e2e/kind_config/config.yaml | sed "s/S3_BUCKET_NAME_PLACEHOLDER/$$OIDC_S3_BUCKET_NAME/g" \
-		> /tmp/config.yaml
+		cat e2e/kind_config/config.yaml | sed "s/CLOUDFRONT_DOMAIN_NAME_PLACEHOLDER/$$CLOUDFRONT_DOMAIN_NAME/g" > /tmp/config.yaml; \
 	fi
 
 	${KIND} get clusters | grep ${K8S_CLUSTER_NAME} || \
@@ -249,20 +248,22 @@ kind-cluster: ${KIND}
 .PHONY: setup-eks-webhook
 setup-eks-webhook:
 	#Ensure that there is a OIDC role and S3 bucket available
-	if [[ -z "$$OIDC_S3_BUCKET_NAME" || -z "$$OIDC_IAM_ROLE" ]]; then \
-		echo "Please set OIDC_S3_BUCKET_NAME and  OIDC_IAM_ROLE to use IRSA"; \
+	if [ -z "$$S3_BUCKET_NAME" -o -z "$$OIDC_IAM_ROLE" ]; then \
+		echo "Please set CLOUDFRONT_DOMAIN_NAME and OIDC_IAM_ROLE to use IRSA"; \
 		exit 1; \
 	fi
 	#Get open id configuration from API server
 	kubectl apply -f e2e/kind_config/unauth_role.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
-	APISERVER=$$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' --kubeconfig=${TEST_KUBECONFIG_LOCATION})
-	TOKEN=$$(kubectl get secret $(kubectl get serviceaccount default -o jsonpath='{.secrets[0].name}' --kubeconfig=${TEST_KUBECONFIG_LOCATION}) \
-	-o jsonpath='{.data.token}' --kubeconfig=${TEST_KUBECONFIG_LOCATION} | base64 --decode )
-	curl $$APISERVER/.well-known/openid-configuration --header "Authorization: Bearer $$TOKEN" --insecure -o openid-configuration
+	APISERVER=$$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' --kubeconfig=${TEST_KUBECONFIG_LOCATION}) && \
+	echo "APISERVER: $$APISERVER" && \
+	SECRET_NAME=$$(kubectl get serviceaccount default -o jsonpath='{.secrets[0].name}' --kubeconfig=${TEST_KUBECONFIG_LOCATION}) && \
+	TOKEN=$$(kubectl get secret $$SECRET_NAME -o jsonpath='{.data.token}' --kubeconfig=${TEST_KUBECONFIG_LOCATION} | base64 --decode) && \
+	echo "TOKEN: $$TOKEN" && \
+	curl $$APISERVER/.well-known/openid-configuration --header "Authorization: Bearer $$TOKEN" --insecure -o openid-configuration && \
 	curl $$APISERVER/openid/v1/jwks --header "Authorization: Bearer $$TOKEN" --insecure -o jwks
 	#Put idP configuration in public S3 bucket
-	aws s3 cp --acl public-read jwks s3://$$OIDC_S3_BUCKET_NAME/cluster/my-oidc-cluster/openid/v1/jwks
-	aws s3 cp --acl public-read openid-configuration s3://$$OIDC_S3_BUCKET_NAME/cluster/my-oidc-cluster/.well-known/openid-configuration
+	aws --profile istio-auth-test2-development--admin --region us-west-2 s3 cp jwks s3://$$S3_BUCKET_NAME/cluster/my-oidc-cluster/openid/v1/jwks
+	aws --profile istio-auth-test2-development--admin --region us-west-2 s3 cp openid-configuration s3://$$S3_BUCKET_NAME/cluster/my-oidc-cluster/.well-known/openid-configuration
 	sleep 60
 	kubectl apply -f e2e/kind_config/install_eks.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout 300s deployment pod-identity-webhook --kubeconfig=${TEST_KUBECONFIG_LOCATION}
@@ -282,7 +283,7 @@ kind-export-logs:
 .PHONY: deploy-cert-manager
 deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
 	helm repo add jetstack https://charts.jetstack.io --force-update
-	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set crds.enabled=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
+	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set installCRDs=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
 .PHONY: install-local
