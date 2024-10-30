@@ -37,7 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-const DEFAULT_DURATION = 30 * 24 * 3600
+const DEFAULT_DURATION = 90 * 24 * 3600
 
 var collection = new(sync.Map)
 
