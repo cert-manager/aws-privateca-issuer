@@ -71,11 +71,11 @@ jobs:
           changed_charts=$( (echo $FILES | grep -q -E "${CHARTS_DIR}/[[:graph:]]*\.yaml" && echo true) || echo false )
 
           if $changed_config && ! $changed_charts; then
-            echo "::set-output name=result::config"
+            echo "result=config" >> $GITHUB_OUTPUT
           elif $changed_charts && ! $changed_config; then
-            echo "::set-output name=result::charts"
+            echo "result=charts" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=result::both"
+            echo "result=both" >> $GITHUB_OUTPUT
           fi
 
       - name: Copy changed config CRDs to chart

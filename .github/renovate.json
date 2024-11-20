@@ -6,33 +6,34 @@
   ],
   "dependencyDashboard": false,
   "ignorePaths" : [
-    "config/manager/kustomization.yaml",
-    ".github/workflows/on-push-to-main-branch.yml",
-    ".github/workflows/on-release.yml",
-    ".github/workflows/sync.yml"
+    "**/config/manager/kustomization.yaml"
   ],
-  "packageRules": [{
-    "matchPackagePatterns": [
-      "*"
-    ],
-    "matchUpdateTypes": [
-      "minor",
-      "patch",
-      "digest"
-    ],
-    "groupName": "all non-major dependencies",
-    "groupSlug": "all-minor-patch"
-  }, {
-    "matchPackageNames": [
-      "k8s.io/client-go",
-      "k8s.io/api",
-      "k8s.io/apimachinery"
-    ],
-    "matchUpdateTypes": [
-      "major" 
-    ],
-    "enabled": false
-  }],
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    },
+    {
+      "matchPackageNames": [
+        "k8s.io/client-go",
+        "k8s.io/api",
+        "k8s.io/apimachinery",
+        "kubernetes-sigs/controller-tools"
+      ],
+      "matchUpdateTypes": [
+        "major" 
+      ],
+      "enabled": false
+    }
+  ],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 1,
   "regexManagers": [
@@ -43,12 +44,18 @@
       "datasourceTemplate": "github-releases"
     },
     {
+      "fileMatch": ["^Makefile$"],
+      "matchStrings": ["CONTROLLER_GEN_VERSION := (?<currentValue>.*?)\\n"],
+      "depNameTemplate": "kubernetes-sigs/controller-tools",
+      "datasourceTemplate": "github-releases"
+    },
+    {
       "fileMatch": ["^.github/workflows/on-safe-to-test-label.yml$"],
       "matchStrings": ["GOVERSION=go(?<currentValue>.*?)\\n"],
       "depNameTemplate": "golang",
       "depTypeTemplate": "stage",
       "datasourceTemplate": "docker",
-      "versioningTemplate": "docker"
+      "versioningTemplate": "semver-coerced"
     }
   ],
   "vulnerabilityAlerts": {

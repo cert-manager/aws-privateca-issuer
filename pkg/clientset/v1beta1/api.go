@@ -12,12 +12,12 @@ type Interface interface {
 	AWSPCAClusterIssuers() AWSPCAClusterIssuerInterface
 }
 
-//Client defines a client for interacting with AWS PCA issuers
+// Client defines a client for interacting with AWS PCA issuers
 type Client struct {
 	restClient rest.Interface
 }
 
-//NewForConfig is a function which lets you configure pca issuer clientset
+// NewForConfig is a function which lets you configure pca issuer clientset
 func NewForConfig(c *rest.Config) (*Client, error) {
 	err := AddToScheme(scheme.Scheme)
 	if err != nil {
@@ -38,7 +38,7 @@ func NewForConfig(c *rest.Config) (*Client, error) {
 	return &Client{restClient: client}, nil
 }
 
-//AWSPCAIssuers is a function which lets you interact with AWSPCAIssuers
+// AWSPCAIssuers is a function which lets you interact with AWSPCAIssuers
 func (c *Client) AWSPCAIssuers(namespace string) AWSPCAIssuerInterface {
 	return &awspcaIssuerClient{
 		restClient: c.restClient,
@@ -46,7 +46,7 @@ func (c *Client) AWSPCAIssuers(namespace string) AWSPCAIssuerInterface {
 	}
 }
 
-//AWSPCAClusterIssuers is a function which lets you interact with AWSPCAClusterIssuers
+// AWSPCAClusterIssuers is a function which lets you interact with AWSPCAClusterIssuers
 func (c *Client) AWSPCAClusterIssuers() AWSPCAClusterIssuerInterface {
 	return &awspcaClusterIssuerClient{
 		restClient: c.restClient,

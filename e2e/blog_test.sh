@@ -71,6 +71,8 @@ delete_ca() {
 clean_up() {
     set +e
 
+    echo "Cleaning up test resources"
+
     kubectl delete -f $E2E_DIR/blog-test/test-nlb-tls-app.yaml >/dev/null 2>&1
 
     kubectl delete -f $E2E_DIR/blog-test/nlb-lab-tls.yaml >/dev/null 2>&1
@@ -80,13 +82,12 @@ clean_up() {
     helm uninstall aws-load-balancer-controller -n kube-system >/dev/null 2>&1
 
     delete_ca
-
 }
 
 install_aws_load_balancer() {
     helm repo add eks https://aws.github.io/eks-charts >/dev/null 2>&1
     kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master" >/dev/null 2>&1
-    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" --set env.AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" --set env.AWS_REGION="$AWS_REGION" >/dev/null 2>&1
+    helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=$CLUSTER_NAME --set env.AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" --set env.AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" --set env.AWS_SESSION_TOKEN="$AWS_SESSION_TOKEN" --set env.AWS_REGION="$AWS_REGION" --set enableServiceMutatorWebhook=false>/dev/null 2>&1
     kubectl wait --for=condition=Available --timeout=60s deployments -n kube-system aws-load-balancer-controller 1>/dev/null || exit 1
     echo "AWS Load Balancer installed."
 }
@@ -134,14 +135,17 @@ main() {
 
     timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
 
+    echo "Creating target groups"
+    
     create_target_group
+
+    echo "Waiting for target groups"
 
     timeout 600s bash -c 'until echo | openssl s_client -connect $LOAD_BALANCER_HOSTNAME:$PORT; do : ; done' || exit 1
 
     echo "Blog Test Finished Successfully"
-
-    clean_up
-
 }
+
+trap clean_up EXIT
 
 main

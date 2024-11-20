@@ -11,10 +11,10 @@
 
 # AWS Private CA Issuer
 
-AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
+AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certificates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
-It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
+It will ensure certificates are valid, updated periodically and attempt to renew certificates at an appropriate time before expiry.
 
 This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS Private CA.
 
@@ -31,7 +31,18 @@ helm install awspca/aws-privateca-issuer --generate-name
 
 You can check the chart configuration in the default [values](charts/aws-pca-issuer/values.yaml) file.
 
+**[AWS PCA Issuer supports ARM starting at version 1.3.0](https://github.com/cert-manager/aws-privateca-issuer/releases/tag/v1.3.0)**
 
+### Accessing the test ECR
+
+AWS PCA Issuer maintains a test ECR that contains versions that correspond to each commit on the main branch. These images can be accessed by setting the image repo to `public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test` and the image tag to `latest`. An example of how this is done is shown below:
+
+```shell
+helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
+helm install awspca/aws-privateca-issuer --generate-name \
+--set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
+--set image.tag=latest
+```
 ## Configuration
 
 As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
@@ -85,6 +96,10 @@ set](https://cert-manager.io/docs/concepts/certificaterequest/#approval) before
 signing. If using an older version of cert-manager (pre v1.3), you can disable
 this check by supplying the command line flag `-disable-approved-check` to the
 Issuer Deployment.
+
+### Disable Kubernetes Client-Side Rate Limiting
+
+The AWSPCA Issuer will throttle the rate of requests to the kubernetes API server to 5 queries per second by [default](https://pkg.go.dev/k8s.io/client-go/rest#pkg-constants). This is not necessary for newer versions of Kubernetes that have implemented [API Priority and Fairness](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/). If using a newer version of Kubernetes, you can disable this client-side rate limiting by supplying the command line flag `-disable-client-side-rate-limiting` to the Issuer Deployment.
 
 ### Authentication
 
@@ -163,7 +178,7 @@ Before running ```make cluster``` we will need to do the following:
 * [Golang v1.17+](https://golang.org/)
 * [Docker v17.03+](https://docs.docker.com/install/)
 * [Kind v0.9.0+](https://kind.sigs.k8s.io/docs/user/quick-start/) -> This will be installed via running the test
-* [Kubectl v1.11.3+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [Kubectl v1.13+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
 * [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
 * [Helm](https://helm.sh/docs/intro/install/)
 * [Make](https://www.gnu.org/software/make/) Need to have version 3.82+

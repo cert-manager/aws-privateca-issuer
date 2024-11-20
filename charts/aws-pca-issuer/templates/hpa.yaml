@@ -1,9 +1,12 @@
 {{- if .Values.autoscaling.enabled }}
+{{- if .Capabilities.APIVersions.Has "autoscaling/v2" }}
 apiVersion: autoscaling/v2
+{{- else }}
+apiVersion: autoscaling/v2beta1
+{{- end }}
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "aws-privateca-issuer.fullname" . }}
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
 spec:

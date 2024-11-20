@@ -26,8 +26,8 @@ DOCKER_IMAGE_NAME ?= cert-manager/aws-privateca-issuer/controller
 
 # Image URL to use all building/pushing image targets
 IMG ?= ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${VERSION}
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
+# Produce CRDs that work back to Kubernetes 1.13 (no version conversion)
+CRD_OPTIONS ?= "crd"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -43,16 +43,19 @@ OS := $(shell go env GOOS)
 ARCH := $(shell go env GOARCH)
 
 # Kind
-KIND_VERSION := 0.11.1
+KIND_VERSION := 0.19.0
 KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.11.0
+CERT_MANAGER_VERSION ?= v1.16.0
 
 # Controller tools
-CONTROLLER_GEN_VERSION := 0.5.0
+CONTROLLER_GEN_VERSION := 0.15.0
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
+
+# Helm tools
+HELM_TOOL_VERSION := v0.2.2
 
 INSTALL_YAML ?= build/install.yaml
 
@@ -114,6 +117,9 @@ undeploy:
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
+helm-docs: helm-tool
+	$(HELM_TOOL) inject -i charts/aws-pca-issuer/values.yaml -o charts/aws-pca-issuer/README.md --header-search "^<!-- AUTO-GENERATED -->" --footer-search "<!-- /AUTO-GENERATED -->"
+
 # Run go fmt against code
 fmt:
 	go fmt ./...
@@ -139,6 +145,7 @@ docker-build: test
 		--build-arg pkg_version=${VERSION} \
 		--tag ${IMG} \
 		--file Dockerfile \
+		--platform=linux/amd64,linux/arm64 \
 		${CURDIR}
 
 # Push the docker image
@@ -147,7 +154,11 @@ docker-push:
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen:
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_GEN_VERSION))
+
+HELM_TOOL = $(shell pwd)/bin/helm-tool
+helm-tool:
+	$(call go-install-tool,$(HELM_TOOL),github.com/cert-manager/helm-tool@$(HELM_TOOL_VERSION))
 
 # Download kustomize locally if necessary
 KUSTOMIZE = $(shell pwd)/bin/kustomize
@@ -270,7 +281,8 @@ kind-export-logs:
 
 .PHONY: deploy-cert-manager
 deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster in ~/.kube/config
-	kubectl apply --filename=https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
+	helm repo add jetstack https://charts.jetstack.io --force-update
+	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set crds.enabled=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
 .PHONY: install-local

@@ -39,7 +39,7 @@ type AWSPCAIssuerSpec struct {
 	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
 }
 
-//AWSCredentialsSecretReference defines the secret used by the issuer
+// AWSCredentialsSecretReference defines the secret used by the issuer
 type AWSCredentialsSecretReference struct {
 	v1.SecretReference `json:""`
 	// Specifies the secret key where the AWS Access Key ID exists

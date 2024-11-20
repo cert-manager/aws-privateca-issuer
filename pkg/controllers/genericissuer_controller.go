@@ -23,8 +23,10 @@ import (
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	acmpcaTypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
@@ -84,6 +86,10 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		log.Error(cfgErr, "Error loading config")
 		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", cfgErr.Error())
 		return ctrl.Result{}, cfgErr
+	}
+
+	cfg.Retryer = func() aws.Retryer {
+		return retry.AddWithErrorCodes(retry.NewStandard(), (*acmpcaTypes.RequestInProgressException)(nil).ErrorCode())
 	}
 
 	if r.GetCallerIdentity {
