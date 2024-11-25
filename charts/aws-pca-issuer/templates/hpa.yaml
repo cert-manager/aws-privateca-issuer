@@ -14,7 +14,6 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include "aws-privateca-issuer.fullname" . }}
-    namespace: {{ .Release.Namespace }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
@@ -22,12 +21,24 @@ spec:
     - type: Resource
       resource:
         name: cpu
+        {{- if .Capabilities.APIVersions.Has "autoscaling/v2" }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+        {{- else }}
         targetAverageUtilization: {{ .Values.autoscaling.targetCPUUtilizationPercentage }}
+        {{- end }}
     {{- end }}
     {{- if .Values.autoscaling.targetMemoryUtilizationPercentage }}
     - type: Resource
       resource:
         name: memory
+        {{- if .Capabilities.APIVersions.Has "autoscaling/v2" }}
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+        {{- else }}
         targetAverageUtilization: {{ .Values.autoscaling.targetMemoryUtilizationPercentage }}
+        {{- end }}
     {{- end }}
 {{- end }}
