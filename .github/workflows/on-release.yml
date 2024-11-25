@@ -39,7 +39,7 @@ jobs:
           export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push container images
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
