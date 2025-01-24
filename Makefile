@@ -48,10 +48,10 @@ KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.16.0
+CERT_MANAGER_VERSION ?= v1.16.3
 
 # Controller tools
-CONTROLLER_GEN_VERSION := 0.15.0
+CONTROLLER_GEN_VERSION := 0.17.1
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
 # Helm tools
