@@ -92,7 +92,7 @@ main() {
   [ -z "$POD_VOLUMES" ] && echo "Volume 'cache-volume' has not been found" && exit 1
   [ -z "$POD_VOLUME_MOUNTS" ] && echo "Volume mount 'cache-volume' has not been found" && exit 1
 
-  kubectl wait --for=condition=ready pod  "$POD_NAME" -n $K8S_NAMESPACE --timeout=30s 1>/dev/null || exit 1
+  kubectl wait --for=condition=ready pod  "$POD_NAME" -n $K8S_NAMESPACE --timeout=60s 1>/dev/null || exit 1
 
   POD_STATUS=$(kubectl get pod/"$POD_NAME" -n $K8S_NAMESPACE -ojson | jq -r ".status.phase")
   [[ $POD_STATUS != Running ]] && echo "pod status is $POD_STATUS . Exiting ... " && exit 1
