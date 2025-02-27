@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	certmanager "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 
@@ -58,6 +59,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var disableApprovedCheck bool
+	var maxRetryDuration time.Duration
 	var disableClientSideRateLimiting bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
@@ -67,6 +69,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.BoolVar(&disableApprovedCheck, "disable-approved-check", false,
 		"Disables waiting for CertificateRequests to have an approved condition before signing.")
+	flag.DurationVar(&maxRetryDuration, "max-retry-duration", 180, "Maximum duration to retry failed CertificateRequests. Set to 0 to disable.")
 	flag.BoolVar(&disableClientSideRateLimiting, "disable-client-side-rate-limiting", false,
 		"Disables Kubernetes client-side rate limiting (only use if API Priority & Fairness is enabled on the cluster).")
 
@@ -135,7 +138,9 @@ func main() {
 		Recorder: mgr.GetEventRecorderFor("awspcaissuer-controller"),
 
 		Clock:                  clock.RealClock{},
+		RequeueItter:           controllers.NewRequeueItter(),
 		CheckApprovedCondition: !disableApprovedCheck,
+		MaxRetryDuration:       maxRetryDuration,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CertificateRequest")
 		os.Exit(1)
