@@ -1,11 +1,11 @@
-# AWS Private CA Issuer
+# AWS Private CA Connector for Kubernetes
 
-AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certifiates.
+AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certificates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
-It will ensure certificates are valid and up to date periodically, and attempt to renew certificates at an appropriate time before expiry.
+It will ensure certificates are valid, updated periodically and attempt to renew certificates at an appropriate time before expiry.
 
-This project acts as an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using AWS Private CA.
+AWS Private CA Connector for Kubernetes (or AWS PCA Issuer) is an open-source issuer plugin for cert-manager (see https://cert-manager.io/docs/configuration/external/) that signs off certificate requests using AWS Private CA.
 
 ## Values
 
