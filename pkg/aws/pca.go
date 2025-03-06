@@ -162,7 +162,7 @@ func (p *PCAProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest, 
 	}
 	certPem = append(certPem, chainIntCAs...)
 
-	log.Info("Created certificate with arn: ")
+	log.Info("Created certificate with arn: " + certArn)
 
 	return certPem, rootCA, nil
 }
