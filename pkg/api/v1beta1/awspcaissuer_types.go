@@ -37,6 +37,9 @@ type AWSPCAIssuerSpec struct {
 	// Needs to be specified if you want to authorize with AWS using an access and secret key
 	// +optional
 	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
+	// Role specifies an IAM role ARN to assume for PCA operations
+	// +optional
+	Role string `json:"role,omitempty"`
 }
 
 // AWSCredentialsSecretReference defines the secret used by the issuer

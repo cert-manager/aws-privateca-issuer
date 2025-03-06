@@ -1,0 +1,11 @@
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAClusterIssuer
+metadata:
+  name: example-pca-cross-account
+spec:
+  # ARN of the PCA in the target account
+  arn: arn:aws:acm-pca:us-west-2:123456789012:certificate-authority/12345678-1234-1234-1234-123456789012
+  # Target AWS region
+  region: us-west-2
+  # IAM role to assume in the target account
+  role: arn:aws:iam::123456789012:role/pca-issuer-role

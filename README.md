@@ -45,11 +45,33 @@ helm install awspca/aws-privateca-issuer --generate-name \
 ```
 ## Configuration
 
-As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
+### AWS Authentication
 
-Alternatively, you can supply arbitrary secrets for the access and secret keys with the `accessKeyIDSelector` and `secretAccessKeySelector` fields in the clusterissuer and/or issuer manifests.
+You can configure AWS authentication in the following ways:
 
-Access to AWS can also be configured using an EC2 instance role or [IAM Roles for Service Accounts] (https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+* Using environment variables: `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`
+* Using Kubernetes secrets: Supply arbitrary secrets for the access and secret keys with the `accessKeyIDSelector` and `secretAccessKeySelector` fields in the issuer manifests
+* Using EC2 instance roles
+* Using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html)
+
+### Cross-Account Access
+
+AWS PCA Issuer supports assuming an IAM role per issuer to access AWS Private CAs in different AWS accounts. This is useful for multi-account architectures where Private CAs are hosted in separate accounts from the Kubernetes clusters.
+
+To use this feature, specify the IAM role ARN in the `role` field of your issuer:
+
+```yaml
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAClusterIssuer
+metadata:
+  name: cross-account-issuer
+spec:
+  arn: arn:aws:acm-pca:us-west-2:123456789012:certificate-authority/12345678-1234-1234-1234-123456789012
+  region: us-west-2
+  role: arn:aws:iam::123456789012:role/pca-issuer-role
+```
+
+For more details on setting up cross-account access, see the [Multi-Account Setup Guide](docs/multi-account-setup.md).
 
 A minimal policy to use the issuer with an authority would look like follows:
 

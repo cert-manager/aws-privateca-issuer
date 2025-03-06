@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -132,6 +133,47 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 }
 
 func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+	// Get the base configuration
+	baseConfig, err := r.getBaseConfig(ctx, spec)
+	if err != nil {
+		return aws.Config{}, err
+	}
+
+	// Assume role if specified
+	if spec.Role != "" {
+		r.Log.Info("Assuming IAM role", "role", spec.Role)
+
+		// Create STS client using base config
+		stsClient := sts.NewFromConfig(baseConfig)
+
+		// Generate a unique session name using random suffix
+		sessionName := fmt.Sprintf("aws-privateca-issuer-%d", time.Now().Unix())
+
+		// Assume the role
+		assumeRoleOutput, err := stsClient.AssumeRole(ctx, &sts.AssumeRoleInput{
+			RoleArn:         aws.String(spec.Role),
+			RoleSessionName: aws.String(sessionName),
+		})
+		if err != nil {
+			return aws.Config{}, fmt.Errorf("failed to assume role %s: %v", spec.Role, err)
+		}
+
+		// Create new config with temporary credentials from assumed role
+		return config.LoadDefaultConfig(ctx,
+			config.WithRegion(baseConfig.Region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+				*assumeRoleOutput.Credentials.AccessKeyId,
+				*assumeRoleOutput.Credentials.SecretAccessKey,
+				*assumeRoleOutput.Credentials.SessionToken,
+			)),
+		)
+	}
+
+	return baseConfig, nil
+}
+
+// getBaseConfig creates the initial AWS configuration before role assumption
+func (r *GenericIssuerReconciler) getBaseConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
 	if spec.SecretRef.Name != "" {
 		secretNamespaceName := types.NamespacedName{
 			Namespace: spec.SecretRef.Namespace,
