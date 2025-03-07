@@ -113,6 +113,13 @@ affinity: {}
 #         app.kubernetes.io/name: aws-privateca-issuer
 topologySpreadConstraints: []
 
+# Priority class name for the issuer pods
+# If specified, this will set the priority class on pods, which can influence scheduling decisions
+#
+# For example:
+#   priorityClassName: high-priority
+priorityClassName: ""
+
 # Additional environment variables to set in the Pod
 # +docs:type=object
 env:
