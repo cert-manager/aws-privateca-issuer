@@ -133,7 +133,7 @@ main() {
 
     echo "nlb-tls-app deployment found."
 
-    timeout 30s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
+    timeout 60s bash -c 'until kubectl get service/nlb-tls-app --output=jsonpath='{.status.loadBalancer}' | grep "ingress"; do : ; done' 1>/dev/null || exit 1
 
     echo "Creating target groups"
     
