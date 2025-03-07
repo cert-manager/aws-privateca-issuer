@@ -83,7 +83,7 @@ jobs:
           mkdir /home/ec2-user/.cache/go-mod
           mkdir /home/ec2-user/go
           mkdir /home/ec2-user/go/bin
-          GOVERSION=go1.24.0
+          GOVERSION=go1.24.1
           wget https://go.dev/dl/$GOVERSION.linux-${{ env.GO_ARCHITECTURE }}.tar.gz
           sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GOVERSION.linux-${{ env.GO_ARCHITECTURE }}.tar.gz
           PATH="$PATH:/usr/local/go/bin"
