@@ -469,6 +469,29 @@ topologySpreadConstraints:
 </tr>
 <tr>
 
+<td>priorityClassName</td>
+<td>
+
+Priority class name for the issuer pods. If specified, this will set the priority class on pods, which can influence scheduling decisions.
+
+For example:
+
+```yaml
+priorityClassName: high-priority
+```
+
+</td>
+<td>string</td>
+<td>
+
+```yaml
+""
+```
+
+</td>
+</tr>
+<tr>
+
 <td>env</td>
 <td>
 
