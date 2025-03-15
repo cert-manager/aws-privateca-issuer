@@ -68,8 +68,8 @@ securityContext:
 # Kubernetes pod resources requests/limits
 resources:
   limits:
-    cpu: 75m
-    memory: 100Mi
+    cpu: 50m
+    memory: 64Mi
   requests:
     cpu: 50m
     memory: 64Mi
