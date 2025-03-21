@@ -6,8 +6,9 @@ on:
   workflow_dispatch:
 
 env:
-  ECR_REPO: public.ecr.aws/k1n1h4h4
-  
+  PUBLIC_REGISTRY: public.ecr.aws/k1n1h4h4
+  PRIVATE_REGISTRY: 105154636954.dkr.ecr.us-east-1.amazonaws.com
+
 jobs:
   build:
     name: release
@@ -32,19 +33,63 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: public.ecr.aws
-        env:
-          AWS_REGION: us-east-1
-      - name: Setup Push to ECR
-        run: |
-          export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
+          env:
+            AWS_REGION: us-east-1
+        - name: Setup Push to Public ECR
+          run: |
+            export TAG_BASE=${{ env.PUBLIC_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push container images
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
           context: .
           platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.TAG_BASE }}:latest
+            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
+          push: true
+      - name: Login to Staging ECR
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ env.PRIVATE_REGISTRY }}
+        env:
+          AWS_REGION: us-east-1
+      - name: Setup Push to Staging ECR
+        run: |
+          export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
+          echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
+      - name: Build and push arm image
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            pkg_version=${{ steps.tag.outputs.tag }}
+          context: .
+          platforms: linux/arm64
+          provenance: false
+          tags: |
+            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-arm64
+          push: true
+      - name: Build and push amd image
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            pkg_version=${{ steps.tag.outputs.tag }}
+          context: .
+          platforms: linux/amd64
+          provenance: false
+          tags: |
+            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-amd64
+          push: true
+      - name: Build and push manifest list
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            pkg_version=${{ steps.tag.outputs.tag }}
+          context: .
+          platforms: linux/amd64,linux/arm64
+          provenance: false
           tags: |
             ${{ env.TAG_BASE }}:latest
             ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
