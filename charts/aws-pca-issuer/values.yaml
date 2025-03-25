@@ -1,7 +1,7 @@
 # +docs:section=AWS Private CA Issuer
 
 # Number of replicas to run of the issuer
-replicaCount: 1
+replicaCount: 2
 
 image:
   # Image repository
@@ -66,16 +66,13 @@ securityContext:
   allowPrivilegeEscalation: false
 
 # Kubernetes pod resources requests/limits
-#
-# For example:
-#  resources:
-#    limits:
-#      cpu: 100m
-#      memory: 128Mi
-#    requests:
-#      cpu: 100m
-#      memory: 128Mi
-resources: {}
+resources:
+  limits:
+    cpu: 50m
+    memory: 64Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
 
 # Kubernetes node selector: node labels for pod assignment
 nodeSelector: {}
@@ -87,7 +84,7 @@ nodeSelector: {}
 #  - operator: "Exists"
 tolerations: []
 
-# A Kubernetes Affinity, if required; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core
+# A Kubernetes Affinity; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core
 #
 # For example:
 #   affinity:
@@ -99,19 +96,27 @@ tolerations: []
 #            operator: In
 #            values:
 #            - master
-affinity: {}
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - aws-privateca-issuer
+        topologyKey: kubernetes.io/hostname
+      weight: 100
 
 # List of Kubernetes TopologySpreadConstraints; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core
-#
-# For example:
-#   topologySpreadConstraints:
-#   - maxSkew: 1
-#     topologyKey: topology.kubernetes.io/zone
-#     whenUnsatisfiable: ScheduleAnyway
-#     labelSelector:
-#       matchLabels:
-#         app.kubernetes.io/name: aws-privateca-issuer
-topologySpreadConstraints: []
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone
+  whenUnsatisfiable: ScheduleAnyway
+  labelSelector:
+    matchLabels:
+      app.kubernetes.io/name: aws-privateca-issuer
 
 # Priority class name for the issuer pods
 # If specified, this will set the priority class on pods, which can influence scheduling decisions
@@ -152,7 +157,8 @@ volumeMounts: []
 #   podDisruptionBudget:
 #     minAvailable: 1
 #     maxUnavailable: 1
-podDisruptionBudget: {}
+podDisruptionBudget:
+  maxUnavailable: 1
 
 # +docs:section=Autoscaling
 
