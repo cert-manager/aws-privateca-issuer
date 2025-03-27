@@ -37,6 +37,9 @@ type AWSPCAIssuerSpec struct {
 	// Needs to be specified if you want to authorize with AWS using an access and secret key
 	// +optional
 	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
+	// Defines the role to be assumed with this issuer
+	// +optional
+	RoleToAssume string `json:"role,omitempty"`
 }
 
 // AWSCredentialsSecretReference defines the secret used by the issuer
