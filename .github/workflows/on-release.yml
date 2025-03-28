@@ -33,11 +33,11 @@ jobs:
         uses: docker/login-action@v1
         with:
           registry: public.ecr.aws
-          env:
-            AWS_REGION: us-east-1
-        - name: Setup Push to Public ECR
-          run: |
-            export TAG_BASE=${{ env.PUBLIC_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
+        env:
+          AWS_REGION: us-east-1
+      - name: Setup Push to Public ECR
+        run: |
+          export TAG_BASE=${{ env.PUBLIC_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push container images
         uses: docker/build-push-action@v6
@@ -58,7 +58,7 @@ jobs:
           AWS_REGION: us-east-1
       - name: Setup Push to Staging ECR
         run: |
-          export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
+          export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/eks/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push arm image
         uses: docker/build-push-action@v6
