@@ -61,6 +61,9 @@ type AWSPCAIssuerStatus struct {
 // ConditionTypeReady is the default condition type for the CRs
 const ConditionTypeReady = "Ready"
 
+// ConditionTypeIssuing is the condition type for the CRs when they are issuing a certificate
+const ConditionTypeIssuing = "Issuing"
+
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
