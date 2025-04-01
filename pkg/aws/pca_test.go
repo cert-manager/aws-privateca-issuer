@@ -27,17 +27,21 @@ import (
 	"testing"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
-	"github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
-
+	issuerapi "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
+	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-logr/logr"
-
-	v1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 var (
@@ -161,9 +165,9 @@ type errorACMPCAClient struct {
 
 func (m *errorACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
 	return &acmpca.DescribeCertificateAuthorityOutput{
-		CertificateAuthority: &types.CertificateAuthority{
-			CertificateAuthorityConfiguration: &types.CertificateAuthorityConfiguration{
-				SigningAlgorithm: types.SigningAlgorithmSha256withecdsa,
+		CertificateAuthority: &acmpcatypes.CertificateAuthority{
+			CertificateAuthorityConfiguration: &acmpcatypes.CertificateAuthorityConfiguration{
+				SigningAlgorithm: acmpcatypes.SigningAlgorithmSha256withecdsa,
 			},
 		},
 	}, nil
@@ -184,9 +188,9 @@ type workingACMPCAClient struct {
 
 func (m *workingACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
 	return &acmpca.DescribeCertificateAuthorityOutput{
-		CertificateAuthority: &types.CertificateAuthority{
-			CertificateAuthorityConfiguration: &types.CertificateAuthorityConfiguration{
-				SigningAlgorithm: types.SigningAlgorithmSha256withecdsa,
+		CertificateAuthority: &acmpcatypes.CertificateAuthority{
+			CertificateAuthorityConfiguration: &acmpcatypes.CertificateAuthorityConfiguration{
+				SigningAlgorithm: acmpcatypes.SigningAlgorithmSha256withecdsa,
 			},
 		},
 	}, nil
@@ -201,6 +205,49 @@ func (m *workingACMPCAClient) GetCertificate(_ context.Context, input *acmpca.Ge
 	return &acmpca.GetCertificateOutput{Certificate: &cert, CertificateChain: &chain}, nil
 }
 
+func TestProvisonerOperation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, issuerapi.AddToScheme(scheme))
+	require.NoError(t, cmapi.AddToScheme(scheme))
+	require.NoError(t, v1.AddToScheme(scheme))
+
+	objects := []client.Object{
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "issuer1-credentials",
+				Namespace: "ns1",
+			},
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+				"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+			},
+		},
+	}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(objects...).
+		WithStatusSubresource(objects...).
+		Build()
+
+	issSpec := &issuerapi.AWSPCAIssuerSpec{
+		SecretRef: issuerapi.AWSCredentialsSecretReference{
+			SecretReference: v1.SecretReference{
+				Name:      "issuer1-credentials",
+				Namespace: "ns1",
+			},
+		},
+		Region: "us-east-1",
+		Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+	}
+
+	ClearProvisioners()
+	provisioner, err := GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	assert.Equal(t, err, nil)
+	output, err := GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	assert.Equal(t, output, provisioner)
+	assert.Equal(t, err, nil)
+}
+
 func TestPCATemplateArn(t *testing.T) {
 	var (
 		arn     = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
@@ -210,70 +257,70 @@ func TestPCATemplateArn(t *testing.T) {
 
 	type testCase struct {
 		expectedSuffix  string
-		certificateSpec v1.CertificateRequestSpec
+		certificateSpec cmapi.CertificateRequestSpec
 	}
 	tests := map[string]testCase{
 		"client": {
 			expectedSuffix: ":acm-pca:::template/EndEntityClientAuthCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageClientAuth,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageClientAuth,
 				},
 			},
 		},
 		"server": {
 			expectedSuffix: ":acm-pca:::template/EndEntityServerAuthCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageServerAuth,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageServerAuth,
 				},
 			},
 		},
 		"client server": {
 			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageClientAuth,
-					v1.UsageServerAuth,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageClientAuth,
+					cmapi.UsageServerAuth,
 				},
 			},
 		},
 		"server client": {
 			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageServerAuth,
-					v1.UsageClientAuth,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageServerAuth,
+					cmapi.UsageClientAuth,
 				},
 			},
 		},
 		"code signing": {
 			expectedSuffix: ":acm-pca:::template/CodeSigningCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageCodeSigning,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageCodeSigning,
 				},
 			},
 		},
 		"ocsp signing": {
 			expectedSuffix: ":acm-pca:::template/OCSPSigningCertificate/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageOCSPSigning,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageOCSPSigning,
 				},
 			},
 		},
 		"other": {
 			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1",
-			certificateSpec: v1.CertificateRequestSpec{
-				Usages: []v1.KeyUsage{
-					v1.UsageTimestamping,
+			certificateSpec: cmapi.CertificateRequestSpec{
+				Usages: []cmapi.KeyUsage{
+					cmapi.UsageTimestamping,
 				},
 			},
 		},
 		"isCA default": {
 			expectedSuffix: ":acm-pca:::template/SubordinateCACertificate_PathLen0/V1",
-			certificateSpec: v1.CertificateRequestSpec{
+			certificateSpec: cmapi.CertificateRequestSpec{
 				IsCA: true,
 			},
 		},
@@ -313,13 +360,13 @@ func TestIdempotencyToken(t *testing.T) {
 	)
 
 	type testCase struct {
-		request  v1.CertificateRequest
+		request  cmapi.CertificateRequest
 		expected string
 	}
 
 	tests := map[string]testCase{
 		"success": {
-			request: v1.CertificateRequest{
+			request: cmapi.CertificateRequest{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "fake-name",
 					Namespace: "fake-namespace",
@@ -327,7 +374,6 @@ func TestIdempotencyToken(t *testing.T) {
 			},
 			expected: "63e69830270b95081942a3d85034fdc97bb9", // Truncated SHA-256 hash
 		},
-		
 	}
 
 	for name, tc := range tests {
@@ -335,6 +381,337 @@ func TestIdempotencyToken(t *testing.T) {
 			token := idempotencyToken(&tc.request)
 			assert.Equal(t, tc.expected, token)
 			assert.LessOrEqual(t, len(token), idempotencyTokenMaxLength)
+		})
+	}
+}
+
+func TestPCAGetConfig(t *testing.T) {
+	type testCase struct {
+		name          types.NamespacedName
+		objects       []client.Object
+		expectFailure bool
+		expectedError error
+	}
+
+	tests := map[string]testCase{
+		"success-issuer": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: false,
+		},
+		"success-with-secret-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							SecretAccessKeySelector: v1.SecretKeySelector{
+								Key: "fake-secret-access-key",
+							},
+							AccessKeyIDSelector: v1.SecretKeySelector{
+								Key: "fake-access-key-id",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"fake-access-key-id":     []byte("ZXhhbXBsZQ=="),
+						"fake-secret-access-key": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: false,
+		},
+		"failure-secret-not-found": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			expectFailure: true,
+		},
+		"failure-no-access-key-id": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: true,
+			expectedError: ErrNoAccessKeyID,
+		},
+		"failure-issuer-no-access-key-specified-with-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							AccessKeyIDSelector: v1.SecretKeySelector{
+								Key: "fake-access-key-id",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: true,
+			expectedError: ErrNoAccessKeyID,
+		},
+		"failure-no-secret-access-key": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: true,
+			expectedError: ErrNoSecretAccessKey,
+		},
+		"failure-issuer-no-secret-access-key-specified-with-selector": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+							SecretAccessKeySelector: v1.SecretKeySelector{
+								Key: "fake-secret-access-key",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1-credentials",
+						Namespace: "ns1",
+					},
+					Data: map[string][]byte{
+						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
+						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
+					},
+				},
+			},
+			expectFailure: true,
+			expectedError: ErrNoSecretAccessKey,
+		},
+	}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, issuerapi.AddToScheme(scheme))
+	require.NoError(t, cmapi.AddToScheme(scheme))
+	require.NoError(t, v1.AddToScheme(scheme))
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tc.objects...).
+				WithStatusSubresource(tc.objects...).
+				Build()
+
+			ctx := context.TODO()
+			iss := new(issuerapi.AWSPCAIssuer)
+			require.NoError(t, fakeClient.Get(ctx, tc.name, iss))
+
+			config, err := GetConfig(ctx, fakeClient, iss.GetSpec())
+
+			if tc.expectFailure && err == nil {
+				assert.Fail(t, "Expected an error but got none")
+			}
+
+			if tc.expectedError != nil {
+				assert.Equal(t, tc.expectedError, err, "Unexpected error")
+			}
+
+			if err == nil {
+				creds, _ := config.Credentials.Retrieve(ctx)
+				assert.Equal(t, "ZXhhbXBsZQ==", creds.AccessKeyID)
+				assert.Equal(t, "ZXhhbXBsZQ==", creds.SecretAccessKey)
+			}
 		})
 	}
 }
@@ -365,8 +742,8 @@ func TestPCAGet(t *testing.T) {
 			key, _ := rsa.GenerateKey(rand.Reader, 2048)
 			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
 
-			cr := &v1.CertificateRequest{
-				Spec: v1.CertificateRequestSpec{
+			cr := &cmapi.CertificateRequest{
+				Spec: cmapi.CertificateRequestSpec{
 					Request: pem.EncodeToMemory(&pem.Block{
 						Bytes: csrBytes,
 						Type:  "CERTIFICATE REQUEST",
@@ -413,8 +790,8 @@ func TestPCASign(t *testing.T) {
 			key, _ := rsa.GenerateKey(rand.Reader, 2048)
 			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
 
-			cr := &v1.CertificateRequest{
-				Spec: v1.CertificateRequestSpec{
+			cr := &cmapi.CertificateRequest{
+				Spec: cmapi.CertificateRequestSpec{
 					Request: pem.EncodeToMemory(&pem.Block{
 						Bytes: csrBytes,
 						Type:  "CERTIFICATE REQUEST",
@@ -475,8 +852,8 @@ func TestPCASignValidity(t *testing.T) {
 			key, _ := rsa.GenerateKey(rand.Reader, 2048)
 			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
 
-			cr := &v1.CertificateRequest{
-				Spec: v1.CertificateRequestSpec{
+			cr := &cmapi.CertificateRequest{
+				Spec: cmapi.CertificateRequestSpec{
 					Request: pem.EncodeToMemory(&pem.Block{
 						Bytes: csrBytes,
 						Type:  "CERTIFICATE REQUEST",

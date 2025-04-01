@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -630,5 +631,105 @@ func TestNamespaceIssuers(t *testing.T) {
 		if err != nil {
 			assert.FailNow(t, "Issuer was not successfully deleted: "+err.Error())
 		}
+	}
+}
+
+// This tests the case where the Issuer is not in a Ready state when the CertificateRequest is made.
+// In this instance, the CertificateRequest should be put into Pending and then properly Issued once the
+// Issuer is Ready.
+func TestCertificateRecoveryWhenIssuerNotReady(t *testing.T) {
+	currentTime := strconv.FormatInt(time.Now().Unix(), 10)
+
+	template := issuerSpecs[0]
+	issuerName := currentTime + "--" + template.issuerName
+
+	issuer := v1beta1.AWSPCAClusterIssuer{
+		ObjectMeta: metav1.ObjectMeta{Name: issuerName},
+		Spec:       template.spec,
+	}
+
+	log.Print("----------")
+	log.Printf("Testing certificate recovery with issuer: %s", issuerName)
+
+	certificateName := issuerName + "-rsa-cert"
+	certificate := cmv1.Certificate{
+		ObjectMeta: metav1.ObjectMeta{Name: certificateName},
+		Spec: cmv1.CertificateSpec{
+			IssuerRef: cmmeta.ObjectReference{
+				Kind:  "AWSPCAClusterIssuer",
+				Group: "awspca.cert-manager.io",
+				Name:  issuerName,
+			},
+			SecretName: certificateName + "-cert-secret",
+			Subject: &cmv1.X509Subject{
+				Organizations: []string{"aws"},
+			},
+			DNSNames: []string{"rsa-cert.aws.com"},
+			PrivateKey: &cmv1.CertificatePrivateKey{
+				Algorithm: cmv1.RSAKeyAlgorithm,
+				Size:      2048,
+			},
+			Duration: &metav1.Duration{
+				Duration: 721 * time.Hour,
+			},
+			Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
+		},
+	}
+
+	log.Printf("Testing Certificate %s", certificateName)
+
+	cert, err := cmClient.Certificates("default").Create(ctx, &certificate, metav1.CreateOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Could not create certificate: "+err.Error())
+	}
+
+	revision := cert.Status.Revision
+	rev := 1
+	if revision != nil {
+		rev = *revision
+	}
+	crName := fmt.Sprintf("%s-%d", certificateName, rev)
+
+	err = waitForCertificateRequestToBeCreated(ctx, cmClient, crName, "default")
+
+	if err != nil {
+		assert.FailNow(t, "CertificateRequest not found: "+err.Error())
+	}
+
+	err = waitForCertificateRequestPending(ctx, cmClient, crName, "default")
+
+	if err != nil {
+		assert.FailNow(t, "CertificateRequest did not reach a pending state: "+err.Error())
+	}
+
+	_, err = iclient.AWSPCAClusterIssuers().Create(ctx, &issuer, metav1.CreateOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Could not create Cluster Issuer: "+err.Error())
+	}
+
+	err = waitForClusterIssuerReady(ctx, iclient, issuerName)
+
+	if err != nil {
+		assert.FailNow(t, "Cluster issuer did not reach a ready state: "+err.Error())
+	}
+
+	err = waitForCertificateReady(ctx, cmClient, certificateName, "default")
+
+	if err != nil {
+		assert.FailNow(t, "Certificate did not reach a ready state: "+err.Error())
+	}
+
+	err = cmClient.Certificates("default").Delete(ctx, certificateName, metav1.DeleteOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Certificate was not succesfully deleted: "+err.Error())
+	}
+
+	err = iclient.AWSPCAClusterIssuers().Delete(ctx, issuerName, metav1.DeleteOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Issuer was not successfully deleted: "+err.Error())
 	}
 }
