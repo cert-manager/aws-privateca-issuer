@@ -17,9 +17,9 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	cmutil "github.com/cert-manager/cert-manager/pkg/api/util"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -60,14 +60,10 @@ func (p *fakeProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest,
 	return p.cert, p.caCert, p.getErr
 }
 
-type createMockProvisioner func()
-
-func TestProvisonerOperation(t *testing.T) {
-	provisioner := awspca.NewProvisioner(aws.Config{}, "arn")
-	awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, provisioner)
-	output, exists := awspca.GetProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
-	assert.Equal(t, output, provisioner)
-	assert.Equal(t, exists, true)
+func generateMockGetProvisioner(p *fakeProvisioner, err error) func(context.Context, client.Client, types.NamespacedName, *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error) {
+	return func(_ context.Context, _ client.Client, name types.NamespacedName, _ *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error) {
+		return p, err
+	}
 }
 
 func TestCertificateRequestReconcile(t *testing.T) {
@@ -81,7 +77,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 		expectedReadyConditionReason string
 		expectedCertificate          []byte
 		expectedCACertificate        []byte
-		mockProvisioner              createMockProvisioner
+		mockProvisioner              func(context.Context, client.Client, types.NamespacedName, *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error)
 	}
 	tests := map[string]testCase{
 		"success-issuer": {
@@ -142,9 +138,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedError:                false,
 			expectedCertificate:          []byte("cert"),
 			expectedCACertificate:        []byte("cacert"),
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
-			},
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
 		},
 		"success-cluster-issuer": {
 			name: types.NamespacedName{Name: "cr1"},
@@ -198,9 +192,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedError:                false,
 			expectedCertificate:          []byte("cert"),
 			expectedCACertificate:        []byte("cacert"),
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Name: "clusterissuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
-			},
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
 		},
 		"success-certificate-already-issued": {
 			name: types.NamespacedName{Name: "cr1"},
@@ -256,9 +248,53 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedError:                false,
 			expectedCertificate:          []byte("oldCert"),
 			expectedCACertificate:        []byte("oldCaCert"),
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Name: "clusterissuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("oldCaCert"), cert: []byte("oldCert")}, nil),
+		},
+		"failure-aws-config-failure": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "issuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "Issuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						SecretRef: issuerapi.AWSCredentialsSecretReference{
+							SecretReference: v1.SecretReference{
+								Name:      "issuer1-credentials",
+								Namespace: "ns1",
+							},
+						},
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
 			},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedError:                true,
+			mockProvisioner:              generateMockGetProvisioner(nil, fmt.Errorf("Error getting provisioner")),
 		},
 		"failure-certificate-not-issued": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
@@ -316,9 +352,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
 			expectedError:                false,
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{getErr: &acmpcatypes.RequestInProgressException{}})
-			},
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{getErr: &acmpcatypes.RequestInProgressException{}}, nil),
 		},
 		"failure-get-failure": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
@@ -375,11 +409,9 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
 			expectedError:                false,
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{getErr: errors.New("Get Failure")})
-			},
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{getErr: errors.New("Get failure")}, nil),
 		},
-		"failure-issuer-not-ready": {
+		"pending-issuer-not-ready": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
@@ -430,14 +462,11 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
-			expectedError:                true,
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
-			},
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
+			expectedError:                true,
 		},
-		"failure-issuer-not-found": {
+		"pending-issuer-not-found": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
@@ -465,38 +494,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
-			expectedError:                true,
-		},
-		"failure-provisioner-not-found": {
-			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
-			objects: []client.Object{
-				cmgen.CertificateRequest(
-					"cr1",
-					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
-						Name:  "issuer1",
-						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
-					}),
-					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
-						Type:   cmapi.CertificateRequestConditionReady,
-						Status: cmmeta.ConditionUnknown,
-					}),
-				),
-				&v1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "issuer1-credentials",
-						Namespace: "ns1",
-					},
-					Data: map[string][]byte{
-						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
-						"AWS_SECRET_ACCESS_KEY": []byte("ZXhhbXBsZQ=="),
-					},
-				},
-			},
-			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
 			expectedError:                true,
 		},
 		"failure-sign-failure": {
@@ -553,9 +551,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
 			expectedError:                false,
-			mockProvisioner: func() {
-				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{signErr: errors.New("Sign Failure")})
-			},
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{signErr: errors.New("Sign Failure")}, nil),
 		},
 	}
 
@@ -581,7 +577,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			ctx := context.TODO()
 
 			if tc.mockProvisioner != nil {
-				tc.mockProvisioner()
+				GetProvisioner = tc.mockProvisioner
 			}
 
 			result, signErr := controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name})
@@ -608,6 +604,8 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					assert.Equal(t, tc.expectedCACertificate, cr.Status.CA)
 				}
 			}
+
+			awspca.ClearProvisioners()
 		})
 	}
 }
