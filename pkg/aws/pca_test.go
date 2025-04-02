@@ -327,7 +327,6 @@ func TestIdempotencyToken(t *testing.T) {
 			},
 			expected: "63e69830270b95081942a3d85034fdc97bb9", // Truncated SHA-256 hash
 		},
-		
 	}
 
 	for name, tc := range tests {

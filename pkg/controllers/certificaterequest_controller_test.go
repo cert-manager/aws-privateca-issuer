@@ -432,7 +432,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			},
 			expectedError:                true,
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
 			mockProvisioner: func() {
 				awspca.StoreProvisioner(types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, &fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")})
 			},
@@ -465,7 +465,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
 			expectedError:                true,
 		},
 		"failure-provisioner-not-found": {
@@ -496,7 +496,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
-			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
 			expectedError:                true,
 		},
 		"failure-sign-failure": {

@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -28,16 +29,29 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	injections "github.com/cert-manager/aws-privateca-issuer/pkg/api/injections"
+	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-logr/logr"
+	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const DEFAULT_DURATION = 30 * 24 * 3600
+
+var (
+	errNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
+	errNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
+	errNoArnInSpec       = errors.New("no Arn found in Issuer Spec")
+	errNoRegionInSpec    = errors.New("no Region found in Issuer Spec")
+)
 
 var collection = new(sync.Map)
 
@@ -60,6 +74,69 @@ type PCAProvisioner struct {
 	arn              string
 	signingAlgorithm *acmpcatypes.SigningAlgorithm
 	clock            func() time.Time
+}
+
+func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+	cfg, err := LoadConfig(ctx, client, spec)
+
+	if err != nil {
+		return aws.Config{}, err
+	}
+
+	cfg.Retryer = func() aws.Retryer {
+		return retry.AddWithErrorCodes(retry.NewStandard(), (*acmpcatypes.RequestInProgressException)(nil).ErrorCode())
+	}
+
+	return cfg, nil
+}
+
+func LoadConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+	if spec.SecretRef.Name != "" {
+		secretNamespaceName := types.NamespacedName{
+			Namespace: spec.SecretRef.Namespace,
+			Name:      spec.SecretRef.Name,
+		}
+
+		secret := new(core.Secret)
+		if err := client.Get(ctx, secretNamespaceName, secret); err != nil {
+			return aws.Config{}, fmt.Errorf("failed to retrieve secret: %v", err)
+		}
+
+		key := "AWS_ACCESS_KEY_ID"
+		if spec.SecretRef.AccessKeyIDSelector.Key != "" {
+			key = spec.SecretRef.AccessKeyIDSelector.Key
+		}
+		accessKey, ok := secret.Data[key]
+		if !ok {
+			return aws.Config{}, errNoAccessKeyID
+		}
+
+		key = "AWS_SECRET_ACCESS_KEY"
+		if spec.SecretRef.SecretAccessKeySelector.Key != "" {
+			key = spec.SecretRef.SecretAccessKeySelector.Key
+		}
+		secretKey, ok := secret.Data[key]
+		if !ok {
+			return aws.Config{}, errNoSecretAccessKey
+		}
+
+		if spec.Region != "" {
+			return config.LoadDefaultConfig(ctx,
+				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
+				config.WithRegion(spec.Region),
+			)
+		}
+
+		return config.LoadDefaultConfig(ctx,
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
+		)
+	} else if spec.Region != "" {
+		return config.LoadDefaultConfig(ctx,
+			config.WithRegion(spec.Region),
+		)
+	}
+
+	return config.LoadDefaultConfig(ctx)
 }
 
 // GetProvisioner gets a provisioner that has previously been stored
@@ -91,9 +168,9 @@ func NewProvisioner(config aws.Config, arn string) (p *PCAProvisioner) {
 // idempotencyToken is limited to 64 ASCII characters, so make a fixed length hash.
 // @see: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/Run_Instance_Idempotency.html
 func idempotencyToken(cr *cmapi.CertificateRequest) string {
-    token := []byte(cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name)
-    fullHash := fmt.Sprintf("%x", sha256.Sum256(token))
-    return fullHash[:36] // Truncate to 36 characters
+	token := []byte(cr.ObjectMeta.Namespace + "/" + cr.ObjectMeta.Name)
+	fullHash := fmt.Sprintf("%x", sha256.Sum256(token))
+	return fullHash[:36] // Truncate to 36 characters
 }
 
 // Sign takes a certificate request and signs it using PCA
