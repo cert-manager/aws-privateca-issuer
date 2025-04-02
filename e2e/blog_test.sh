@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+curl_with_token() {
+    export TOKEN=${TOKEN:-$(curl --silent -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")}
+    curl -H "X-aws-ec2-metadata-token: $TOKEN" "$@"
+}
+
 set_variables() {
     HOME_DIR=$(pwd)
     export E2E_DIR="$HOME_DIR/e2e"
@@ -7,10 +12,10 @@ set_variables() {
     HELM_CHART_NAME="awspca/aws-privateca-issuer"
     CLUSTER_NAME=pca-external-issuer
     AWS_REGION="us-east-1"
-    INTERFACE=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
-    export SUBNET=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/subnet-id)
-    export SECURITY_GROUP_ID=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/security-group-ids)
-    export VPC_ID=$(curl --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/vpc-id)
+    INTERFACE=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+    export SUBNET=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/subnet-id)
+    export SECURITY_GROUP_ID=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/security-group-ids)
+    export VPC_ID=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/vpc-id)
     export PORT=6443
     tag_subnet
     add_inbound_rule
@@ -28,7 +33,7 @@ add_inbound_rule() {
 create_target_group() {
     TARGET_GROUP_ARN=$(aws elbv2 create-target-group --name blog-test --target-type instance --protocol TCP --port $PORT --vpc-id $VPC_ID | jq -r ".TargetGroups[0].TargetGroupArn")
 
-    aws elbv2 register-targets --target-group-arn $TARGET_GROUP_ARN --targets Id=$(curl --silent http://169.254.169.254/latest/meta-data/instance-id),Port=$PORT
+    aws elbv2 register-targets --target-group-arn $TARGET_GROUP_ARN --targets Id=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/instance-id),Port=$PORT
 
     export LOAD_BALANCER_HOSTNAME=$(kubectl get service nlb-tls-app -ojson | jq -r ".status.loadBalancer.ingress[0].hostname")
 
