@@ -31,7 +31,7 @@ var (
 	issuerSpecs      []issuerTemplate
 	certificateSpecs []certTemplate
 
-	rsaCaArn, ecCaArn, xaCAArn, accessKey, secretKey, policyArn, endEntityResourceShareArn, subordinateCAResourceShareArn string
+	rsaCaArn, ecCaArn, xaCaArn, accessKey, secretKey, policyArn, endEntityResourceShareArn, subordinateCAResourceShareArn string
 
 	region = "us-east-1"
 	ctx    = context.TODO()
@@ -85,29 +85,50 @@ func TestMain(m *testing.M) {
 	* Create CAs to be used in testing
 	 */
 
-	rsaCaArn = createCertificateAuthority(ctx, cfg, true)
-	log.Printf("Created RSA CA with arn %s", rsaCaArn)
+	rsaChannel := make(chan string)
+	ecChannel := make(chan string)
+	xaChannel := make(chan string)
 
-	ecCaArn = createCertificateAuthority(ctx, cfg, false)
-	log.Printf("Created EC CA with arn %s", ecCaArn)
+	go func() {
+		rsaArn := createCertificateAuthority(ctx, cfg, true)
+		rsaChannel <- rsaArn
+		log.Printf("Created RSA CA with arn %s", rsaArn)
+	}()
+	go func() {
+		ecArn := createCertificateAuthority(ctx, cfg, false)
+		ecChannel <- ecArn	
+		log.Printf("Created EC CA with arn %s", ecArn)
+	}()
 
 	xaRole, xaRoleExists := os.LookupEnv("PLUGIN_CROSS_ACCOUNT_ROLE")
-	if xaRoleExists {
-		xaCfg = assumeRole(ctx, cfg, xaRole, region)
+	go func() {
+		if xaRoleExists {
+			xaCfg = assumeRole(ctx, cfg, xaRole, region)
 
-		xaCAArn = createCertificateAuthority(ctx, xaCfg, true)
+			xaArn := createCertificateAuthority(ctx, xaCfg, true)
+			xaChannel <- xaArn 
+			log.Printf("Created XA CA with arn %s", xaArn)
 
-		log.Printf("Created XA CA with arn %s", xaCAArn)
+			endEntityResourcePermission := "arn:aws:ram::aws:permission/AWSRAMDefaultPermissionCertificateAuthority"
+			subordinateCAResourcePermission := "arn:aws:ram::aws:permission/AWSRAMSubordinateCACertificatePathLen0IssuanceCertificateAuthority"
 
-		endEntityResourcePermission := "arn:aws:ram::aws:permission/AWSRAMDefaultPermissionCertificateAuthority"
-		subordinateCAResourcePermission := "arn:aws:ram::aws:permission/AWSRAMSubordinateCACertificatePathLen0IssuanceCertificateAuthority"
+			xaChannel <- shareCA(ctx, cfg, xaCfg, xaArn, endEntityResourcePermission)
+			xaChannel <- shareCA(ctx, cfg, xaCfg, xaArn, subordinateCAResourcePermission)
 
-		endEntityResourceShareArn = shareCA(ctx, cfg, xaCfg, xaCAArn, endEntityResourcePermission)
-		subordinateCAResourceShareArn = shareCA(ctx, cfg, xaCfg, xaCAArn, subordinateCAResourcePermission)
+		} else {
+			xaChannel <- ""
+			xaChannel <- ""
+			xaChannel <- ""
 
-	} else {
-		log.Print("Cross account role not present in PLUGIN_CROSS_ACCOUNT_ROLE, skipping cross account testing")
-	}
+			log.Print("Cross account role not present in PLUGIN_CROSS_ACCOUNT_ROLE, skipping cross account testing")
+		}
+	}()
+
+	rsaCaArn := <-rsaChannel
+	ecCaArn := <-ecChannel
+	xaCaArn := <-xaChannel
+	endEntityResourceShareArn := <-xaChannel
+	subordinateCAResourceShareArn := <-xaChannel
 
 	/*
 	*Create an Access Key to be used for validiting auth via secret for an Issuer
@@ -126,7 +147,7 @@ func TestMain(m *testing.M) {
 
 	/*
 	* Create a shared suite of Issuers and Certificates Specs to be used in
-	* validing Cluster and Namepsace issuers
+	* validing Cluster and Namespace issuers
 	 */
 	issuerSpecs = []issuerTemplate{
 		//Basic RSA Issuer
@@ -152,7 +173,7 @@ func TestMain(m *testing.M) {
 		xaCASpec := issuerTemplate{
 			issuerName: "crossaccount-issuer",
 			spec: v1beta1.AWSPCAIssuerSpec{
-				Arn:    xaCAArn,
+				Arn:    xaCaArn,
 				Region: region,
 			},
 		}
@@ -271,7 +292,7 @@ func TestMain(m *testing.M) {
 		deleteResourceShare(ctx, xaCfg, subordinateCAResourceShareArn)
 		log.Printf("Deleted resource shares associated with XA CA")
 
-		deleteCertificateAuthority(ctx, xaCfg, xaCAArn)
+		deleteCertificateAuthority(ctx, xaCfg, xaCaArn)
 		log.Printf("Deleted the XA CA")
 	}
 
@@ -280,7 +301,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestClusterIssuers(t *testing.T) {
-
+	t.Parallel()
 	currentTime := strconv.FormatInt(time.Now().Unix(), 10)
 
 	secretName := "pca-cluster-issuer-secret-" + currentTime
@@ -411,7 +432,7 @@ func TestClusterIssuers(t *testing.T) {
 }
 
 func TestNamespaceIssuers(t *testing.T) {
-
+	t.Parallel()
 	currentTime := strconv.FormatInt(time.Now().Unix(), 10)
 
 	// Create namespace for issuer to live in
