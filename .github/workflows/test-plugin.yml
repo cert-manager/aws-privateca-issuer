@@ -19,7 +19,6 @@ jobs:
     uses: './.github/workflows/on-safe-to-test-label.yml'
     with:
       architecture: 'x86_64'
-    needs: run-for-arm
 
   remove-safe-to-test:
     name: Remove Safe to Test Label
