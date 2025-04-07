@@ -209,7 +209,7 @@ REGISTRY_NAME := "kind-registry"
 REGISTRY_PORT := 5000
 LOCAL_IMAGE := "localhost:${REGISTRY_PORT}/aws-privateca-issuer"
 NAMESPACE := aws-privateca-issuer
-SERVICE_ACCOUNT := ${NAMESPACE}-sa
+SERVICE_ACCOUNT := ${NAMESPACE}-sa-${ARCH}
 TEST_KUBECONFIG_LOCATION := /tmp/pca_kubeconfig
 
 create-local-registry:
