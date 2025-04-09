@@ -26,7 +26,7 @@ jobs:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
-          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
+          role-to-assume: arn:aws:iam::905418208571:role/GithubActionsTestingRole-wrichman-us-east-1
           aws-region: us-east-1
       - name: Configure EC2 Runner Parameters
         run: |
@@ -44,13 +44,13 @@ jobs:
         uses: divyansh-gupta/ec2-github-runner@0444f5f46462bcf8d98932bc807d2f51c4945b58
         with:
           mode: start
-          github-token: GithubToken-test-us-east-1
+          github-token: GithubToken-dev-wrichman-us-east-1
           ec2-image-id: ${{ env.AMI }}
           ec2-instance-type: ${{ env.EC2_INSTANCE_TYPE }}
           subnet-id: ${{ env.SUBNET_ID }}
           security-group-id: ${{ env.SG_ID }}
-          iam-role-name: K8sPluginInstanceProfile-test-us-east-1
-          ec2-launch-template: GithubRunnerLaunchTemplate-test-us-east-1
+          iam-role-name: K8sPluginInstanceProfile-dev-wrichman-us-east-1
+          ec2-launch-template: GithubRunnerLaunchTemplate-dev-wrichman-us-east-1
           aws-resource-tags: >
             [
               {"Key": "Name", "Value": "ec2-github-runner"},
@@ -147,35 +147,35 @@ jobs:
           make cluster
           make e2etest
       - name: Copy Kind logs to S3
-        if: ${{ always() }}
+        if: always()
         run: |
           mkdir logs
           export E2E_ARTIFACTS_DIRECTORY=logs
           make kind-export-logs
-          aws s3 cp --recursive logs s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}/
+          aws s3 cp --recursive logs s3://aws-privateca-issuer-k8s-logs-dev-wrichman-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}/
       - name: Terminate Kind cluster and setup for next test
-        if: ${{ always() }}
+        if: always()
         run: |
           make kind-cluster-delete
-          export OIDC_IAM_ROLE=arn:aws:iam::783680406432:role/IrsaTestingRole-test-us-east-1
-          export OIDC_S3_BUCKET_NAME=aws-privateca-issuer-irsa-test-us-east-1
+          export OIDC_IAM_ROLE=arn:aws:iam::905418208571:role/IrsaTestingRole-dev-wrichman-us-east-1
+          export OIDC_S3_BUCKET_NAME=aws-privateca-issuer-irsa-dev-wrichman-us-east-1
           echo OIDC_IAM_ROLE=$OIDC_IAM_ROLE >> $GITHUB_ENV
           echo OIDC_S3_BUCKET_NAME=$OIDC_S3_BUCKET_NAME >> $GITHUB_ENV
       - name: Run test cases with IRSA and K8s Secret
-        if: ${{ always() }}
+        if: always()
         run: |
           make cluster
           make install-eks-webhook
           make e2etest
       - name: Copy Kind logs to S3
-        if: ${{ always() }}
+        if: always()
         run: |
           mkdir logs-irsa
           export E2E_ARTIFACTS_DIRECTORY=logs-irsa
           make kind-export-logs
-          aws s3 cp --recursive logs-irsa s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-irsa/
+          aws s3 cp --recursive logs-irsa s3://aws-privateca-issuer-k8s-logs-dev-wrichman-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-irsa/
       - name: Terminate Kind cluster
-        if: ${{ always() }}
+        if: always()
         run: |
           make kind-cluster-delete
       - name: Run helm test
@@ -188,7 +188,7 @@ jobs:
           mkdir logs-helm-test
           export E2E_ARTIFACTS_DIRECTORY=logs-helm-test
           make kind-export-logs
-          aws s3 cp --recursive logs-helm-test s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-logs-helm-test/
+          aws s3 cp --recursive logs-helm-test s3://aws-privateca-issuer-k8s-logs-dev-wrichman-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-logs-helm-test/
       - name: Terminate Kind cluster
         if: ${{ !contains(github.event.pull_request.labels.*.name, 'chart update') && inputs.architecture != 'arm64' }}
         run: |
@@ -205,7 +205,7 @@ jobs:
           mkdir logs-blog
           export E2E_ARTIFACTS_DIRECTORY=logs-blog
           make kind-export-logs
-          aws s3 cp --recursive logs-blog s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-blog/
+          aws s3 cp --recursive logs-blog s3://aws-privateca-issuer-k8s-logs-dev-wrichman-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-blog/
 
   stop-runner:
     name: Stop self-hosted EC2 runner
@@ -221,7 +221,7 @@ jobs:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
-          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
+          role-to-assume: arn:aws:iam::905418208571:role/GithubActionsTestingRole-dev-wrichman-us-east-1
           aws-region: us-east-1
       - name: Setup AWS Region
         run: |
