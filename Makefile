@@ -36,6 +36,9 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+GOCACHE ?= $(shell go env GOCACHE)
+GOMODCACHE ?= $(shell go env GOMODCACHE)
+
 # BIN is the directory where tools will be installed
 export BIN ?= ${CURDIR}/bin
 
@@ -143,6 +146,8 @@ generate: controller-gen
 docker-build: test
 	docker build \
 		--build-arg pkg_version=${VERSION} \
+		--build-arg go_cache=${GOCACHE} \
+		--build-arg go_mod_cache=${GOMODCACHE} \
 		--tag ${IMG} \
 		--file Dockerfile \
 		--platform=linux/amd64,linux/arm64 \
