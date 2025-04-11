@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	acmpcaTypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
@@ -132,6 +133,8 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 }
 
 func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+
+	configs := []func(*config.LoadOptions) error{}
 	if spec.SecretRef.Name != "" {
 		secretNamespaceName := types.NamespacedName{
 			Namespace: spec.SecretRef.Namespace,
@@ -161,21 +164,18 @@ func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPC
 			return aws.Config{}, errNoSecretAccessKey
 		}
 
-		if spec.Region != "" {
-			return config.LoadDefaultConfig(ctx,
-				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-				config.WithRegion(spec.Region),
-			)
-		}
-
-		return config.LoadDefaultConfig(ctx,
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-		)
-	} else if spec.Region != "" {
-		return config.LoadDefaultConfig(ctx,
-			config.WithRegion(spec.Region),
-		)
+		configs = append(configs, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")))
 	}
 
-	return config.LoadDefaultConfig(ctx)
+	if spec.Region != "" {
+		configs = append(configs, config.WithRegion(spec.Region))
+	}
+
+	if spec.RoleToAssume != "" {
+		configs = append(configs, config.WithAssumeRoleCredentialOptions(func(aro *stscreds.AssumeRoleOptions) {
+			aro.RoleARN = spec.RoleToAssume
+		}))
+	}
+
+	return config.LoadDefaultConfig(ctx, configs...)
 }
