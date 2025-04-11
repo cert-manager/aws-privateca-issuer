@@ -300,6 +300,23 @@ func TestClusterIssuers(t *testing.T) {
 		assert.FailNow(t, "Failed to create cluster issuer secret"+err.Error())
 	}
 
+	selectorSecretName := "pca-cluster-issuer-secret-selector-" + currentTime
+
+	selectorKeyData := make(map[string][]byte)
+	selectorKeyData["accessKeyId"] = []byte(accessKey)
+	selectorKeyData["secretAccessKey"] = []byte(secretKey)
+
+	selectorSecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: selectorSecretName},
+		Data:       selectorKeyData,
+	}
+
+	_, err = clientset.CoreV1().Secrets("default").Create(ctx, &selectorSecret, metav1.CreateOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Failed to create cluster issuer selector secret"+err.Error())
+	}
+
 	clusterIssuers := []v1beta1.AWSPCAClusterIssuer{}
 
 	//compose issuers
@@ -331,6 +348,30 @@ func TestClusterIssuers(t *testing.T) {
 		}
 
 		clusterIssuers = append(clusterIssuers, issuer)
+
+		//Create issuer with selector keys for secret
+		template.spec.SecretRef = v1beta1.AWSCredentialsSecretReference{
+			SecretReference: v1.SecretReference{
+				Name:      selectorSecretName,
+				Namespace: "default",
+			},
+			AccessKeyIDSelector: v1.SecretKeySelector{
+				Key: "accessKeyId",
+			},
+			SecretAccessKeySelector: v1.SecretKeySelector{
+				Key: "secretAccessKey",
+			},
+		}
+
+		issuerName = issuerName + "-selectors"
+
+		issuer = v1beta1.AWSPCAClusterIssuer{
+			ObjectMeta: metav1.ObjectMeta{Name: issuerName},
+			Spec:       template.spec,
+		}
+
+		clusterIssuers = append(clusterIssuers, issuer)
+
 	}
 
 	for _, clusterIssuer := range clusterIssuers {
@@ -444,6 +485,23 @@ func TestNamespaceIssuers(t *testing.T) {
 		assert.FailNow(t, "Failed to create namespace issuer secret"+err.Error())
 	}
 
+	selectorSecretName := "pca-ns-issuer-secret-selector-" + currentTime
+
+	selectorKeyData := make(map[string][]byte)
+	selectorKeyData["accessKeyId"] = []byte(accessKey)
+	selectorKeyData["secretAccessKey"] = []byte(secretKey)
+
+	selectorSecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: selectorSecretName},
+		Data:       selectorKeyData,
+	}
+
+	_, err = clientset.CoreV1().Secrets(namespaceName).Create(ctx, &selectorSecret, metav1.CreateOptions{})
+
+	if err != nil {
+		assert.FailNow(t, "Failed to create namespace issuer selector secret"+err.Error())
+	}
+
 	namespaceIssuers := []v1beta1.AWSPCAIssuer{}
 
 	//compose issuers
@@ -473,6 +531,29 @@ func TestNamespaceIssuers(t *testing.T) {
 		}
 
 		namespaceIssuers = append(namespaceIssuers, issuer)
+
+		template.spec.SecretRef = v1beta1.AWSCredentialsSecretReference{
+			SecretReference: v1.SecretReference{
+				Name:      selectorSecretName,
+				Namespace: namespaceName,
+			},
+			AccessKeyIDSelector: v1.SecretKeySelector{
+				Key: "accessKeyId",
+			},
+			SecretAccessKeySelector: v1.SecretKeySelector{
+				Key: "secretAccessKey",
+			},
+		}
+
+		issuerName = issuerName + "-selectors"
+
+		issuer = v1beta1.AWSPCAIssuer{
+			ObjectMeta: metav1.ObjectMeta{Name: issuerName},
+			Spec:       template.spec,
+		}
+
+		namespaceIssuers = append(namespaceIssuers, issuer)
+
 	}
 
 	for _, namespaceIssuer := range namespaceIssuers {
