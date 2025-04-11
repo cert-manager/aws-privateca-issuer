@@ -22,11 +22,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/retry"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	acmpcaTypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
@@ -35,17 +30,14 @@ import (
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
-	errNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
-	errNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
-	errNoArnInSpec       = errors.New("no Arn found in Issuer Spec")
-	errNoRegionInSpec    = errors.New("no Region found in Issuer Spec")
+	errNoArnInSpec    = errors.New("no Arn found in Issuer Spec")
+	errNoRegionInSpec = errors.New("no Region found in Issuer Spec")
 )
 
 var awsDefaultRegion = os.Getenv("AWS_REGION")
@@ -80,16 +72,11 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
-	var cfg, cfgErr = r.getConfig(ctx, spec)
-
-	if cfgErr != nil {
-		log.Error(cfgErr, "Error loading config")
-		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", cfgErr.Error())
-		return ctrl.Result{}, cfgErr
-	}
-
-	cfg.Retryer = func() aws.Retryer {
-		return retry.AddWithErrorCodes(retry.NewStandard(), (*acmpcaTypes.RequestInProgressException)(nil).ErrorCode())
+	cfg, err := awspca.GetConfig(ctx, r.Client, spec)
+	if err != nil {
+		log.Error(err, "Error loading config")
+		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", err.Error())
+		return ctrl.Result{}, err
 	}
 
 	if r.GetCallerIdentity {
@@ -100,9 +87,6 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		log.Info("sts.GetCallerIdentity", "arn", id.Arn, "account", id.Account, "user_id", id.UserId)
 	}
-
-	log.Info("Calling StoreProvisioner")
-	awspca.StoreProvisioner(req.NamespacedName, awspca.NewProvisioner(cfg, spec.Arn))
 
 	return ctrl.Result{}, r.setStatus(ctx, issuer, metav1.ConditionTrue, "Verified", "Issuer verified")
 }
@@ -129,53 +113,4 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 		return fmt.Errorf(errNoRegionInSpec.Error())
 	}
 	return nil
-}
-
-func (r *GenericIssuerReconciler) getConfig(ctx context.Context, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
-	if spec.SecretRef.Name != "" {
-		secretNamespaceName := types.NamespacedName{
-			Namespace: spec.SecretRef.Namespace,
-			Name:      spec.SecretRef.Name,
-		}
-
-		secret := new(core.Secret)
-		if err := r.Client.Get(ctx, secretNamespaceName, secret); err != nil {
-			return aws.Config{}, fmt.Errorf("failed to retrieve secret: %v", err)
-		}
-
-		key := "AWS_ACCESS_KEY_ID"
-		if spec.SecretRef.AccessKeyIDSelector.Key != "" {
-			key = spec.SecretRef.AccessKeyIDSelector.Key
-		}
-		accessKey, ok := secret.Data[key]
-		if !ok {
-			return aws.Config{}, errNoAccessKeyID
-		}
-
-		key = "AWS_SECRET_ACCESS_KEY"
-		if spec.SecretRef.SecretAccessKeySelector.Key != "" {
-			key = spec.SecretRef.SecretAccessKeySelector.Key
-		}
-		secretKey, ok := secret.Data[key]
-		if !ok {
-			return aws.Config{}, errNoSecretAccessKey
-		}
-
-		if spec.Region != "" {
-			return config.LoadDefaultConfig(ctx,
-				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-				config.WithRegion(spec.Region),
-			)
-		}
-
-		return config.LoadDefaultConfig(ctx,
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-		)
-	} else if spec.Region != "" {
-		return config.LoadDefaultConfig(ctx,
-			config.WithRegion(spec.Region),
-		)
-	}
-
-	return config.LoadDefaultConfig(ctx)
 }

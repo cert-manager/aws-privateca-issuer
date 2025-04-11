@@ -56,6 +56,26 @@ func waitForClusterIssuerReady(ctx context.Context, client *clientV1beta1.Client
 		})
 }
 
+func waitForCertificateRequestPending(ctx context.Context, client *cmclientv1.CertmanagerV1Client, name string, namespace string) error {
+	time.Sleep(250 * time.Millisecond)
+	return wait.PollImmediate(250*time.Millisecond, 2*time.Minute,
+		func() (bool, error) {
+
+			certificate, err := client.CertificateRequests(namespace).Get(ctx, name, metav1.GetOptions{})
+
+			if err != nil {
+				return false, fmt.Errorf("error getting CertificateRequest %q: %v", name, err)
+			}
+
+			for _, condition := range certificate.Status.Conditions {
+				if condition.Reason == v1.CertificateRequestReasonPending && condition.Status == cmv1.ConditionFalse {
+					return true, nil
+				}
+			}
+			return false, nil
+		})
+}
+
 func waitForCertificateReady(ctx context.Context, client *cmclientv1.CertmanagerV1Client, name string, namespace string) error {
 	return wait.PollImmediate(250*time.Millisecond, 2*time.Minute,
 		func() (bool, error) {
