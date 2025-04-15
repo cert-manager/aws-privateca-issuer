@@ -22,7 +22,7 @@ import (
 	"fmt"
 
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
-	"github.com/cert-manager/aws-privateca-issuer/pkg/aws"
+	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,6 +52,11 @@ type CertificateRequestReconciler struct {
 	Clock                  clock.Clock
 	CheckApprovedCondition bool
 }
+
+// We put this in a variable to easily mock it
+var (
+	GetProvisioner = awspca.GetProvisioner
+)
 
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch;update
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests/status,verbs=get;update;patch
@@ -145,19 +150,18 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	iss, err := util.GetIssuer(ctx, r.Client, issuerName)
 	if err != nil {
 		log.Error(err, "failed to retrieve Issuer resource")
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "issuer could not be found")
+		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending, "issuer could not be found")
 		return ctrl.Result{}, err
 	}
 
 	if !isReady(iss) {
 		err := fmt.Errorf("issuer %s is not ready", iss.GetName())
-		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "issuer is not ready")
+		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending, "issuer is not ready")
 		return ctrl.Result{}, err
 	}
 
-	provisioner, ok := aws.GetProvisioner(issuerName)
-	if !ok {
-		err := fmt.Errorf("provisioner for %s not found", issuerName)
+	provisioner, err := GetProvisioner(ctx, r.Client, issuerName, iss.GetSpec())
+	if err != nil {
 		log.Error(err, "failed to retrieve provisioner")
 		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to retrieve provisioner")
 		return ctrl.Result{}, err

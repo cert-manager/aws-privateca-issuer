@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	logrtesting "github.com/go-logr/logr/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -297,7 +298,7 @@ func TestIssuerReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: metav1.ConditionFalse,
-			expectedError:                errNoAccessKeyID,
+			expectedError:                awspca.ErrNoAccessKeyID,
 			expectedResult:               ctrl.Result{},
 		},
 		"failure-issuer-no-access-key-specified-with-selector": {
@@ -342,7 +343,7 @@ func TestIssuerReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: metav1.ConditionFalse,
-			expectedError:                errNoAccessKeyID,
+			expectedError:                awspca.ErrNoAccessKeyID,
 			expectedResult:               ctrl.Result{},
 		},
 		"failure-issuer-no-secret-access-key-specified": {
@@ -383,7 +384,7 @@ func TestIssuerReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: metav1.ConditionFalse,
-			expectedError:                errNoSecretAccessKey,
+			expectedError:                awspca.ErrNoSecretAccessKey,
 			expectedResult:               ctrl.Result{},
 		},
 		"failure-issuer-no-secret-access-key-specified-with-selector": {
@@ -428,7 +429,7 @@ func TestIssuerReconcile(t *testing.T) {
 				},
 			},
 			expectedReadyConditionStatus: metav1.ConditionFalse,
-			expectedError:                errNoSecretAccessKey,
+			expectedError:                awspca.ErrNoSecretAccessKey,
 			expectedResult:               ctrl.Result{},
 		},
 	}

@@ -22,6 +22,7 @@ testbin/*
 .idea
 *.swp
 *.swo
+*.swn
 *~
 
 #ignore files created during integ tests
