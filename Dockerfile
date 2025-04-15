@@ -18,8 +18,8 @@ ENV CGO_ENABLED=0
 ENV GOOS=${TARGETOS:-linux}
 ENV GOARCH=${TARGETARCH:-amd64}
 ENV GO111MODULE=on
-ARG go_cache
-ARG go_mod_cache
+ARG go_cache=/pkg/go-cache
+ARG go_mod_cache=/pkg/go-mod
 
 RUN go env -w GOCACHE=${go_cache}
 RUN go env -w GOMODCACHE=${go_mod_cache}
