@@ -54,7 +54,7 @@ K8S_CLUSTER_NAME := pca-external-issuer
 CERT_MANAGER_VERSION ?= v1.17.1
 
 # Controller tools
-CONTROLLER_GEN_VERSION := 0.17.2
+CONTROLLER_GEN_VERSION := 0.17.3
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
 # Helm tools
