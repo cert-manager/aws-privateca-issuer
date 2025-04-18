@@ -58,7 +58,7 @@ CONTROLLER_GEN_VERSION := 0.17.3
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
 # Helm tools
-HELM_TOOL_VERSION := v0.2.2
+HELM_TOOL_VERSION := v0.2.3
 
 INSTALL_YAML ?= build/install.yaml
 

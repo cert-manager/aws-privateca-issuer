@@ -33,7 +33,7 @@ Number of replicas to run of the issuer
 <td>
 
 ```yaml
-1
+2
 ```
 
 </td>
@@ -95,6 +95,23 @@ Image tag
 <td>
 
 Disable waiting for CertificateRequests to be Approved before signing
+
+</td>
+<td>bool</td>
+<td>
+
+```yaml
+false
+```
+
+</td>
+</tr>
+<tr>
+
+<td>disableClientSideRateLimiting</td>
+<td>
+
+Disables Kubernetes client-side rate limiting (only use if API Priority & Fairness is enabled on the cluster).
 
 </td>
 <td>bool</td>
@@ -342,26 +359,20 @@ allowPrivilegeEscalation: false
 <td>resources</td>
 <td>
 
-Kubernetes pod resources requests/limits  
-  
-For example:
+Kubernetes pod resources requests/limits
 
-```yaml
-resources:
-  limits:
-    cpu: 100m
-    memory: 128Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-```
 
 </td>
 <td>object</td>
 <td>
 
 ```yaml
-{}
+limits:
+  cpu: 50m
+  memory: 64Mi
+requests:
+  cpu: 50m
+  memory: 64Mi
 ```
 
 </td>
@@ -412,7 +423,7 @@ tolerations:
 <td>affinity</td>
 <td>
 
-A Kubernetes Affinity, if required; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core  
+A Kubernetes Affinity; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#affinity-v1-core  
   
 For example:
 
@@ -428,12 +439,23 @@ affinity:
          - master
 ```
 
+
 </td>
 <td>object</td>
 <td>
 
 ```yaml
-{}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+    - podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+            - key: app.kubernetes.io/name
+              operator: In
+              values:
+                - aws-privateca-issuer
+        topologyKey: kubernetes.io/hostname
+      weight: 100
 ```
 
 </td>
@@ -443,26 +465,20 @@ affinity:
 <td>topologySpreadConstraints</td>
 <td>
 
-List of Kubernetes TopologySpreadConstraints; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core  
-  
-For example:
+List of Kubernetes TopologySpreadConstraints; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core
 
-```yaml
-topologySpreadConstraints:
-- maxSkew: 1
-  topologyKey: topology.kubernetes.io/zone
-  whenUnsatisfiable: ScheduleAnyway
-  labelSelector:
-    matchLabels:
-      app.kubernetes.io/name: aws-privateca-issuer
-```
 
 </td>
 <td>array</td>
 <td>
 
 ```yaml
-[]
+- labelSelector:
+    matchLabels:
+      app.kubernetes.io/name: aws-privateca-issuer
+  maxSkew: 1
+  topologyKey: topology.kubernetes.io/zone
+  whenUnsatisfiable: ScheduleAnyway
 ```
 
 </td>
@@ -472,8 +488,9 @@ topologySpreadConstraints:
 <td>priorityClassName</td>
 <td>
 
-Priority class name for the issuer pods. If specified, this will set the priority class on pods, which can influence scheduling decisions.
-
+Priority class name for the issuer pods  
+If specified, this will set the priority class on pods, which can influence scheduling decisions  
+  
 For example:
 
 ```yaml
@@ -561,41 +578,15 @@ Additional VolumeMounts on the operator container.
 </tr>
 <tr>
 
-<td>podDisruptionBudget</td>
+<td>podDisruptionBudget.maxUnavailable</td>
 <td>
-
-Configures a disruption budget for the deployment.  
-  
-Expects input structure similar to https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy. WITHOUT the pod selector, which is handled by the chart. Per https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy, `maxUnavailable` is mutually exclusive with `minAvailable`, you cannot set both.  
-  
-For example:
-
-```yaml
-podDisruptionBudget:
-  maxUnavailable: 1
-```
-
-Or:
-
-```yaml
-podDisruptionBudget:
-  minAvailable: 1
-```
-
-But NOT:
-
-```yaml
-podDisruptionBudget:
-  minAvailable: 1
-  maxUnavailable: 1
-```
 
 </td>
-<td>object</td>
+<td>number</td>
 <td>
 
 ```yaml
-{}
+1
 ```
 
 </td>
@@ -798,6 +789,23 @@ false
 <td>
 
 Annotations to add to the Prometheus ServiceMonitor
+
+</td>
+<td>object</td>
+<td>
+
+```yaml
+{}
+```
+
+</td>
+</tr>
+<tr>
+
+<td>serviceMonitor.labels</td>
+<td>
+
+Labels to add to the Prometheus ServiceMonitor
 
 </td>
 <td>object</td>

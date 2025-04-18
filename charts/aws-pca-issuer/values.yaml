@@ -66,6 +66,7 @@ securityContext:
   allowPrivilegeEscalation: false
 
 # Kubernetes pod resources requests/limits
+#+docs:property
 resources:
   limits:
     cpu: 50m
@@ -96,6 +97,7 @@ tolerations: []
 #            operator: In
 #            values:
 #            - master
+#+docs:property
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -110,6 +112,7 @@ affinity:
       weight: 100
 
 # List of Kubernetes TopologySpreadConstraints; see https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.27/#topologyspreadconstraint-v1-core
+#+docs:property
 topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: topology.kubernetes.io/zone
