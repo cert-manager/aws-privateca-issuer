@@ -13,6 +13,7 @@ on:
     paths:
       - 'config/crd/bases/**.yaml'
       - 'charts/aws-pca-issuer/crds/**.yaml'
+      - 'charts/aws-pca-issuer/values.yaml'
 
 env:
   GITHUB_USER_NAME: github-actions
@@ -20,6 +21,7 @@ env:
   GH_PAGES_BRANCH: gh-pages
   CONFIG_DIR: config/crd/bases
   CHARTS_DIR: charts/aws-pca-issuer/crds
+  VALUES_PATH: charts/aws-pca-issuer/values.yaml
 
 jobs:
   sync-readme:
@@ -127,4 +129,75 @@ jobs:
           message: |
             Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. 
             Since both CRDs were modified in this commit(s), they were unable to be automatically synced. Please update the pull request with identical CRDs for this workflow to pass.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sync-helm-chart-doc:
+    if: ${{ github.event_name == 'pull_request_target' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.head_ref }}
+
+      - name: Check if values.yaml is modified 
+        id: are-chart-values-modified
+        run: |
+          URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files"
+          FILES=$(curl -s -X GET -G $URL --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' | jq -r '.[] | .filename')
+
+          changed_values=$( (echo $FILES | grep -q "${VALUES_PATH}" && echo true) || echo false )
+
+          if $changed_values; then
+            echo "result=changed" >> $GITHUB_OUTPUT
+          else
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "No charts/aws-pca-issuer/values.yaml changes detected. Skipping update of charts/aws-pca-issuer/README.md"
+          fi
+
+      - name: Regenerate README if values.yaml is changed
+        id: regenerate-readme
+        if: ${{ steps.are-chart-values-modified.outputs.result == 'changed' }}
+        run: |
+          is_README_changed=$( git diff --exit-code charts/aws-pca-issuer.yaml )
+
+          if $is_README_changed; then
+            echo "Regenerating charts/aws-pca-issuer/README.md since charts/aws-pca-issuer/values.yaml has updated"
+            success=$( (make helm-docs && echo true) || echo false)
+            if $success; then
+              echo "result=success" >> $GITHUB_OUTPUT
+            else
+              echo "result=fail" >> $GITHUB_OUTPUT
+            fi
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update pull request with new Helm README.md
+        if: ${{ steps.regenerate-readme.outputs.result == 'success' }}
+        uses: divyansh-gupta/create-or-update-pull-request-action@65a6b01b19b69d7865fcf484340b06548fc02e64
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: ${{ github.head_ref }}
+          path: "."
+          commit-message: |
+            Sync charts/aws-pca-issuer/README.md in pull-request ${{ github.event.pull_request.number }}
+
+            Signed-off-by: ${{ env.GITHUB_USER_NAME }} <${{ env.GITHUB_USER_EMAIL }}>
+          author: "${{ env.GITHUB_USER_NAME }} <${{ env.GITHUB_USER_EMAIL }}>"
+
+      - name: Comment on pull request that the README is updated
+        if: ${{ steps.regenerate-readme.outputs.result == 'success' }}
+        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        with:
+          message: 'Detected changes in charts/aws-pca-issuer/values.yaml. Updated charts/aws-pca-issuer/README.md and added it as commit to this PR for review.'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Comment on pull request that the README was unable to be updated
+        if: ${{ steps.regenerate-readme.outputs.result == 'fail' }}
+        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        with:
+          message: 'Detected changes in charts/aws-pca-issuer/values.yaml, but was unable to regenerate charts/aws-pca-issuer/README.md. Please update the pull request with README.md changes by running `make helm-docs` manually and adding the changed README.md to the commit.'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
