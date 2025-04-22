@@ -8,6 +8,8 @@ on:
 env:
   PUBLIC_REGISTRY: public.ecr.aws/k1n1h4h4
   PRIVATE_REGISTRY: 105154636954.dkr.ecr.us-east-1.amazonaws.com
+  ECR_USER_AGENT: aws-privateca-issuer
+  EKS_USER_AGENT: aws-privateca-connector-for-kubernetes-eks-addon
 
 jobs:
   build:
@@ -44,6 +46,7 @@ jobs:
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
+            user_agent=${{ env.ECR_USER_AGENT }}
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
@@ -65,6 +68,7 @@ jobs:
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/arm64
           provenance: false
@@ -76,6 +80,7 @@ jobs:
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/amd64
           provenance: false
@@ -87,6 +92,7 @@ jobs:
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/amd64,linux/arm64
           provenance: false

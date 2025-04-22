@@ -85,7 +85,8 @@ blog-test:
 # Build manager binary
 manager: generate fmt vet lint
 	go build \
-	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION}" \
+	-ldflags="-X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION} \
+	-X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.UserAgent=aws-privateca-issuer" \
 	-o bin/manager main.go
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
@@ -148,6 +149,7 @@ docker-build: test
 		--build-arg go_cache=${GOCACHE} \
 		--build-arg go_mod_cache=${GOMODCACHE} \
 		--build-arg pkg_version=${VERSION} \
+		--build-arg user_agent=aws-privateca-issuer \
 		--tag ${IMG} \
 		--file Dockerfile \
 		--platform=linux/amd64,linux/arm64 \
