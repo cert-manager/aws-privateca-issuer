@@ -156,7 +156,7 @@ func GetProvisioner(ctx context.Context, client client.Client, name types.Namesp
 
 	provisioner := &PCAProvisioner{
 		pcaClient: acmpca.NewFromConfig(config, acmpca.WithAPIOptions(
-			middleware.AddUserAgentKeyValue("aws-privateca-issuer", injections.PlugInVersion),
+			middleware.AddUserAgentKeyValue(injections.UserAgent, injections.PlugInVersion),
 		)),
 		arn: spec.Arn,
 	}

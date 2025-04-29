@@ -30,12 +30,16 @@ RUN --mount=type=cache,target=${go_cache} --mount=type=cache,target=${go_mod_cac
 
 ARG pkg_version
 
+ARG user_agent="aws-privateca-issuer"
+
 # Build
 RUN --mount=type=cache,target=${go_cache} --mount=type=cache,target=${go_mod_cache} \
     VERSION=$pkg_version && \
+    USER_AGENT=$user_agent && \
     go build \
     -ldflags="-X=github.com/cert-manager/acm-pca-issuer/internal/version.Version=${VERSION} \
-    -X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION}" \
+    -X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.PlugInVersion=${VERSION} \
+    -X github.com/cert-manager/aws-privateca-issuer/pkg/api/injections.UserAgent=${USER_AGENT}" \
     -mod=readonly \
     -o manager main.go
 
