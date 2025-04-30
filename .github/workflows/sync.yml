@@ -128,3 +128,4 @@ jobs:
             Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. 
             Since both CRDs were modified in this commit(s), they were unable to be automatically synced. Please update the pull request with identical CRDs for this workflow to pass.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

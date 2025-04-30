@@ -1,0 +1,79 @@
+# Workflow to sync helm chart README.md when values.yml is updated
+name: Sync Helm Chart README.md
+
+on:
+  pull_request_target:
+    paths:
+      - 'charts/aws-pca-issuer/values.yaml'
+  workflow_dispatch:
+
+env:
+  GITHUB_USER_NAME: github-actions
+  GITHUB_USER_EMAIL: github-actions@github.com
+
+jobs:
+  sync-helm-chart-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.head_ref }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Run helm-docs via Makefile
+        id: run-helm-docs
+        continue-on-error: true
+        run: |
+          mkdir -p $(pwd)/bin
+          export PATH=$(pwd)/bin:$PATH
+          echo "Regenerating charts/aws-pca-issuer/README.md since charts/aws-pca-issuer/values.yaml has updated."
+          make helm-docs
+          MAKE_EXIT_CODE=$?
+          echo "Make exit code: $MAKE_EXIT_CODE"
+          exit $MAKE_EXIT_CODE
+
+      - name: Update pull request with new Helm README.md
+        if: ${{ github.event_name == 'pull_request_target' && steps.run-helm-docs.outcome == 'success' }}
+        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 #v5.2.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: ${{ github.head_ref }}
+          create_branch: false
+          commit_author: "${{ env.GITHUB_USER_NAME }} <${{ env.GITHUB_USER_EMAIL }}>"
+          commit_message: |
+            Sync charts/aws-pca-issuer/README.md in pull-request ${{ github.event.pull_request.number }}
+
+            Signed-off-by: ${{ env.GITHUB_USER_NAME }} <${{ env.GITHUB_USER_EMAIL }}>
+
+      - name: Comment on pull request that the README is updated
+        if: ${{ github.event_name == 'pull_request_target' && steps.run-helm-docs.outcome == 'success' }}
+        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        with:
+          message: 'Detected changes in charts/aws-pca-issuer/values.yaml. Updated charts/aws-pca-issuer/README.md and added it as commit to this PR for review.'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on pull request that the README was unable to be updated
+        if: ${{ github.event_name == 'pull_request_target' && steps.run-helm-docs.outcome == 'failure' }}
+        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        with:
+          message: 'Detected changes in charts/aws-pca-issuer/values.yaml, but was unable to regenerate charts/aws-pca-issuer/README.md. Please update the pull request with README.md changes by running `make helm-docs` manually and adding the changed README.md to the commit.'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new PR with README changes (on manual runs)
+        if: ${{ github.event_name == 'workflow_dispatch' && steps.run-helm-docs.outcome == 'success' }}
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update Helm README.md documentation"
+          branch: "auto-update-helm-readme"
+          title: "Update Helm README.md documentation"
+          body: "Automatically generated PR to update README.md based on changes in values.yaml."
+          delete-branch: true
+          signoff: true
