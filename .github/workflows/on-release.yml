@@ -1,13 +1,16 @@
 name: Release
 on:
-  push:
-    tags:
-      - "*"
   workflow_dispatch:
+    inputs: # <-- Add this section
+      release_tag:
+        description: 'The tag to build and release (e.g., v1.4.0)'
+        required: true
+        type: string
 
 env:
-  ECR_REPO: public.ecr.aws/k1n1h4h4
-  
+  PRIVATE_REGISTRY: 105154636954.dkr.ecr.us-east-1.amazonaws.com
+  EKS_USER_AGENT: aws-privateca-connector-for-kubernetes-eks-addon
+
 jobs:
   build:
     name: release
@@ -17,10 +20,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Get release version
-        id: tag
-        uses: divyansh-gupta/action-get-tag@727a6f0a561be04e09013531e73a3983a65e3479
+        uses: actions/checkout@v4
       - name: Setup Dockerx
         uses: docker/setup-buildx-action@v1
       - name: Setup AWS Credentials
@@ -28,30 +28,51 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1
           aws-region: us-east-1
-      - name: Login to Public ECR
+      - name: Login to Staging ECR
         uses: docker/login-action@v1
         with:
-          registry: public.ecr.aws
+          registry: ${{ env.PRIVATE_REGISTRY }}
         env:
           AWS_REGION: us-east-1
-      - name: Setup Push to ECR
+      - name: Setup Push to Staging ECR
         run: |
-          export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
+          export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/eks/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
-      - name: Build and push container images
-        uses: docker/build-push-action@v2
+      - name: Build and push arm image
+        uses: docker/build-push-action@v6
         with:
           build-args: |
-            pkg_version=${{ steps.tag.outputs.tag }}
+            pkg_version=${{ github.event.inputs.release_tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
+          context: .
+          platforms: linux/arm64
+          provenance: false
+          tags: |
+            ${{ env.TAG_BASE }}:${{github.event.inputs.release_tag}}-arm64
+          push: true
+      - name: Build and push amd image
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            pkg_version=${{ github.event.inputs.release_tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
+          context: .
+          platforms: linux/amd64
+          provenance: false
+          tags: |
+            ${{ env.TAG_BASE }}:${{github.event.inputs.release_tag}}-amd64
+          push: true
+      - name: Build and push manifest list
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            pkg_version=${{ github.event.inputs.release_tag }}
+            user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/amd64,linux/arm64
+          provenance: false
           tags: |
             ${{ env.TAG_BASE }}:latest
-            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
+            ${{ env.TAG_BASE }}:${{github.event.inputs.release_tag}}
           push: true
-      - name: Publish Helm chart
-        uses: divyansh-gupta/helm-gh-pages@12f5926e622ccae035cf5a3bb8d67ae6db7dc4b7
-        with:
-          token: ${{ secrets.CR_PAT }}
-          linting: "off"
-          app_version: ${{ steps.tag.outputs.tag }}
+
