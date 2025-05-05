@@ -101,7 +101,7 @@ jobs:
 
       - name: Update pull request with synced CRDs
         if: ${{ steps.which-crd-modified.outputs.result != 'both' && !github.event.pull_request.head.repo.fork }}
-        uses: divyansh-gupta/create-or-update-pull-request-action@65a6b01b19b69d7865fcf484340b06548fc02e64
+        uses: aws-pca-k8s-plugin-ops-admin/create-or-update-pull-request-action@65a6b01b19b69d7865fcf484340b06548fc02e64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -115,14 +115,14 @@ jobs:
 
       - name: Comment on pull request that CRDs were synced
         if: ${{ steps.which-crd-modified.outputs.result != 'both' && !github.event.pull_request.head.repo.fork }}
-        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        uses: aws-pca-k8s-plugin-ops-admin/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
         with:
           message: 'Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. These CRDs have been synced and the commit has been added to this PR for review.'
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment on pull request that CRDs were unable to be synced
         if: ${{ failure() }}
-        uses: divyansh-gupta/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
+        uses: aws-pca-k8s-plugin-ops-admin/actions-comment-pull-request@675cdfe1695d33e816e060460a72feafee079d3f
         with:
           message: |
             Detected different CRDs in the `config/crd/bases` directory and `charts/aws-pca-issuer/crds` directory. 

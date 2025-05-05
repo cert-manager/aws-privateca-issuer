@@ -27,7 +27,7 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Remove Label
-        uses: divyansh-gupta/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
+        uses: aws-pca-k8s-plugin-ops-admin/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0
         with:
           labels:
             'safe to test'
