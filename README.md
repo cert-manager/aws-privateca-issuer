@@ -123,7 +123,7 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
     * [End-to-End TLS encryption on Amazon Elastic Kubernetes Service](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/)(Amazon EKS).
     * [TLS-enabled Kubernetes clusters with AWS Private CA and Amazon EKS](https://aws.amazon.com/blogs/security/tls-enabled-kubernetes-clusters-with-acm-private-ca-and-amazon-eks-2/)
     * Cross Account CA sharing with supported Cross Account templates
-    * [Supported PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties): CodeSigningCertificate/V1; EndEntityClientAuthCertificate/V1; EndEntityServerAuthCertificate/V1; OCSPSigningCertificate/V1; EndEntityCertificate/V1; BlankEndEntityCertificate_CSRPassthrough/V1
+    * [Supported PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties): CodeSigningCertificate/V1; EndEntityClientAuthCertificate/V1; EndEntityServerAuthCertificate/V1; OCSPSigningCertificate/V1; EndEntityCertificate/V1; BlankEndEntityCertificate_APICSRPassthrough/V1
 
 
 ## Mapping Cert-Manager Usage Types to AWS PCA Template Arns
@@ -140,7 +140,7 @@ This table shows how the UsageTypes are being translated into which template to 
 | ServerAuth                 | acm-pca:::template/EndEntityServerAuthCertificate/V1             |
 | OCSPSigning                | acm-pca:::template/OCSPSigningCertificate/V1                     |
 | ClientAuth, ServerAuth     | acm-pca:::template/EndEntityCertificate/V1                       |
-| Everything Else            | acm-pca:::template/BlankEndEntityCertificate_CSRPassthrough/V1   |
+| Everything Else            | acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1   |
 
 ## Understanding/Running the tests
 
