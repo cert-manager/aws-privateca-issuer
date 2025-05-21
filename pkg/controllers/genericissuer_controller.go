@@ -72,6 +72,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 
+	awspca.DeleteProvisioner(ctx, r.Client, req.NamespacedName)
 	cfg, err := awspca.GetConfig(ctx, r.Client, spec)
 	if err != nil {
 		log.Error(err, "Error loading config")

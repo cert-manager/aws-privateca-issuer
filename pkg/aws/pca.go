@@ -141,6 +141,14 @@ func ClearProvisioners() {
 	collection.Clear()
 }
 
+// DeleteProvisioner will remove a provisioner if it already exists
+func DeleteProvisioner(ctx context.Context, client client.Client, name types.NamespacedName) {
+	_, exists := collection.Load(name)
+	if exists {
+		collection.Delete(name)
+	}
+}
+
 // GetProvisioner gets a provisioner that has previously been stored or creates a new one
 func GetProvisioner(ctx context.Context, client client.Client, name types.NamespacedName, spec *api.AWSPCAIssuerSpec) (GenericProvisioner, error) {
 	value, _ := collection.Load(name)
