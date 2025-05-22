@@ -125,6 +125,9 @@ func TestMain(m *testing.M) {
 
 	accessKey, secretKey = createAccessKey(ctx, cfg, userName)
 
+	// We wait for 10 seconds to ensure the AccessKey is availabile
+	time.Sleep(10 * time.Second)
+
 	/*
 	* Create a shared suite of Issuers and Certificates Specs to be used in
 	* validing Cluster and Namepsace issuers
