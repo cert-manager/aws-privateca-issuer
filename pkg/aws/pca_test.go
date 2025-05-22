@@ -246,6 +246,11 @@ func TestProvisonerOperation(t *testing.T) {
 	output, err := GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
 	assert.Equal(t, output, provisioner)
 	assert.Equal(t, err, nil)
+
+	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
+	output, err = GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	assert.NotEqual(t, output, provisioner)
+	assert.Equal(t, err, nil)
 }
 
 func TestPCATemplateArn(t *testing.T) {
