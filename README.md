@@ -1,10 +1,7 @@
 <p align="center"><img src="assets/logo.png" alt="Logo" width="250px" /></p>
 <p align="center">
-<a href="https://github.com/cert-manager/aws-privateca-issuer/actions">
-<img alt="Build Status" src="https://github.com/cert-manager/aws-privateca-issuer/workflows/CI/badge.svg" />
-</a>
 <a href="https://goreportcard.com/report/github.com/cert-manager/aws-privateca-issuer">
-<img alt="Build Status" src="https://goreportcard.com/badge/github.com/cert-manager/aws-privateca-issuer" />
+<img alt="Go Report Card" src="https://goreportcard.com/badge/github.com/cert-manager/aws-privateca-issuer" />
 </a>
 <img alt="Latest version" src="https://img.shields.io/github/v/release/cert-manager/aws-privateca-issuer?color=success&sort=semver" />
 </p>
