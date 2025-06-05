@@ -19,6 +19,7 @@ jobs:
     outputs:
       label: ${{ steps.start-ec2-runner.outputs.label }}
       ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+      num-retries: ${{ steps.setup-ec2-parameters.outputs.num-retries }}
     permissions:
       id-token: write
       contents: read
@@ -29,10 +30,14 @@ jobs:
           role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
           aws-region: us-east-1
       - name: Configure EC2 Runner Parameters
+        id: setup-ec2-parameters
         run: |
           AWS_REGION=us-east-1
           VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=tag-key,Values=GithubActionsTesting' --query 'Vpcs[0].VpcId' --output text)
-          SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting"  --query 'Subnets[0].SubnetId' --output text)
+          RUN_NUMBER=$((${{ github.run_attempt}} - 1))
+          NUM_SUBNETS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "length(Subnets)" --output text)
+          echo "num-retries=$(($NUM_SUBNETS - 1))" >> $GITHUB_OUTPUT
+          SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting"  --query "Subnets[$RUN_NUMBER].SubnetId" --output text)
           SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting" --query 'SecurityGroups[0].GroupId' --output text)
           AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${{ inputs.architecture }} --query 'Parameter.Value' --output text)
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
@@ -58,6 +63,18 @@ jobs:
             ]
           pre-runner-script: |
             sudo yum install libicu -y
+
+  retry-on-failure:
+    needs: start-runner
+    if: ${{ always() && needs.start-runner.result == 'failure' && github.run_attempt < needs.start-runner.outputs.num-retries }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Attempting to run EC2 runner again"
+          gh workflow run retry-job.yml -F run_id=${{ github.run_id }}
 
   do-the-job:
     if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
