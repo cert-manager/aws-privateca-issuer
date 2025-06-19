@@ -57,7 +57,6 @@ func waitForCertificateRequestState(ctx context.Context, client *cmclientv1.Cert
 		func() (bool, error) {
 
 			cr, err := client.CertificateRequests(namespace).Get(ctx, name, metav1.GetOptions{})
-
 			if err != nil {
 				return false, fmt.Errorf("error getting CertificateRequest %q: %v", name, err)
 			}
@@ -68,6 +67,20 @@ func waitForCertificateRequestState(ctx context.Context, client *cmclientv1.Cert
 				}
 			}
 			return false, nil
+		})
+}
+
+func waitForCertificateRequestToBeCreated(ctx context.Context, client *cmclientv1.CertmanagerV1Client, name string, namespace string) error {
+	return wait.PollImmediate(250*time.Millisecond, 2*time.Minute,
+		func() (bool, error) {
+
+			_, err := client.CertificateRequests(namespace).Get(ctx, name, metav1.GetOptions{})
+
+			if err != nil {
+				return false, nil
+			}
+
+			return true, nil
 		})
 }
 

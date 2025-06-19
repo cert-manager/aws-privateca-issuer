@@ -92,8 +92,13 @@ func (issCtx *IssuerContext) createSecret(ctx context.Context, accessKey string,
 	return nil
 }
 
-func getBaseCertSpec(certType string) cmv1.CertificateSpec {
+func getBaseCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateSpec {
 	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
+
+	if len(usages) == 0 {
+		usages = []cmv1.KeyUsage{cmv1.UsageAny}
+	}
+
 	certSpec := cmv1.CertificateSpec{
 		Subject: &cmv1.X509Subject{
 			Organizations: []string{"aws"},
@@ -102,7 +107,7 @@ func getBaseCertSpec(certType string) cmv1.CertificateSpec {
 		Duration: &metav1.Duration{
 			Duration: 721 * time.Hour,
 		},
-		Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
+		Usages: usages,
 	}
 
 	if certType == "RSA" {
@@ -122,16 +127,14 @@ func getBaseCertSpec(certType string) cmv1.CertificateSpec {
 	return certSpec
 }
 
-func getCertSpec(certType string) cmv1.CertificateSpec {
+func getCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateSpec {
 	switch certType {
 	case "RSA":
-		return getBaseCertSpec(certType)
+		return getBaseCertSpec(certType, usages...)
 	case "ECDSA":
-		return getBaseCertSpec(certType)
-
-	// For simplicity, we use RSA as the base for these. This can be further generalized if desired.
+		return getBaseCertSpec(certType, usages...)
 	case "SHORT_VALIDITY":
-		return getCertSpecWithValidity(getBaseCertSpec("RSA"), 20, 5)
+		return getCertSpecWithValidity(getBaseCertSpec("RSA"), 20, 5, usages...)
 	case "CA":
 		return getCaCertSpec(getBaseCertSpec("RSA"))
 	default:
@@ -139,7 +142,7 @@ func getCertSpec(certType string) cmv1.CertificateSpec {
 	}
 }
 
-func getCertSpecWithValidity(certSpec cmv1.CertificateSpec, duration time.Duration, renewBefore time.Duration) cmv1.CertificateSpec {
+func getCertSpecWithValidity(certSpec cmv1.CertificateSpec, duration time.Duration, renewBefore time.Duration, usages ...cmv1.KeyUsage) cmv1.CertificateSpec {
 	certSpec.Duration = &metav1.Duration{
 		Duration: duration * time.Hour,
 	}
@@ -156,9 +159,13 @@ func getCaCertSpec(certSpec cmv1.CertificateSpec) cmv1.CertificateSpec {
 }
 
 func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType string) error {
+	return issCtx.issueCertificateInternal(ctx, certType)
+}
+
+func (issCtx *IssuerContext) issueCertificateInternal(ctx context.Context, certType string, usages ...cmv1.KeyUsage) error {
 	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
 	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
-	certSpec := getCertSpec(certType)
+	certSpec := getCertSpec(certType, usages...)
 
 	secretName := issCtx.certName + "-cert-secret"
 	certSpec.SecretName = secretName
@@ -182,6 +189,30 @@ func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType stri
 	return nil
 }
 
+func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, certType string, usageStr string) error {
+	usages := parseUsages(usageStr)
+	return issCtx.issueCertificateInternal(ctx, certType, usages...)
+}
+
+func parseUsages(usageStr string) []cmv1.KeyUsage {
+	usageMap := map[string]cmv1.KeyUsage{
+		"client_auth":       cmv1.UsageClientAuth,
+		"server_auth":       cmv1.UsageServerAuth,
+		"digital_signature": cmv1.UsageDigitalSignature,
+		"key_encipherment":  cmv1.UsageKeyEncipherment,
+		"data_encipherment": cmv1.UsageDataEncipherment,
+	}
+
+	parts := strings.Split(strings.ReplaceAll(usageStr, " ", ""), ",")
+	var usages []cmv1.KeyUsage
+	for _, part := range parts {
+		if usage, exists := usageMap[strings.ToLower(part)]; exists {
+			usages = append(usages, usage)
+		}
+	}
+	return usages
+}
+
 func (issCtx *IssuerContext) verifyCertificateIssued(ctx context.Context) error {
 	return issCtx.verifyCertificateState(ctx, "Ready", "True")
 }
@@ -198,6 +229,7 @@ func (issCtx *IssuerContext) verifyCertificateState(ctx context.Context, reason 
 
 func (issCtx *IssuerContext) verifyCertificateRequestState(ctx context.Context, reason string, status string) error {
 	certificateRequestName := fmt.Sprintf("%s-%d", issCtx.certName, 1)
+	waitForCertificateRequestToBeCreated(ctx, testContext.cmClient, certificateRequestName, issCtx.namespace)
 	err := waitForCertificateRequestState(ctx, testContext.cmClient, certificateRequestName, issCtx.namespace, reason, status)
 
 	if err != nil {
