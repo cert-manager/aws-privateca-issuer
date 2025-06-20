@@ -54,7 +54,6 @@ func TestMain(m *testing.M) {
 	if !xaRoleExists {
 		log.Printf("Skipping CrossAccount tests")
 		o.Tags = "~@CrossAccount"
-		o.Tags = "~@CrossAccount"
 	}
 	status := godog.TestSuite{
 		Name:                 "AWSPrivateCAIssuer",
