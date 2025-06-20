@@ -42,6 +42,7 @@ type IssuerContext struct {
 
 var opts = godog.Options{
 	Concurrency: 8,
+	Concurrency: 8,
 	Format:      "pretty",
 	Paths:       []string{"features"},
 }
@@ -52,6 +53,7 @@ func TestMain(m *testing.M) {
 	_, xaRoleExists := os.LookupEnv("PLUGIN_CROSS_ACCOUNT_ROLE")
 	if !xaRoleExists {
 		log.Printf("Skipping CrossAccount tests")
+		o.Tags = "~@CrossAccount"
 		o.Tags = "~@CrossAccount"
 	}
 	status := godog.TestSuite{
@@ -204,6 +206,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
 
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificateWithoutUsage)
+
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate with usage (.+)$`, issuerContext.issueCertificateWithUsage)
 
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
