@@ -12,6 +12,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"log"
+
+	"crypto/x509"
+	"encoding/pem"
+
 	"github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -216,9 +221,9 @@ func parseUsages(usageStr string) []cmv1.KeyUsage {
 	usageMap := map[string]cmv1.KeyUsage{
 		"client_auth":       cmv1.UsageClientAuth,
 		"server_auth":       cmv1.UsageServerAuth,
-		"digital_signature": cmv1.UsageDigitalSignature,
-		"key_encipherment":  cmv1.UsageKeyEncipherment,
-		"data_encipherment": cmv1.UsageDataEncipherment,
+		"code_signing":      cmv1.UsageCodeSigning,
+		"ocsp_signing":      cmv1.UsageOCSPSigning,
+		"any":               cmv1.UsageAny,
 	}
 
 	parts := strings.Split(usageStr, ",")
@@ -230,6 +235,7 @@ func parseUsages(usageStr string) []cmv1.KeyUsage {
 			assert.FailNow(godog.T(context.Background()), "Unknown usage: "+part)
 		}
 	}
+
 	return usages
 }
 
@@ -255,6 +261,51 @@ func (issCtx *IssuerContext) verifyCertificateRequestState(ctx context.Context, 
 	if err != nil {
 		assert.FailNow(godog.T(ctx), "Certificate Request did not reach specified state, Condition = "+reason+", Status = "+status+": "+err.Error())
 	}
+
+	return nil
+}
+
+func (issCtx *IssuerContext) verifyCertificateContent(ctx context.Context, usage string) error {
+	// The secret name is typically the same as the certificate name + "-cert-secret"
+	secretName := issCtx.certName + "-cert-secret"
+
+	certData, err := getCertificateData(ctx, testContext.clientset, issCtx.namespace, secretName)
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Failed to get certificate data: "+err.Error())
+	}
+
+	if len(certData) == 0 {
+		assert.FailNow(godog.T(ctx), "Certificate data is empty")
+	}
+
+	log.Printf("Expected usage: %s", usage)
+
+
+	decodedData, _ := pem.Decode([]byte(certData))
+	if decodedData == nil {
+		assert.FailNow(godog.T(ctx), "Failed to decode certificate data")
+	}
+
+	cert, err := x509.ParseCertificate(decodedData.Bytes)
+
+	usageLabels := map[x509.ExtKeyUsage]string{
+		x509.ExtKeyUsageClientAuth: "client_auth",
+		x509.ExtKeyUsageServerAuth: "server_auth",
+		x509.ExtKeyUsageCodeSigning: "code_signing",
+		x509.ExtKeyUsageOCSPSigning: "ocsp_signing",
+		x509.ExtKeyUsageAny: "any",
+	}
+
+	found := make(map[x509.ExtKeyUsage]bool)
+
+	for _, usage := range cert.ExtKeyUsage {
+        found[usage] = true
+        if label, ok := usageLabels[usage]; ok {
+            log.Printf("WE FOUND A USAGE TYPE FROM THE CERTIFICATE- %s\n", label)
+        } else {
+            log.Printf("- Unknown usage: %v\n", usage)
+        }
+    }
 
 	return nil
 }
