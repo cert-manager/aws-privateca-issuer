@@ -17,6 +17,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type CertificateRequest struct {
+    Ctx      context.Context
+    CertType string
+    Usage    []cmv1.KeyUsage // optional, will be nil if not provided
+}
+
 func getCaArn(caType string) string {
 	caArn, exists := testContext.caArns[caType]
 
@@ -92,11 +98,11 @@ func (issCtx *IssuerContext) createSecret(ctx context.Context, accessKey string,
 	return nil
 }
 
-func getBaseCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateSpec {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
-
-	if len(usages) == 0 {
-		usages = []cmv1.KeyUsage{cmv1.UsageAny}
+func getBaseCertSpec(certReq CertificateRequest) cmv1.CertificateSpec {
+	sanitizedCertType := strings.Replace(strings.ToLower(certReq.CertType), "_", "-", -1)
+	
+	if len(certReq.Usage) == 0 {
+		certReq.Usage = []cmv1.KeyUsage{cmv1.UsageAny}
 	}
 
 	certSpec := cmv1.CertificateSpec{
@@ -107,17 +113,17 @@ func getBaseCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateS
 		Duration: &metav1.Duration{
 			Duration: 721 * time.Hour,
 		},
-		Usages: usages,
+		Usages: certReq.Usage,
 	}
 
-	if certType == "RSA" {
+	if certReq.CertType == "RSA" {
 		certSpec.PrivateKey = &cmv1.CertificatePrivateKey{
 			Algorithm: cmv1.RSAKeyAlgorithm,
 			Size:      2048,
 		}
 	}
 
-	if certType == "ECDSA" {
+	if certReq.CertType == "ECDSA" {
 		certSpec.PrivateKey = &cmv1.CertificatePrivateKey{
 			Algorithm: cmv1.ECDSAKeyAlgorithm,
 			Size:      256,
@@ -127,18 +133,18 @@ func getBaseCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateS
 	return certSpec
 }
 
-func getCertSpec(certType string, usages ...cmv1.KeyUsage) cmv1.CertificateSpec {
-	switch certType {
+func getCertSpec(certReq CertificateRequest) cmv1.CertificateSpec {
+	switch certReq.CertType {
 	case "RSA":
-		return getBaseCertSpec(certType, usages...)
+		return getBaseCertSpec(certReq)
 	case "ECDSA":
-		return getBaseCertSpec(certType, usages...)
+		return getBaseCertSpec(certReq)
 	case "SHORT_VALIDITY":
-		return getCertSpecWithValidity(getBaseCertSpec("RSA"), 20, 5, usages...)
+		return getCertSpecWithValidity(getBaseCertSpec(certReq), 20, 5, certReq.Usage...)
 	case "CA":
-		return getCaCertSpec(getBaseCertSpec("RSA"))
+		return getCaCertSpec(getBaseCertSpec(certReq))
 	default:
-		panic(fmt.Sprintf("Unknown Certificate Type: %s", certType))
+		panic(fmt.Sprintf("Unknown Certificate Type: %s", certReq.CertType))
 	}
 }
 
@@ -150,6 +156,8 @@ func getCertSpecWithValidity(certSpec cmv1.CertificateSpec, duration time.Durati
 		Duration: renewBefore * time.Hour,
 	}
 
+	certSpec.Usages = usages
+
 	return certSpec
 }
 
@@ -158,40 +166,50 @@ func getCaCertSpec(certSpec cmv1.CertificateSpec) cmv1.CertificateSpec {
 	return getCertSpecWithValidity(certSpec, 20, 5)
 }
 
-func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType string) error {
-	return issCtx.issueCertificateInternal(ctx, certType)
-}
-
-func (issCtx *IssuerContext) issueCertificateInternal(ctx context.Context, certType string, usages ...cmv1.KeyUsage) error {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
-	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
-	certSpec := getCertSpec(certType, usages...)
-
-	secretName := issCtx.certName + "-cert-secret"
-	certSpec.SecretName = secretName
-	certSpec.IssuerRef = cmmeta.ObjectReference{
-		Kind:  issCtx.issuerType,
-		Group: "awspca.cert-manager.io",
-		Name:  issCtx.issuerName,
+func (issCtx *IssuerContext) issueCertificateWithoutUsage(ctx context.Context, certType string) error {
+	certReq := CertificateRequest{
+		Ctx:      ctx,
+		CertType: certType,
+		Usage:    nil,
 	}
-
-	certificate := cmv1.Certificate{
-		ObjectMeta: metav1.ObjectMeta{Name: issCtx.certName},
-		Spec:       certSpec,
-	}
-
-	_, err := testContext.cmClient.Certificates(issCtx.namespace).Create(ctx, &certificate, metav1.CreateOptions{})
-
-	if err != nil {
-		assert.FailNow(godog.T(ctx), "Could not create certificate: "+err.Error())
-	}
-
-	return nil
+	return issCtx.issueCertificate(certReq)
 }
 
 func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, certType string, usageStr string) error {
 	usages := parseUsages(usageStr)
-	return issCtx.issueCertificateInternal(ctx, certType, usages...)
+	certReq := CertificateRequest{
+		Ctx:      ctx,
+		CertType: certType,
+		Usage:    usages,
+	}
+	return issCtx.issueCertificate(certReq)
+}
+
+func (issCtx *IssuerContext) issueCertificate(certReq CertificateRequest) error {
+    sanitizedCertType := strings.Replace(strings.ToLower(certReq.CertType), "_", "-", -1)
+    issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
+    certSpec := getCertSpec(certReq)
+
+    secretName := issCtx.certName + "-cert-secret"
+    certSpec.SecretName = secretName
+    certSpec.IssuerRef = cmmeta.ObjectReference{
+        Kind:  issCtx.issuerType,
+        Group: "awspca.cert-manager.io",
+        Name:  issCtx.issuerName,
+    }
+
+    certificate := cmv1.Certificate{
+        ObjectMeta: metav1.ObjectMeta{Name: issCtx.certName},
+        Spec:       certSpec,
+    }
+
+    _, err := testContext.cmClient.Certificates(issCtx.namespace).Create(certReq.Ctx, &certificate, metav1.CreateOptions{})
+
+    if err != nil {
+        assert.FailNow(godog.T(certReq.Ctx), "Could not create certificate: "+err.Error())
+    }
+
+    return nil
 }
 
 func parseUsages(usageStr string) []cmv1.KeyUsage {
@@ -203,11 +221,13 @@ func parseUsages(usageStr string) []cmv1.KeyUsage {
 		"data_encipherment": cmv1.UsageDataEncipherment,
 	}
 
-	parts := strings.Split(strings.ReplaceAll(usageStr, " ", ""), ",")
+	parts := strings.Split(usageStr, ",")
 	var usages []cmv1.KeyUsage
 	for _, part := range parts {
 		if usage, exists := usageMap[strings.ToLower(part)]; exists {
 			usages = append(usages, usage)
+		} else {
+			assert.FailNow(godog.T(context.Background()), "Unknown usage: "+part)
 		}
 	}
 	return usages
