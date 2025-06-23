@@ -23,9 +23,9 @@ import (
 )
 
 type CertificateRequest struct {
-    Ctx      context.Context
-    CertType string
-    Usage    []cmv1.KeyUsage // optional, will be nil if not provided
+	Ctx      context.Context
+	CertType string
+	Usage    []cmv1.KeyUsage // optional, will be nil if not provided
 }
 
 func getCaArn(caType string) string {
@@ -105,7 +105,7 @@ func (issCtx *IssuerContext) createSecret(ctx context.Context, accessKey string,
 
 func getBaseCertSpec(certReq CertificateRequest) cmv1.CertificateSpec {
 	sanitizedCertType := strings.Replace(strings.ToLower(certReq.CertType), "_", "-", -1)
-	
+
 	if len(certReq.Usage) == 0 {
 		certReq.Usage = []cmv1.KeyUsage{cmv1.UsageAny}
 	}
@@ -191,39 +191,39 @@ func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, cert
 }
 
 func (issCtx *IssuerContext) issueCertificate(certReq CertificateRequest) error {
-    sanitizedCertType := strings.Replace(strings.ToLower(certReq.CertType), "_", "-", -1)
-    issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
-    certSpec := getCertSpec(certReq)
+	sanitizedCertType := strings.Replace(strings.ToLower(certReq.CertType), "_", "-", -1)
+	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
+	certSpec := getCertSpec(certReq)
 
-    secretName := issCtx.certName + "-cert-secret"
-    certSpec.SecretName = secretName
-    certSpec.IssuerRef = cmmeta.ObjectReference{
-        Kind:  issCtx.issuerType,
-        Group: "awspca.cert-manager.io",
-        Name:  issCtx.issuerName,
-    }
+	secretName := issCtx.certName + "-cert-secret"
+	certSpec.SecretName = secretName
+	certSpec.IssuerRef = cmmeta.ObjectReference{
+		Kind:  issCtx.issuerType,
+		Group: "awspca.cert-manager.io",
+		Name:  issCtx.issuerName,
+	}
 
-    certificate := cmv1.Certificate{
-        ObjectMeta: metav1.ObjectMeta{Name: issCtx.certName},
-        Spec:       certSpec,
-    }
+	certificate := cmv1.Certificate{
+		ObjectMeta: metav1.ObjectMeta{Name: issCtx.certName},
+		Spec:       certSpec,
+	}
 
-    _, err := testContext.cmClient.Certificates(issCtx.namespace).Create(certReq.Ctx, &certificate, metav1.CreateOptions{})
+	_, err := testContext.cmClient.Certificates(issCtx.namespace).Create(certReq.Ctx, &certificate, metav1.CreateOptions{})
 
-    if err != nil {
-        assert.FailNow(godog.T(certReq.Ctx), "Could not create certificate: "+err.Error())
-    }
+	if err != nil {
+		assert.FailNow(godog.T(certReq.Ctx), "Could not create certificate: "+err.Error())
+	}
 
-    return nil
+	return nil
 }
 
 func parseUsages(usageStr string) []cmv1.KeyUsage {
 	usageMap := map[string]cmv1.KeyUsage{
-		"client_auth":       cmv1.UsageClientAuth,
-		"server_auth":       cmv1.UsageServerAuth,
-		"code_signing":      cmv1.UsageCodeSigning,
-		"ocsp_signing":      cmv1.UsageOCSPSigning,
-		"any":               cmv1.UsageAny,
+		"client_auth":  cmv1.UsageClientAuth,
+		"server_auth":  cmv1.UsageServerAuth,
+		"code_signing": cmv1.UsageCodeSigning,
+		"ocsp_signing": cmv1.UsageOCSPSigning,
+		"any":          cmv1.UsageAny,
 	}
 
 	parts := strings.Split(usageStr, ",")
@@ -280,32 +280,42 @@ func (issCtx *IssuerContext) verifyCertificateContent(ctx context.Context, usage
 
 	log.Printf("Expected usage: %s", usage)
 
-
 	decodedData, _ := pem.Decode([]byte(certData))
 	if decodedData == nil {
 		assert.FailNow(godog.T(ctx), "Failed to decode certificate data")
 	}
 
 	cert, err := x509.ParseCertificate(decodedData.Bytes)
-
-	usageLabels := map[x509.ExtKeyUsage]string{
-		x509.ExtKeyUsageClientAuth: "client_auth",
-		x509.ExtKeyUsageServerAuth: "server_auth",
-		x509.ExtKeyUsageCodeSigning: "code_signing",
-		x509.ExtKeyUsageOCSPSigning: "ocsp_signing",
-		x509.ExtKeyUsageAny: "any",
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Failed to parse certificate: "+err.Error())
 	}
 
-	found := make(map[x509.ExtKeyUsage]bool)
+	usageLabels := map[x509.ExtKeyUsage]string{
+		x509.ExtKeyUsageClientAuth:  "client_auth",
+		x509.ExtKeyUsageServerAuth:  "server_auth",
+		x509.ExtKeyUsageCodeSigning: "code_signing",
+		x509.ExtKeyUsageOCSPSigning: "ocsp_signing",
+		x509.ExtKeyUsageAny:         "any",
+	}
 
-	for _, usage := range cert.ExtKeyUsage {
-        found[usage] = true
-        if label, ok := usageLabels[usage]; ok {
-            log.Printf("WE FOUND A USAGE TYPE FROM THE CERTIFICATE- %s\n", label)
-        } else {
-            log.Printf("- Unknown usage: %v\n", usage)
-        }
-    }
+	expectedUsages := strings.Split(usage, ",")
+
+	// Check if all expected usages are present in the certificate
+	for _, expectedUsage := range expectedUsages {
+		found := false
+		for _, extUsage := range cert.ExtKeyUsage {
+			if label, exists := usageLabels[extUsage]; exists {
+				if label == expectedUsage {
+					log.Printf("Found expected usage type in certificate: %s\n", label)
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			assert.FailNow(godog.T(ctx), "Certificate did not have expected usage: "+expectedUsage)
+		}
+	}
 
 	return nil
 }
