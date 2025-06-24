@@ -202,7 +202,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I create an AWSPCAClusterIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createClusterIssuer)
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
-	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificateWithoutUsage)
+	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificateWithKeyType)
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate with usage (.+)$`, issuerContext.issueCertificateWithUsage)
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
 	ctx.Step(`^the certificate request has reason (Pending|Failed|Issued|Denied) and status (True|False|Unknown)$`, issuerContext.verifyCertificateRequestState)
