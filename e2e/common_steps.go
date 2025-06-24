@@ -17,6 +17,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type CertificateConfig struct {
+	CertType string
+	Usages   []cmv1.KeyUsage // optional, will be nil if not provided
+}
+
+var usageMap = map[string]cmv1.KeyUsage{
+	"client_auth":       cmv1.UsageClientAuth,
+	"server_auth":       cmv1.UsageServerAuth,
+	"digital_signature": cmv1.UsageDigitalSignature,
+	"key_encipherment":  cmv1.UsageKeyEncipherment,
+	"data_encipherment": cmv1.UsageDataEncipherment,
+}
+
 func getCaArn(caType string) string {
 	caArn, exists := testContext.caArns[caType]
 
@@ -92,8 +105,13 @@ func (issCtx *IssuerContext) createSecret(ctx context.Context, accessKey string,
 	return nil
 }
 
-func getBaseCertSpec(certType string) cmv1.CertificateSpec {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
+func getBaseCertSpec(certConfig CertificateConfig) cmv1.CertificateSpec {
+	sanitizedCertType := strings.Replace(strings.ToLower(certConfig.CertType), "_", "-", -1)
+
+	if len(certConfig.Usages) == 0 {
+		certConfig.Usages = []cmv1.KeyUsage{cmv1.UsageAny}
+	}
+
 	certSpec := cmv1.CertificateSpec{
 		Subject: &cmv1.X509Subject{
 			Organizations: []string{"aws"},
@@ -102,17 +120,17 @@ func getBaseCertSpec(certType string) cmv1.CertificateSpec {
 		Duration: &metav1.Duration{
 			Duration: 721 * time.Hour,
 		},
-		Usages: []cmv1.KeyUsage{cmv1.UsageClientAuth, cmv1.UsageServerAuth},
+		Usages: certConfig.Usages,
 	}
 
-	if certType == "RSA" {
+	if certConfig.CertType == "RSA" {
 		certSpec.PrivateKey = &cmv1.CertificatePrivateKey{
 			Algorithm: cmv1.RSAKeyAlgorithm,
 			Size:      2048,
 		}
 	}
 
-	if certType == "ECDSA" {
+	if certConfig.CertType == "ECDSA" {
 		certSpec.PrivateKey = &cmv1.CertificatePrivateKey{
 			Algorithm: cmv1.ECDSAKeyAlgorithm,
 			Size:      256,
@@ -122,20 +140,18 @@ func getBaseCertSpec(certType string) cmv1.CertificateSpec {
 	return certSpec
 }
 
-func getCertSpec(certType string) cmv1.CertificateSpec {
-	switch certType {
+func getCertSpec(certConfig CertificateConfig) cmv1.CertificateSpec {
+	switch certConfig.CertType {
 	case "RSA":
-		return getBaseCertSpec(certType)
+		return getBaseCertSpec(certConfig)
 	case "ECDSA":
-		return getBaseCertSpec(certType)
-
-	// For simplicity, we use RSA as the base for these. This can be further generalized if desired.
+		return getBaseCertSpec(certConfig)
 	case "SHORT_VALIDITY":
-		return getCertSpecWithValidity(getBaseCertSpec("RSA"), 20, 5)
+		return getCertSpecWithValidity(getBaseCertSpec(certConfig), 20, 5)
 	case "CA":
-		return getCaCertSpec(getBaseCertSpec("RSA"))
+		return getCaCertSpec(getBaseCertSpec(certConfig))
 	default:
-		panic(fmt.Sprintf("Unknown Certificate Type: %s", certType))
+		panic(fmt.Sprintf("Unknown Certificate Type: %s", certConfig.CertType))
 	}
 }
 
@@ -155,10 +171,27 @@ func getCaCertSpec(certSpec cmv1.CertificateSpec) cmv1.CertificateSpec {
 	return getCertSpecWithValidity(certSpec, 20, 5)
 }
 
-func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType string) error {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
+func (issCtx *IssuerContext) issueCertificateWithKeyType(ctx context.Context, certType string) error {
+	certConfig := CertificateConfig{
+		CertType: certType,
+		Usages:   nil,
+	}
+	return issCtx.issueCertificate(ctx, certConfig)
+}
+
+func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, certType string, usageStr string) error {
+	usages := parseUsages(usageStr)
+	certConfig := CertificateConfig{
+		CertType: certType,
+		Usages:   usages,
+	}
+	return issCtx.issueCertificate(ctx, certConfig)
+}
+
+func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certConfig CertificateConfig) error {
+	sanitizedCertType := strings.Replace(strings.ToLower(certConfig.CertType), "_", "-", -1)
 	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
-	certSpec := getCertSpec(certType)
+	certSpec := getCertSpec(certConfig)
 
 	secretName := issCtx.certName + "-cert-secret"
 	certSpec.SecretName = secretName
@@ -182,6 +215,19 @@ func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType stri
 	return nil
 }
 
+func parseUsages(usageStr string) []cmv1.KeyUsage {
+	parts := strings.Split(usageStr, ",")
+	var usages []cmv1.KeyUsage
+	for _, part := range parts {
+		if usage, exists := usageMap[strings.ToLower(part)]; exists {
+			usages = append(usages, usage)
+		} else {
+			assert.FailNow(godog.T(context.Background()), "Unknown usage: "+part)
+		}
+	}
+	return usages
+}
+
 func (issCtx *IssuerContext) verifyCertificateIssued(ctx context.Context) error {
 	return issCtx.verifyCertificateState(ctx, "Ready", "True")
 }
@@ -198,6 +244,7 @@ func (issCtx *IssuerContext) verifyCertificateState(ctx context.Context, reason 
 
 func (issCtx *IssuerContext) verifyCertificateRequestState(ctx context.Context, reason string, status string) error {
 	certificateRequestName := fmt.Sprintf("%s-%d", issCtx.certName, 1)
+	waitForCertificateRequestToBeCreated(ctx, testContext.cmClient, certificateRequestName, issCtx.namespace)
 	err := waitForCertificateRequestState(ctx, testContext.cmClient, certificateRequestName, issCtx.namespace, reason, status)
 
 	if err != nil {
