@@ -42,7 +42,6 @@ type IssuerContext struct {
 
 var opts = godog.Options{
 	Concurrency: 8,
-	Concurrency: 8,
 	Format:      "pretty",
 	Paths:       []string{"features"},
 }
