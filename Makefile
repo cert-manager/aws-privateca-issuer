@@ -124,9 +124,9 @@ manifests: controller-gen
 helm-docs: helm-tool
 	$(HELM_TOOL) inject -i charts/aws-pca-issuer/values.yaml -o charts/aws-pca-issuer/README.md --header-search "^<!-- AUTO-GENERATED -->" --footer-search "<!-- /AUTO-GENERATED -->"
 
-# Run go fmt against code
-fmt:
-	go fmt ./...
+# Run goimports against code
+fmt: goimports-tool
+	$(GOIMPORTS_TOOL) -w .
 
 # Run go vet against code
 vet:
@@ -166,6 +166,10 @@ controller-gen:
 HELM_TOOL = $(shell pwd)/bin/helm-tool
 helm-tool:
 	$(call go-install-tool,$(HELM_TOOL),github.com/cert-manager/helm-tool@$(HELM_TOOL_VERSION))
+
+GOIMPORTS_TOOL = $(shell pwd)/bin/goimports
+goimports-tool:
+	$(call go-install-tool,$(GOIMPORTS_TOOL),golang.org/x/tools/cmd/goimports@latest)
 
 # Download kustomize locally if necessary
 KUSTOMIZE = $(shell pwd)/bin/kustomize
