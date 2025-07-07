@@ -85,6 +85,9 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- end }}
+      {{- if .Values.extraContainers }}
+        {{- toYaml .Values.extraContainers | nindent 8 }}
+      {{- end }}
       {{- if .Values.volumes }}
       volumes:
         {{ toYaml .Values.volumes | nindent 6 }}
