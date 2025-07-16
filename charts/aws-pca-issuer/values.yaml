@@ -154,6 +154,9 @@ volumes: []
 # Additional VolumeMounts on the operator container.
 volumeMounts: []
 
+# Extra containers to add to the pod spec in the deployment.
+extraContainers: []
+
 # Configures a disruption budget for the deployment.
 #
 # Expects input structure similar to https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy
