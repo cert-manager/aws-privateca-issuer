@@ -141,10 +141,11 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
 		},
 		"success-cluster-issuer": {
-			name: types.NamespacedName{Name: "cr1"},
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
 					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
@@ -187,6 +188,8 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					},
 				},
 			},
+			expectedSignResult:           ctrl.Result{Requeue: true},
+			expectedGetResult:            ctrl.Result{},
 			expectedReadyConditionStatus: cmmeta.ConditionTrue,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonIssued,
 			expectedError:                false,
@@ -195,17 +198,19 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
 		},
 		"success-certificate-already-issued": {
-			name: types.NamespacedName{Name: "cr1"},
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
 			objects: []client.Object{
 				cmgen.CertificateRequest(
 					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "ClusterIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
-						Type:   cmapi.CertificateRequestReasonIssued,
+						Type:   cmapi.CertificateRequestConditionReady,
+						Reason: cmapi.CertificateRequestReasonIssued,
 						Status: cmmeta.ConditionTrue,
 					}),
 					cmgen.SetCertificateRequestCertificate([]byte("oldCert")),
@@ -592,7 +597,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 
 			var cr cmapi.CertificateRequest
 			err := fakeClient.Get(ctx, tc.name, &cr)
-			require.NoError(t, client.IgnoreNotFound(err), "unexpected error from fake client")
+			require.NoError(t, err, "unexpected error from fake client")
 			if err == nil {
 				if tc.expectedReadyConditionStatus != "" {
 					assertCertificateRequestHasReadyCondition(t, tc.expectedReadyConditionStatus, tc.expectedReadyConditionReason, &cr)
