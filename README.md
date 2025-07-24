@@ -108,6 +108,44 @@ Please note that if you are using [KIAM](https://github.com/uswitch/kiam) for au
 
 There is a custom AWS authentication method we have coded into our plugin that allows a user to define a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) with AWS Creds passed in, example [here](config/samples/secret.yaml). The user applies that file with their creds and then references the secret in their Issuer CRD when running the plugin, example [here](config/samples/awspcaclusterissuer_ec/_v1beta1_awspcaclusterissuer_ec.yaml#L8-L10).
 
+#### IAM Roles Anywhere
+
+For use cases where the AWS Private CA issuer needs to run outside of AWS, IAM Roles Anywhere can be used as an alternative to IAM Users.
+
+The helm chart supports `extraContainers` which can be used to deploy the [aws_signing_helper](https://github.com/aws/rolesanywhere-credential-helper) in "serve" mode. Then, we can set `AWS_EC2_METADATA_SERVICE_ENDPOINT="http://127.0.0.1:9911"` on the `aws-privateca-issuer` itself.
+
+A simplified example of what to set for your helm values is as follows:
+
+```
+env:
+  AWS_EC2_METADATA_SERVICE_ENDPOINT: "http://127.0.0.1:9911"
+extraContainers:
+  - name: "rolesanywhere-credential-helper"
+    # Can use image from https://github.com/aws/rolesanywhere-credential-helper/pull/127 after it is merged in
+    image: "rolesanywhere-credential-helper"
+    command: ["aws_signing_helper"]
+    args:
+      - "serve"
+      - "--private-key"
+      - "/etc/certs/tls.key"
+      - "--certificate"
+      - "/etc/certs/tls.key"
+      - "--role-arn"
+      - "your-role-arn"
+      - "--profile-arn"
+      - "your-profile-arn"
+      - "--trust-anchor-arn"
+      - "your-trust-anchor-arn"
+    volumeMounts:
+      - name: client-certs
+        mountPath: /etc/certs/
+        readOnly: true
+volumes:
+  - name: client-certs
+    secret:
+      secretName: client-certs
+```
+
 ## Supported workflows
 
 AWS Private Certificate Authority(PCA) Issuer Plugin supports the following integrations and use cases:
@@ -119,6 +157,7 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
     * [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - IAM roles for service accounts
     * [Kubernetes Secrets](#authentication)
     * [EC2 Instance Profiles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)
+    * [IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/introduction.html)
 
 * AWS Private CA features:
     * [End-to-End TLS encryption on Amazon Elastic Kubernetes Service](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/)(Amazon EKS).
