@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	clientV1beta1 "github.com/cert-manager/aws-privateca-issuer/pkg/clientset/v1beta1"
@@ -31,7 +32,7 @@ type TestContext struct {
 	xaCfg     aws.Config
 	caArns    map[string]string
 
-	region, partition, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn string
+	region, partition, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn, roleToAssume string
 }
 
 // These are variables specific to each test
@@ -111,7 +112,19 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 			panic(cfgErr.Error())
 		}
 
-		testContext.partition = getPartition(ctx, cfg)
+		callerID := getCallerIdentity(ctx, cfg)
+
+		parsedArn, parseErr := arn.Parse(*callerID.Arn)
+		if parseErr != nil {
+			panic("Failed to parse caller identity ARN: " + parseErr.Error())
+		}
+
+		testContext.partition = parsedArn.Partition
+
+		testContext.roleToAssume = fmt.Sprintf("arn:%s:iam::%s:role/IssuerTestRole-test-us-east-1", testContext.partition, *callerID.Account)
+		if roleToAssumeOverride, exists := os.LookupEnv("ROLE_TO_ASSUME_OVERRIDE"); exists {
+			testContext.roleToAssume = roleToAssumeOverride
+		}
 
 		testContext.iclient, err = clientV1beta1.NewForConfig(clientConfig)
 
@@ -217,8 +230,10 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I create a namespace`, issuerContext.createNamespace)
 	ctx.Step(`^I create a Secret with keys ([A-Za-z_]+) and ([A-Za-z_]+) for my AWS credentials$`, issuerContext.createSecret)
 	ctx.Step(`^I create an AWSPCAClusterIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createClusterIssuer)
+	ctx.Step(`^I create an AWSPCAClusterIssuer with role assumption$`, issuerContext.createClusterIssuerWithRole)
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
+	ctx.Step(`^I create an AWSPCAIssuer with role assumption$`, issuerContext.createNamespaceIssuerWithRole)
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificate)
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
 	ctx.Step(`^the certificate request has been created$`, issuerContext.verifyCertificateRequestIsCreated)

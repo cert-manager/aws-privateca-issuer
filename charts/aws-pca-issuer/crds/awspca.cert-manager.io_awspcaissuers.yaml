@@ -45,6 +45,9 @@ spec:
               region:
                 description: Should contain the AWS region if it cannot be inferred
                 type: string
+              role:
+                description: Specifies the ARN of role to assume when issuing certificates.
+                type: string
               secretRef:
                 description: Needs to be specified if you want to authorize with AWS
                   using an access and secret key

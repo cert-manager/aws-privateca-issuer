@@ -34,6 +34,12 @@ func getIssuerSpec(caType string) v1beta1.AWSPCAIssuerSpec {
 	}
 }
 
+func getIssuerSpecWithRole(caType string) v1beta1.AWSPCAIssuerSpec {
+	spec := getIssuerSpec(caType)
+	spec.Role = testContext.roleToAssume
+	return spec
+}
+
 func (issCtx *IssuerContext) createNamespace(ctx context.Context) error {
 	namespaceName := "pca-issuer-ns-" + uuid.New().String()
 	namespace := v1.Namespace{
