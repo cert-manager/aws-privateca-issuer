@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
@@ -177,7 +178,7 @@ func deleteCertificateAuthority(ctx context.Context, cfg aws.Config, caArn strin
 
 }
 
-func createCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool) string {
+func (testCtx *TestContext) createCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool) string {
 	pcaClient := acmpca.NewFromConfig(cfg)
 
 	var signingAlgorithm types.SigningAlgorithm
@@ -235,7 +236,7 @@ func createCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool)
 		CertificateAuthorityArn: caArn,
 		Csr:                     []byte(*caCsr),
 		SigningAlgorithm:        signingAlgorithm,
-		TemplateArn:             aws.String("arn:aws:acm-pca:::template/RootCACertificate/V1"),
+		TemplateArn:             aws.String("arn:" + testCtx.partition + ":acm-pca:::template/RootCACertificate/V1"),
 		Validity: &types.Validity{
 			Type:  types.ValidityPeriodTypeDays,
 			Value: aws.Int64(365),
@@ -293,6 +294,23 @@ func getAccountID(ctx context.Context, cfg aws.Config) string {
 	}
 
 	return *callerID.Account
+}
+
+func getPartition(ctx context.Context, cfg aws.Config) string {
+	stsClient := sts.NewFromConfig(cfg)
+
+	callerID, callerErr := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+
+	if callerErr != nil {
+		panic(callerErr.Error())
+	}
+
+	parsedArn, parseErr := arn.Parse(*callerID.Arn)
+	if parseErr != nil {
+		return "aws"
+	}
+
+	return parsedArn.Partition
 }
 
 func assumeRole(ctx context.Context, cfg aws.Config, roleName string, region string) aws.Config {
