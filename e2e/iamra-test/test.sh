@@ -1,5 +1,6 @@
 set -euo pipefail
 
+AWS_REGION=${AWS_REGION:="us-east-1"}
 CA_ARN=$(aws ssm  get-parameter --name /iamra/certificate-authority-arn | jq -r '.Parameter.Value')
 TRUST_ANCHOR_ARN=$(aws ssm  get-parameter --name /iamra/trust-anchor-arn | jq -r '.Parameter.Value')
 PROFILE_ARN=$(aws ssm  get-parameter --name /iamra/profile-arn | jq -r '.Parameter.Value')
