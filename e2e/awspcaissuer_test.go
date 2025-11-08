@@ -31,7 +31,7 @@ type TestContext struct {
 	xaCfg     aws.Config
 	caArns    map[string]string
 
-	region, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn string
+	region, partition, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn string
 }
 
 // These are variables specific to each test
@@ -111,6 +111,8 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 			panic(cfgErr.Error())
 		}
 
+		testContext.partition = getPartition(ctx, cfg)
+
 		testContext.iclient, err = clientV1beta1.NewForConfig(clientConfig)
 
 		if err != nil {
@@ -124,22 +126,22 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 		}
 
 		// Create CAs to be used in testing
-		testContext.caArns["RSA"] = createCertificateAuthority(ctx, cfg, true)
+		testContext.caArns["RSA"] = testContext.createCertificateAuthority(ctx, cfg, true)
 		log.Printf("Created RSA CA with arn %s", testContext.caArns["RSA"])
 
-		testContext.caArns["ECDSA"] = createCertificateAuthority(ctx, cfg, false)
+		testContext.caArns["ECDSA"] = testContext.createCertificateAuthority(ctx, cfg, false)
 		log.Printf("Created EC CA with arn %s", testContext.caArns["ECDSA"])
 
 		xaRole, xaRoleExists := os.LookupEnv(CrossAccountRoleKey)
 		if xaRoleExists {
 			testContext.xaCfg = assumeRole(ctx, cfg, xaRole, testContext.region)
 
-			testContext.caArns["XA"] = createCertificateAuthority(ctx, testContext.xaCfg, true)
+			testContext.caArns["XA"] = testContext.createCertificateAuthority(ctx, testContext.xaCfg, true)
 
 			log.Printf("Created XA CA with arn %s", testContext.caArns["XA"])
 
-			endEntityResourcePermission := "arn:aws:ram::aws:permission/AWSRAMDefaultPermissionCertificateAuthority"
-			subordinateCaResourcePermission := "arn:aws:ram::aws:permission/AWSRAMSubordinateCACertificatePathLen0IssuanceCertificateAuthority"
+			endEntityResourcePermission := "arn:" + testContext.partition + ":ram::aws:permission/AWSRAMDefaultPermissionCertificateAuthority"
+			subordinateCaResourcePermission := "arn:" + testContext.partition + ":ram::aws:permission/AWSRAMSubordinateCACertificatePathLen0IssuanceCertificateAuthority"
 
 			testContext.endEntityResourceShareArn = shareCA(ctx, cfg, testContext.xaCfg, testContext.caArns["XA"], endEntityResourcePermission)
 			testContext.subordinateCaResourceShareArn = shareCA(ctx, cfg, testContext.xaCfg, testContext.caArns["XA"], subordinateCaResourcePermission)

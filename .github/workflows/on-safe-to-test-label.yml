@@ -32,22 +32,21 @@ jobs:
         run: |
           AWS_REGION=us-east-1
           VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=tag-key,Values=GithubActionsTesting' --query 'Vpcs[0].VpcId' --output text)
-          SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting"  --query 'Subnets[0].SubnetId' --output text)
           SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting" --query 'SecurityGroups[0].GroupId' --output text)
           AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${{ inputs.architecture }} --query 'Parameter.Value' --output text)
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
-          echo SUBNET_ID=$SUBNET_ID >> $GITHUB_ENV
+          echo VPC_ID=$VPC_ID >> $GITHUB_ENV
           echo SG_ID=$SG_ID >> $GITHUB_ENV
           echo AMI=$AMI >> $GITHUB_ENV
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@0444f5f46462bcf8d98932bc807d2f51c4945b58
+        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
         with:
           mode: start
           github-token: GithubToken-test-us-east-1
           ec2-image-id: ${{ env.AMI }}
           ec2-instance-type: ${{ env.EC2_INSTANCE_TYPE }}
-          subnet-id: ${{ env.SUBNET_ID }}
+          vpc-id: ${{ env.VPC_ID }}
           security-group-id: ${{ env.SG_ID }}
           iam-role-name: K8sPluginInstanceProfile-test-us-east-1
           ec2-launch-template: GithubRunnerLaunchTemplate-test-us-east-1
@@ -244,7 +243,7 @@ jobs:
           AWS_REGION=us-east-1
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
       - name: Stop EC2 runner
-        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@0444f5f46462bcf8d98932bc807d2f51c4945b58
+        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
         with:
           mode: stop
           github-token: GithubToken-test-us-east-1
