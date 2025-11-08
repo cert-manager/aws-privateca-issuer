@@ -11,12 +11,13 @@ set_variables() {
     K8S_NAMESPACE="aws-privateca-issuer"
     HELM_CHART_NAME="awspca/aws-privateca-issuer"
     CLUSTER_NAME=pca-external-issuer
-    AWS_REGION="us-east-1"
+    export AWS_REGION=${AWS_REGION:="us-east-1"}
     INTERFACE=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
     export SUBNET=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/subnet-id)
     export SECURITY_GROUP_ID=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/security-group-ids)
     export VPC_ID=$(curl_with_token --silent http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INTERFACE}/vpc-id)
     export PORT=6443
+    export AWS_PARTITION=$(aws sts get-caller-identity --query 'Arn' --output text | cut -d':' -f2)
     tag_subnet
     add_inbound_rule
     create_ca
@@ -39,7 +40,7 @@ create_target_group() {
 
     LOAD_BALANCER_NAME=$(cut -d'.' -f1 <<<"$LOAD_BALANCER_HOSTNAME" | sed 's/\(.*\)-/\1\//')
 
-    LOAD_BALANCER_ARN=arn:aws:elasticloadbalancing:$AWS_REGION:$(aws sts get-caller-identity | jq -r ".Account"):loadbalancer/net/$LOAD_BALANCER_NAME
+    LOAD_BALANCER_ARN=arn:${AWS_PARTITION}:elasticloadbalancing:$AWS_REGION:$(aws sts get-caller-identity | jq -r ".Account"):loadbalancer/net/$LOAD_BALANCER_NAME
 
     LISTENER_ARN=$(aws elbv2 describe-listeners --load-balancer-arn $LOAD_BALANCER_ARN | jq -r ".Listeners[0].ListenerArn")
 
@@ -53,9 +54,9 @@ create_ca() {
 
     aws acm-pca wait certificate-authority-csr-created --certificate-authority-arn $CA_ARN
 
-    aws acm-pca get-certificate-authority-csr --certificate-authority-arn $CA_ARN --output text --region us-east-1 >$E2E_DIR/blog-test/ca.csr
+    aws acm-pca get-certificate-authority-csr --certificate-authority-arn $CA_ARN --output text >$E2E_DIR/blog-test/ca.csr
 
-    CERTIFICATE_ARN=$(aws acm-pca issue-certificate --certificate-authority-arn $CA_ARN --csr fileb://$E2E_DIR/blog-test/ca.csr --signing-algorithm SHA256WITHRSA --template-arn arn:aws:acm-pca:::template/RootCACertificate/V1 --validity Value=365,Type=DAYS --query 'CertificateArn' --output text)
+    CERTIFICATE_ARN=$(aws acm-pca issue-certificate --certificate-authority-arn $CA_ARN --csr fileb://$E2E_DIR/blog-test/ca.csr --signing-algorithm SHA256WITHRSA --template-arn arn:${AWS_PARTITION}:acm-pca:::template/RootCACertificate/V1 --validity Value=365,Type=DAYS --query 'CertificateArn' --output text)
 
     aws acm-pca wait certificate-issued --certificate-authority-arn $CA_ARN --certificate-arn $CERTIFICATE_ARN
 
