@@ -42,6 +42,13 @@ spec:
               arn:
                 description: Specifies the ARN of the PCA resource
                 type: string
+              explicitTemplateSelection:
+                description: |-
+                  When set to true, Certificates can explicitly select a specific
+                  PCA template via the aws-privateca.cert-manager.io/template-arn annotation.
+                  When false, this Certifcate annotation will be ignored and template
+                  selection will be based on the Certificate spec.
+                type: boolean
               region:
                 description: Should contain the AWS region if it cannot be inferred
                 type: string

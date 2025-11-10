@@ -31,6 +31,14 @@ type AWSPCAIssuerSpec struct {
 
 	// Specifies the ARN of the PCA resource
 	Arn string `json:"arn,omitempty"`
+	// ExplicitTemplateSelection controls whether the issuer will honor the
+	// aws-privateca.cert-manager.io/template-arn annotation on Certificate
+	// resources. When set to true, the annotation (if present) will be used
+	// to select the PCA template ARN. When false, the annotation will be
+	// ignored and the template will be selected based on the Certificate spec.
+	// Defaults to false.
+	// +optional
+	ExplicitTemplateSelection bool `json:"explicitTemplateSelection,omitempty"`
 	// Should contain the AWS region if it cannot be inferred
 	// +optional
 	Region string `json:"region,omitempty"`

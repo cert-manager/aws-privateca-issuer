@@ -68,10 +68,11 @@ type acmPCAClient interface {
 
 // PCAProvisioner contains logic for issuing PCA certificates
 type PCAProvisioner struct {
-	pcaClient        acmPCAClient
-	arn              string
-	signingAlgorithm *acmpcatypes.SigningAlgorithm
-	clock            func() time.Time
+	pcaClient                 acmPCAClient
+	arn                       string
+	signingAlgorithm          *acmpcatypes.SigningAlgorithm
+	clock                     func() time.Time
+	explicitTemplateSelection bool
 }
 
 func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
@@ -166,7 +167,8 @@ func GetProvisioner(ctx context.Context, client client.Client, name types.Namesp
 		pcaClient: acmpca.NewFromConfig(config, acmpca.WithAPIOptions(
 			middleware.AddUserAgentKeyValue(injections.UserAgent, injections.PlugInVersion),
 		)),
-		arn: spec.Arn,
+		arn:                       spec.Arn,
+		explicitTemplateSelection: spec.ExplicitTemplateSelection,
 	}
 	collection.Store(name, provisioner)
 
@@ -193,7 +195,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		validityExpiration = int64(p.now().Unix()) + int64(cr.Spec.Duration.Seconds())
 	}
 
-	tempArn := templateArn(p.arn, cr.Spec)
+	// Determine template ARN to use
+	tempArn := p.resolveTemplateArn(ctx, cr)
 
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
 	token := idempotencyToken(cr)
@@ -226,6 +229,27 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 	log.Info("Issued certificate with arn: " + *issueOutput.CertificateArn)
 
 	return nil
+}
+
+// resolveTemplateArn determines which PCA template ARN to use for a
+// CertificateRequest.
+//
+// If the CertificateRequest has the annotation
+// "aws-privateca.cert-manager.io/template-arn" and it is non-empty, the
+// value of the annotation is returned. Otherwise, fall back to inference logic
+// implemented by `templateArn`.
+func (p *PCAProvisioner) resolveTemplateArn(ctx context.Context, cr *cmapi.CertificateRequest) string {
+	const annotationKey = "aws-privateca.cert-manager.io/template-arn"
+
+	// Only use the annotation when the Issuer permits it.
+	if p.explicitTemplateSelection {
+		if val, ok := cr.ObjectMeta.GetAnnotations()[annotationKey]; ok && strings.TrimSpace(val) != "" {
+			return val
+		}
+	}
+
+	// Fall back to inference logic based on spec
+	return templateArn(p.arn, cr.Spec)
 }
 
 func (p *PCAProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest, certArn string, log logr.Logger) ([]byte, []byte, error) {
