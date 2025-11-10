@@ -25,7 +25,7 @@ jobs:
         id: tag
         uses: aws-pca-k8s-plugin-ops-admin/action-get-tag@727a6f0a561be04e09013531e73a3983a65e3479
       - name: Setup Dockerx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
