@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
@@ -296,7 +295,7 @@ func getAccountID(ctx context.Context, cfg aws.Config) string {
 	return *callerID.Account
 }
 
-func getPartition(ctx context.Context, cfg aws.Config) string {
+func getCallerIdentity(ctx context.Context, cfg aws.Config) *sts.GetCallerIdentityOutput {
 	stsClient := sts.NewFromConfig(cfg)
 
 	callerID, callerErr := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
@@ -305,12 +304,7 @@ func getPartition(ctx context.Context, cfg aws.Config) string {
 		panic(callerErr.Error())
 	}
 
-	parsedArn, parseErr := arn.Parse(*callerID.Arn)
-	if parseErr != nil {
-		return "aws"
-	}
-
-	return parsedArn.Partition
+	return callerID
 }
 
 func assumeRole(ctx context.Context, cfg aws.Config, roleName string, region string) aws.Config {

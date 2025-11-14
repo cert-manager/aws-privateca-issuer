@@ -32,8 +32,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/acmpca"
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	injections "github.com/cert-manager/aws-privateca-issuer/pkg/api/injections"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -89,6 +91,11 @@ func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuer
 }
 
 func LoadConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+	var configOptions []func(*config.LoadOptions) error
+	if spec.Region != "" {
+		configOptions = append(configOptions, config.WithRegion(spec.Region))
+	}
+
 	if spec.SecretRef.Name != "" {
 		secretNamespaceName := types.NamespacedName{
 			Namespace: spec.SecretRef.Namespace,
@@ -118,23 +125,23 @@ func LoadConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssue
 			return aws.Config{}, ErrNoSecretAccessKey
 		}
 
-		if spec.Region != "" {
-			return config.LoadDefaultConfig(ctx,
-				config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-				config.WithRegion(spec.Region),
-			)
-		}
-
-		return config.LoadDefaultConfig(ctx,
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-		)
-	} else if spec.Region != "" {
-		return config.LoadDefaultConfig(ctx,
-			config.WithRegion(spec.Region),
+		configOptions = append(configOptions, config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
 		)
 	}
 
-	return config.LoadDefaultConfig(ctx)
+	cfg, err := config.LoadDefaultConfig(ctx, configOptions...)
+	if err != nil {
+		return aws.Config{}, err
+	}
+
+	if spec.Role != "" {
+		stsService := sts.NewFromConfig(cfg)
+		creds := stscreds.NewAssumeRoleProvider(stsService, spec.Role)
+		cfg.Credentials = aws.NewCredentialsCache(creds)
+	}
+
+	return cfg, nil
 }
 
 func ClearProvisioners() {
