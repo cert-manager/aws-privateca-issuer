@@ -145,6 +145,24 @@ volumes:
       secretName: cert
 ```
 
+#### Cross Account Assume Role
+
+You can configure the AWS Private CA issuer to assume an IAM role before making AWS Private CA API calls. This method provides flexibility for various authentication scenarios and is an alternative to AWS Resource Access Manager (RAM) sharing for cross-account use cases.
+
+When you specify a role in the `role` field, the issuer assumes that role using AWS Security Token Service (STS) before making AWS Private CA API calls.
+
+Example:
+```
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAClusterIssuer
+metadata:
+  name: example
+spec:
+  arn: <some-pca-arn>
+  role: <some-role-arn>
+  region: <some-region>
+```
+
 ## Supported workflows
 
 AWS Private Certificate Authority(PCA) Issuer Plugin supports the following integrations and use cases:
