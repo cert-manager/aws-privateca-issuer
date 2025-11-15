@@ -20,6 +20,8 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -815,6 +817,105 @@ func TestPCASign(t *testing.T) {
 				assert.Equal(t, cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"], tc.expectedCertArn)
 			}
 		})
+	}
+}
+
+// --- ApiPassthrough tests ---
+
+// ASN.1 structure for GeneralSubtree (RFC 5280)
+type GeneralSubtree struct {
+	Base    asn1.RawValue
+	Minimum int `asn1:"optional,default:0"`
+	Maximum int `asn1:"optional"`
+}
+
+// ASN.1 structure for NameConstraints (RFC 5280)
+type NameConstraints struct {
+	Permitted []GeneralSubtree `asn1:"tag:0,optional"`
+	Excluded  []GeneralSubtree `asn1:"tag:1,optional"`
+}
+
+func createCSRWithNameConstraints() ([]byte, error) {
+
+	nc := NameConstraints{
+		Permitted: []GeneralSubtree{{Base: asn1.RawValue{Tag: 2, Class: asn1.ClassContextSpecific, Bytes: []byte("permitted.com")}}},
+		Excluded:  []GeneralSubtree{{Base: asn1.RawValue{Tag: 2, Class: asn1.ClassContextSpecific, Bytes: []byte("excluded.com")}}},
+	}
+	ncBytes, err := asn1.Marshal(nc)
+	if err != nil {
+		return nil, err
+	}
+
+	ext := pkix.Extension{
+		Id:       asn1.ObjectIdentifier{2, 5, 29, 30},
+		Value:    ncBytes,
+		Critical: true,
+	}
+	tpl := x509.CertificateRequest{
+		Subject:         pkix.Name{CommonName: "with-nc"},
+		ExtraExtensions: []pkix.Extension{ext},
+	}
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &tpl, key)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes}), nil
+}
+
+func createCSRWithoutNameConstraints() ([]byte, error) {
+	tpl := x509.CertificateRequest{
+		Subject: pkix.Name{CommonName: "no-nc"},
+	}
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &tpl, key)
+	if err != nil {
+		return nil, err
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrBytes}), nil
+}
+
+func TestPCASign_ApiPassthrough(t *testing.T) {
+	client := &workingACMPCAClient{}
+	provisioner := PCAProvisioner{arn: arn, pcaClient: client}
+
+	// With Name Constraints
+	csrWithNC, err := createCSRWithNameConstraints()
+	require.NoError(t, err)
+	crWithNC := &cmapi.CertificateRequest{
+		Spec: cmapi.CertificateRequestSpec{Request: csrWithNC},
+	}
+	_ = provisioner.Sign(context.TODO(), crWithNC, logr.Discard())
+	got := client.issueCertInput
+	if assert.NotNil(t, got, "Expected IssueCertificateInput with Name Constraints") {
+		assert.NotNil(t, got.ApiPassthrough, "ApiPassthrough should be set when Name Constraints present")
+		if assert.NotNil(t, got.ApiPassthrough.Extensions) {
+			// This assumes only one custom extension is present. If support
+			// for additional extensions via apiPassthrough is added, this
+			// test will need to be updated.
+			assert.Len(t, got.ApiPassthrough.Extensions.CustomExtensions, 1)
+			ext := got.ApiPassthrough.Extensions.CustomExtensions[0]
+			assert.Equal(t, "2.5.29.30", *ext.ObjectIdentifier)
+			assert.True(t, *ext.Critical)
+			// Decode and check permitted/excluded DNS names
+			ncBytes, err := base64.StdEncoding.DecodeString(*ext.Value)
+			require.NoError(t, err)
+			// Look for 'permitted.com' and 'excluded.com' in the raw bytes
+			assert.Contains(t, string(ncBytes), "permitted.com", "Permitted DNS name should be present")
+			assert.Contains(t, string(ncBytes), "excluded.com", "Excluded DNS name should be present")
+		}
+	}
+
+	// Without Name Constraints
+	csrNoNC, err := createCSRWithoutNameConstraints()
+	require.NoError(t, err)
+	crNoNC := &cmapi.CertificateRequest{
+		Spec: cmapi.CertificateRequestSpec{Request: csrNoNC},
+	}
+	_ = provisioner.Sign(context.TODO(), crNoNC, logr.Discard())
+	got = client.issueCertInput
+	if assert.NotNil(t, got, "Expected IssueCertificateInput without Name Constraints") {
+		assert.Nil(t, got.ApiPassthrough, "ApiPassthrough should be nil when Name Constraints absent")
 	}
 }
 
