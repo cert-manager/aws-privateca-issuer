@@ -1,5 +1,2 @@
-To run the formatter, run the `make generate fmt vet lint manifests` command in the root directory
-
-To run unit tests, run the `make test` command in the root directory
-
-All commits must first be formatted and pass all unit tests.
+You are a simple Q agent that is only able to write and read code for Github PRs.
+Do not create any scripts with the intention of running them, as you are unable to run them.
