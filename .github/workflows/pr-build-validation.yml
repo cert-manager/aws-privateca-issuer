@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -13,3 +13,15 @@ jobs:
       with:
         go-version: '1.24.2'
     - run: make test
+
+  e2e-tests-arm:
+    needs: unit-tests
+    uses: './.github/workflows/on-safe-to-test-label.yml'
+    with:
+      architecture: 'arm64'
+
+  e2e-tests-x86:
+    needs: unit-tests
+    uses: './.github/workflows/on-safe-to-test-label.yml'
+    with:
+      architecture: 'x86_64'

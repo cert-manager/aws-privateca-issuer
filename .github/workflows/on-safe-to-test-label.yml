@@ -59,7 +59,6 @@ jobs:
             sudo yum install libicu -y
 
   do-the-job:
-    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
     name: Do the job on the runner
     needs: start-runner # required to start the main job when the runner is ready
     runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
@@ -231,7 +230,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always()) || (contains(github.event_name, 'workflow_dispatch')) }} # required to stop the runner even if the error happened in the previous jobs
+    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
