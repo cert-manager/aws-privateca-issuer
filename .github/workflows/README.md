@@ -4,13 +4,12 @@
 
 **Purpose**: Validates that pull requests can build successfully before merge.
 
-**Triggers**: Automatically runs on all PRs to the main branch (opened, updated, or reopened).
+**Triggers**: Automatically runs on all PRs to the main branch.
 
 **What it does**:
-- Sets up Go 1.24.2 environment
-- Downloads dependencies
-- Builds the manager binary (`make manager`)
-- Runs unit tests (`make test`)
+- Checks out code
+- Sets up Go 1.24.2 (required by project)
+- Runs `make test` (includes build validation and unit tests)
 
 **Why it exists**: Provides immediate feedback to Q agents and developers on whether their PR changes break the build, ensuring code quality and preventing broken merges.
 
