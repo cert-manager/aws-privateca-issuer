@@ -1,0 +1,36 @@
+name: Helm Chart End-to-End Tests
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+      - 'tests/helm/**'
+      - '.github/workflows/helm-test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'charts/**'
+      - 'tests/helm/**'
+      - '.github/workflows/helm-test.yml'
+
+jobs:
+  helm-e2e-tests:
+    name: Helm End-to-End Tests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v4
+      with:
+        version: '3.16.4'
+
+    - name: Run Helm End-to-End Tests
+      run: make e2eHelmTest
