@@ -109,9 +109,9 @@ func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.Gene
 func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 	switch {
 	case spec.Arn == "":
-		return fmt.Errorf(errNoArnInSpec.Error())
+		return errNoArnInSpec
 	case spec.Region == "" && awsDefaultRegion == "":
-		return fmt.Errorf(errNoRegionInSpec.Error())
+		return errNoRegionInSpec
 	}
 	return nil
 }

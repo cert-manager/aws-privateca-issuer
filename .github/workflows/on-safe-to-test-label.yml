@@ -1,6 +1,11 @@
 name: RunTestForArchitecture
 
 on:
+  workflow_dispatch:
+    inputs:
+      architecture:
+        required: true
+        type: string
   workflow_call:
     inputs:
       architecture:
@@ -26,12 +31,13 @@ jobs:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
-          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
+          role-to-assume: arn:aws:iam::905418208571:role/GithubActionsTestingRole-wrichman-us-east-1
           aws-region: us-east-1
       - name: Configure EC2 Runner Parameters
         run: |
           AWS_REGION=us-east-1
           VPC_ID=$(aws ec2 describe-vpcs --filters 'Name=tag-key,Values=GithubActionsTesting' --query 'Vpcs[0].VpcId' --output text)
+          echo $VPC_ID
           SG_ID=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag-key,Values=GithubActionsTesting" --query 'SecurityGroups[0].GroupId' --output text)
           AMI=$(aws ssm get-parameter --name /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-${{ inputs.architecture }} --query 'Parameter.Value' --output text)
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
@@ -43,13 +49,13 @@ jobs:
         uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
         with:
           mode: start
-          github-token: GithubToken-test-us-east-1
+          github-token: GithubToken-wrichman-us-east-1
           ec2-image-id: ${{ env.AMI }}
           ec2-instance-type: ${{ env.EC2_INSTANCE_TYPE }}
           vpc-id: ${{ env.VPC_ID }}
           security-group-id: ${{ env.SG_ID }}
-          iam-role-name: K8sPluginInstanceProfile-test-us-east-1
-          ec2-launch-template: GithubRunnerLaunchTemplate-test-us-east-1
+          iam-role-name: K8sPluginInstanceProfile-wrichman-us-east-1
+          ec2-launch-template: GithubRunnerLaunchTemplate-wrichman-us-east-1
           aws-resource-tags: >
             [
               {"Key": "Name", "Value": "ec2-github-runner"},
@@ -59,7 +65,6 @@ jobs:
             sudo yum install libicu -y
 
   do-the-job:
-    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
     name: Do the job on the runner
     needs: start-runner # required to start the main job when the runner is ready
     runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
@@ -231,7 +236,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always()) || (contains(github.event_name, 'workflow_dispatch')) }} # required to stop the runner even if the error happened in the previous jobs
+    if: ${{ always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
@@ -246,6 +251,6 @@ jobs:
         uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
         with:
           mode: stop
-          github-token: GithubToken-test-us-east-1
+          github-token: GithubToken-wrichman-us-east-1
           label: ${{ needs.start-runner.outputs.label }}
           ec2-instance-id: ${{ needs.start-runner.outputs.ec2-instance-id }}

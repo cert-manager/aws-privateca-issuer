@@ -1,0 +1,43 @@
+version: 2
+
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+
+linters:
+  enable-all: true
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+  revive:
+    rules:
+      - name: exported
+        disabled: false
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+    # Exclude generated files
+    - path: zz_generated\.deepcopy\.go
+      linters:
+        - all
+  max-issues-per-linter: 0
+  max-same-issues: 0
+

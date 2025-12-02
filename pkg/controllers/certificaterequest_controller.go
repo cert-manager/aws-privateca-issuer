@@ -71,7 +71,7 @@ var (
 func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("certificaterequest", req.NamespacedName)
 	cr := new(cmapi.CertificateRequest)
-	if err := r.Client.Get(ctx, req.NamespacedName, cr); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, cr); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
 		}
@@ -167,7 +167,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	certArn, exists := cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"]
+	certArn, exists := cr.GetAnnotations()["aws-privateca-issuer/certificate-arn"]
 	if !exists {
 		err := provisioner.Sign(ctx, cr, log)
 		if err != nil {
@@ -175,7 +175,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
 		}
 
-		return ctrl.Result{Requeue: true}, r.Client.Update(ctx, cr)
+		return ctrl.Result{Requeue: true}, r.Update(ctx, cr)
 	}
 
 	pem, ca, err := provisioner.Get(ctx, cr, certArn, log)

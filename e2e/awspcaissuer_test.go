@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 		log.Printf("Using CrossAccount role: " + roleName)
 	}
 
-	log.Printf(fmt.Sprintf("Running tests with the following tags: %s", o.Tags))
+	log.Printf("Running tests with the following tags: %s", o.Tags)
 	status := godog.TestSuite{
 		Name:                 "AWSPrivateCAIssuer",
 		Options:              &o,
@@ -183,7 +183,7 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 	suiteCtx.AfterSuite(func() {
 		ctx := context.TODO()
 
-		log.Printf(strings.Join(errDetails, "\n"))
+		log.Print(strings.Join(errDetails, "\n"))
 		cfg, cfgErr := config.LoadDefaultConfig(ctx, config.WithRegion(testContext.region))
 		if cfgErr != nil {
 			panic(cfgErr.Error())
@@ -249,25 +249,25 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 		// Delete created Issuers
 		switch issuerContext.issuerType {
 		case "AWSPCAClusterIssuer":
-			testContext.iclient.AWSPCAClusterIssuers().Delete(ctx, issuerContext.issuerName, metav1.DeleteOptions{})
+			_ = testContext.iclient.AWSPCAClusterIssuers().Delete(ctx, issuerContext.issuerName, metav1.DeleteOptions{})
 		case "AWSPCAIssuer":
-			testContext.iclient.AWSPCAIssuers(issuerContext.namespace).Delete(ctx, issuerContext.issuerName, metav1.DeleteOptions{})
+			_ = testContext.iclient.AWSPCAIssuers(issuerContext.namespace).Delete(ctx, issuerContext.issuerName, metav1.DeleteOptions{})
 		}
 
 		// Delete created Secrets
 		if issuerContext.secretRef != (v1beta1.AWSCredentialsSecretReference{}) {
-			testContext.clientset.CoreV1().Secrets(issuerContext.namespace).Delete(ctx, issuerContext.secretRef.SecretReference.Name, metav1.DeleteOptions{})
+			_ = testContext.clientset.CoreV1().Secrets(issuerContext.namespace).Delete(ctx, issuerContext.secretRef.Name, metav1.DeleteOptions{})
 		}
 
 		// Delete created Certificates
-		testContext.cmClient.Certificates(issuerContext.namespace).Delete(ctx, issuerContext.certName, metav1.DeleteOptions{})
+		_ = testContext.cmClient.Certificates(issuerContext.namespace).Delete(ctx, issuerContext.certName, metav1.DeleteOptions{})
 
 		// Delete left over certificate secrets
-		testContext.clientset.CoreV1().Secrets(issuerContext.namespace).Delete(ctx, issuerContext.certName+"-cert-secret", metav1.DeleteOptions{})
+		_ = testContext.clientset.CoreV1().Secrets(issuerContext.namespace).Delete(ctx, issuerContext.certName+"-cert-secret", metav1.DeleteOptions{})
 
 		// Delete created namespace
 		if issuerContext.namespace != "default" {
-			testContext.clientset.CoreV1().Namespaces().Delete(ctx, issuerContext.namespace, metav1.DeleteOptions{})
+			_ = testContext.clientset.CoreV1().Namespaces().Delete(ctx, issuerContext.namespace, metav1.DeleteOptions{})
 		}
 
 		return ctx, nil
@@ -309,7 +309,7 @@ func GetErrorDetails(ctx context.Context, sc *godog.Scenario, issuerContext *Iss
 		return errMsg
 	}
 
-	errMsg += fmt.Sprintf("\nLogging Issuer conditions:\n")
+	errMsg += "\nLogging Issuer conditions:\n"
 	for _, condition := range issuerConditions {
 		errMsg += fmt.Sprintf("Reason: %s, Status: %s, Message: %s\n", condition.Reason, condition.Status, condition.Message)
 	}
@@ -321,7 +321,7 @@ func GetErrorDetails(ctx context.Context, sc *godog.Scenario, issuerContext *Iss
 		return errMsg
 	}
 
-	errMsg += fmt.Sprintf("\nLogging CertificateRequest conditions:\n")
+	errMsg += "\nLogging CertificateRequest conditions:\n"
 	for _, condition := range cr.Status.Conditions {
 		errMsg += fmt.Sprintf("Reason: %s, Status: %s, Message: %s\n", condition.Reason, condition.Status, condition.Message)
 	}
