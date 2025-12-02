@@ -48,3 +48,12 @@ jobs:
           ${{ env.TAG_BASE }}:latest
           ${{ env.TAG_BASE }}:${{ env.PLUGIN_VERSION }}
         push: true
+  run-for-arm:
+    uses: './.github/workflows/on-safe-to-test-label.yml'
+    with:
+      architecture: 'arm64'
+  run-for-x86:
+    uses: './.github/workflows/on-safe-to-test-label.yml'
+    with:
+      architecture: 'x86_64'
+
