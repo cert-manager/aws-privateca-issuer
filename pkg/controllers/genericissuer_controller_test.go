@@ -464,7 +464,7 @@ func TestIssuerReconcile(t *testing.T) {
 			if tc.kind == ClusterIssuer {
 				iss := new(issuerapi.AWSPCAClusterIssuer)
 
-				require.NoError(t, controller.Client.Get(ctx, tc.name, iss))
+				require.NoError(t, controller.Get(ctx, tc.name, iss))
 
 				result, err = controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name}, iss)
 
@@ -472,7 +472,7 @@ func TestIssuerReconcile(t *testing.T) {
 			} else {
 				iss := new(issuerapi.AWSPCAIssuer)
 
-				require.NoError(t, controller.Client.Get(ctx, tc.name, iss))
+				require.NoError(t, controller.Get(ctx, tc.name, iss))
 
 				result, err = controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name}, iss)
 

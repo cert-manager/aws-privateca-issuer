@@ -49,7 +49,7 @@ type AWSPCAClusterIssuerReconciler struct {
 func (r *AWSPCAClusterIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("awspcaclusterissuer", req.NamespacedName)
 	iss := new(api.AWSPCAClusterIssuer)
-	if err := r.Client.Get(ctx, req.NamespacedName, iss); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, iss); err != nil {
 		log.Error(err, "Failed to request AWSPCAClusterIssuer")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}

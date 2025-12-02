@@ -25,7 +25,7 @@ func NewForConfig(c *rest.Config) (*Client, error) {
 	}
 
 	config := *c
-	config.ContentConfig.GroupVersion = &api.GroupVersion
+	config.GroupVersion = &api.GroupVersion
 	config.APIPath = "/apis"
 	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 	config.UserAgent = rest.DefaultKubernetesUserAgent()

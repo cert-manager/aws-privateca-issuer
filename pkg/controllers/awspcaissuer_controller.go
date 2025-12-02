@@ -49,7 +49,7 @@ type AWSPCAIssuerReconciler struct {
 func (r *AWSPCAIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("awspcaissuer", req.NamespacedName)
 	iss := new(api.AWSPCAIssuer)
-	if err := r.Client.Get(ctx, req.NamespacedName, iss); err != nil {
+	if err := r.Get(ctx, req.NamespacedName, iss); err != nil {
 		log.Error(err, "Failed to request AWSPCAIssuer")
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}

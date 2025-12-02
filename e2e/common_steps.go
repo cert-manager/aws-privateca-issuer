@@ -99,7 +99,7 @@ func (issCtx *IssuerContext) createSecret(ctx context.Context, accessKey string,
 }
 
 func getBaseCertSpec(certType string) cmv1.CertificateSpec {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
+	sanitizedCertType := strings.ReplaceAll(strings.ToLower(certType), "_", "-")
 	certSpec := cmv1.CertificateSpec{
 		Subject: &cmv1.X509Subject{
 			Organizations: []string{"aws"},
@@ -162,7 +162,7 @@ func getCaCertSpec(certSpec cmv1.CertificateSpec) cmv1.CertificateSpec {
 }
 
 func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType string) error {
-	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
+	sanitizedCertType := strings.ReplaceAll(strings.ToLower(certType), "_", "-")
 	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
 	certSpec := getCertSpec(certType)
 

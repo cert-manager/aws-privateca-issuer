@@ -159,9 +159,7 @@ vWJet5qO7W0LkKp4DeQWA0KkAtmgR3ZQ
 	chain = intermediate + "\n" + root
 )
 
-type errorACMPCAClient struct {
-	acmPCAClient
-}
+type errorACMPCAClient struct{}
 
 func (m *errorACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
 	return &acmpca.DescribeCertificateAuthorityOutput{
@@ -182,7 +180,6 @@ func (m *errorACMPCAClient) GetCertificate(_ context.Context, input *acmpca.GetC
 }
 
 type workingACMPCAClient struct {
-	acmPCAClient
 	issueCertInput *acmpca.IssueCertificateInput
 }
 
@@ -812,7 +809,7 @@ func TestPCASign(t *testing.T) {
 			}
 
 			if tc.expectedCertArn != "" {
-				assert.Equal(t, cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"], tc.expectedCertArn)
+				assert.Equal(t, cr.GetAnnotations()["aws-privateca-issuer/certificate-arn"], tc.expectedCertArn)
 			}
 		})
 	}
