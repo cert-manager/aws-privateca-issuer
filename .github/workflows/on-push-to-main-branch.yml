@@ -56,4 +56,6 @@ jobs:
     uses: './.github/workflows/on-safe-to-test-label.yml'
     with:
       architecture: 'x86_64'
+  run-helm-tests:
+    uses: './.github/workflows/helm-test.yml'
 
