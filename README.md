@@ -6,7 +6,7 @@
 <img alt="Latest version" src="https://img.shields.io/github/v/release/cert-manager/aws-privateca-issuer?color=success&sort=semver" />
 </p>
 
-# AWS Private CA Issuer
+# AWS Private CA Issuer 12
 
 
 > [!TIP]
