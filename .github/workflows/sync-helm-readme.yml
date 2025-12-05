@@ -24,7 +24,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Run helm-docs via Makefile
         id: run-helm-docs
@@ -68,7 +68,7 @@ jobs:
 
       - name: Create new PR with README changes (on manual runs)
         if: ${{ github.event_name == 'workflow_dispatch' && steps.run-helm-docs.outcome == 'success' }}
-        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e #v7.0.8
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Update Helm README.md documentation"
