@@ -385,7 +385,7 @@ func shareCA(ctx context.Context, cfg aws.Config, xaCfg aws.Config, xaCAArn stri
 		assocOutput, assocErr := xaRAMClient.GetResourceShareAssociations(ctx, &assocInput)
 
 		if assocErr != nil {
-			log.Printf("GetResourceShareAssociationError: " + assocErr.Error())
+			log.Printf("GetResourceShareAssociationError: %s", assocErr.Error())
 		} else if assocOutput.ResourceShareAssociations[0].Status == ramtypes.ResourceShareAssociationStatusAssociated {
 			shareAssociated = true
 			break
