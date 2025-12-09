@@ -211,14 +211,13 @@ func isReady(issuer api.GenericIssuer) bool {
 	return false
 }
 
-func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string, args ...interface{}) error {
-	completeMessage := fmt.Sprintf(message, args...)
-	cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, completeMessage)
+func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string) error {
+	cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, message)
 
 	eventType := core.EventTypeNormal
 	if status == cmmeta.ConditionFalse {
 		eventType = core.EventTypeWarning
 	}
-	r.Recorder.Event(cr, eventType, reason, completeMessage)
+	r.Recorder.Event(cr, eventType, reason, message)
 	return r.Client.Status().Update(ctx, cr)
 }

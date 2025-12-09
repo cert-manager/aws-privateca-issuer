@@ -66,10 +66,10 @@ func TestMain(m *testing.M) {
 		log.Printf("Skipping CrossAccount tests")
 		o.Tags = "~@CrossAccount"
 	} else {
-		log.Printf("Using CrossAccount role: " + roleName)
+		log.Printf("Using CrossAccount role: %s", roleName)
 	}
 
-	log.Printf(fmt.Sprintf("Running tests with the following tags: %s", o.Tags))
+	log.Printf("Running tests with the following tags: %s", o.Tags)
 	status := godog.TestSuite{
 		Name:                 "AWSPrivateCAIssuer",
 		Options:              &o,
@@ -183,7 +183,7 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 	suiteCtx.AfterSuite(func() {
 		ctx := context.TODO()
 
-		log.Printf(strings.Join(errDetails, "\n"))
+		log.Print(strings.Join(errDetails, "\n"))
 		cfg, cfgErr := config.LoadDefaultConfig(ctx, config.WithRegion(testContext.region))
 		if cfgErr != nil {
 			panic(cfgErr.Error())

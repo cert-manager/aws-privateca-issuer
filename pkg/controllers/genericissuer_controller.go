@@ -68,7 +68,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	err := validateIssuer(spec)
 	if err != nil {
 		log.Error(err, "failed to validate issuer")
-		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Validation", "Failed to validate resource: %v", err)
+		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Validation", fmt.Sprintf("Failed to validate resource: %v", err))
 		return ctrl.Result{}, err
 	}
 
@@ -92,16 +92,15 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, r.setStatus(ctx, issuer, metav1.ConditionTrue, "Verified", "Issuer verified")
 }
 
-func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.GenericIssuer, status metav1.ConditionStatus, reason, message string, args ...interface{}) error {
+func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.GenericIssuer, status metav1.ConditionStatus, reason, message string) error {
 	log := r.Log.WithValues("genericissuer", issuer.GetName())
-	completeMessage := fmt.Sprintf(message, args...)
-	util.SetIssuerCondition(log, issuer, api.ConditionTypeReady, status, reason, completeMessage)
+	util.SetIssuerCondition(log, issuer, api.ConditionTypeReady, status, reason, message)
 
 	eventType := core.EventTypeNormal
 	if status == metav1.ConditionFalse {
 		eventType = core.EventTypeWarning
 	}
-	r.Recorder.Event(issuer, eventType, reason, completeMessage)
+	r.Recorder.Event(issuer, eventType, reason, message)
 
 	return r.Client.Status().Update(ctx, issuer)
 }
@@ -109,9 +108,9 @@ func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.Gene
 func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 	switch {
 	case spec.Arn == "":
-		return fmt.Errorf(errNoArnInSpec.Error())
+		return errNoArnInSpec
 	case spec.Region == "" && awsDefaultRegion == "":
-		return fmt.Errorf(errNoRegionInSpec.Error())
+		return errNoRegionInSpec
 	}
 	return nil
 }
