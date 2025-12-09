@@ -14,6 +14,10 @@ CERT_ARN=$(aws acm-pca issue-certificate \
       --signing-algorithm "SHA256WITHRSA" \
       --validity Value=1,Type="DAYS" | jq -r .CertificateArn)
 
+aws acm-pca wait certificate-issued \
+      --certificate-authority-arn $CA_ARN \
+      --certificate-arn $CERT_ARN
+
 aws acm-pca get-certificate \
       --certificate-authority-arn $CA_ARN \
       --certificate-arn $CERT_ARN | \
