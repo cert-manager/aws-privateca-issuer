@@ -1,0 +1,14 @@
+
+image:
+  repository: public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test
+  pullPolicy: IfNotPresent
+  tag: ""
+
+volumeMounts:
+  - mountPath: /cache
+    name: cache-volume
+
+volumes:
+  - name: cache-volume
+    emptyDir:
+      sizeLimit: 500Mi
