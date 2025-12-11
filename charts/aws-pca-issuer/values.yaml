@@ -3,6 +3,9 @@
 # Number of replicas to run of the issuer
 replicaCount: 2
 
+# Annotations to be added to the Deployment Resource
+annotations: {}
+
 image:
   # Image repository
   repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
