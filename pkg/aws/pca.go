@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -188,6 +190,21 @@ func idempotencyToken(cr *cmapi.CertificateRequest) string {
 	return fullHash[:36] // Truncate to 36 characters
 }
 
+// extractNameConstraints finds the Name Constraints extension in the request and
+// returns its raw ASN.1 bytes. Returns (nil, nil) if the extension is not present.
+func extractNameConstraints(req *x509.CertificateRequest) ([]byte, error) {
+	var nc []byte
+	oidNameConstraints := []int{2, 5, 29, 30} // OID for Name Constraints
+	for _, ext := range req.Extensions {
+		if ext.Id.Equal(oidNameConstraints) {
+			nc = ext.Value
+			break
+		}
+	}
+
+	return nc, nil
+}
+
 // Sign takes a certificate request and signs it using PCA
 func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error {
 	block, _ := pem.Decode(cr.Spec.Request)
@@ -210,11 +227,37 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return err
 	}
 
+	crX509, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		return err
+	}
+
+	nameConstraints, err := extractNameConstraints(crX509)
+	if err != nil {
+		return err
+	}
+
+	var apiPassthrough *acmpcatypes.ApiPassthrough
+	if nameConstraints != nil {
+		apiPassthrough = &acmpcatypes.ApiPassthrough{
+			Extensions: &acmpcatypes.Extensions{
+				CustomExtensions: []acmpcatypes.CustomExtension{
+					{
+						ObjectIdentifier: aws.String("2.5.29.30"), // OID for Name Constraints
+						Value:            aws.String(base64.StdEncoding.EncodeToString(nameConstraints)),
+						Critical:         aws.Bool(true),
+					},
+				},
+			},
+		}
+	}
+
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 		SigningAlgorithm:        *p.signingAlgorithm,
 		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
+		ApiPassthrough:          apiPassthrough,
 		Validity: &acmpcatypes.Validity{
 			Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 			Value: &validityExpiration,
