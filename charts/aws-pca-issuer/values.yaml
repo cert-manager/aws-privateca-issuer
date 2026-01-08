@@ -1,4 +1,4 @@
-# +docs:section=AWS Private CA Issuer
+# +docs:section=AWS Private CA Issuer 
 
 # Number of replicas to run of the issuer
 replicaCount: 2
