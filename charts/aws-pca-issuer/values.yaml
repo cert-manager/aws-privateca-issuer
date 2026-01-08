@@ -1,6 +1,6 @@
 # +docs:section=AWS Private CA Issuer 
 
-# Number of replicas to run of the issuer
+# Number of replicas to run of the issuer   sasa
 replicaCount: 2
 
 image:
