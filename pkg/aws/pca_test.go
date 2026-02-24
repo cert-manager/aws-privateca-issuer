@@ -890,19 +890,25 @@ func TestPCASign_ApiPassthrough(t *testing.T) {
 	if assert.NotNil(t, got, "Expected IssueCertificateInput with Name Constraints") {
 		assert.NotNil(t, got.ApiPassthrough, "ApiPassthrough should be set when Name Constraints present")
 		if assert.NotNil(t, got.ApiPassthrough.Extensions) {
-			// This assumes only one custom extension is present. If support
-			// for additional extensions via apiPassthrough is added, this
-			// test will need to be updated.
-			assert.Len(t, got.ApiPassthrough.Extensions.CustomExtensions, 1)
-			ext := got.ApiPassthrough.Extensions.CustomExtensions[0]
-			assert.Equal(t, "2.5.29.30", *ext.ObjectIdentifier)
-			assert.True(t, *ext.Critical)
-			// Decode and check permitted/excluded DNS names
-			ncBytes, err := base64.StdEncoding.DecodeString(*ext.Value)
-			require.NoError(t, err)
-			// Look for 'permitted.com' and 'excluded.com' in the raw bytes
-			assert.Contains(t, string(ncBytes), "permitted.com", "Permitted DNS name should be present")
-			assert.Contains(t, string(ncBytes), "excluded.com", "Excluded DNS name should be present")
+			// Find the Name Constraints extension in the list
+			var ncExt *acmpcatypes.CustomExtension
+			for i := range got.ApiPassthrough.Extensions.CustomExtensions {
+				ext := &got.ApiPassthrough.Extensions.CustomExtensions[i]
+				if *ext.ObjectIdentifier == "2.5.29.30" {
+					ncExt = ext
+					break
+				}
+			}
+			if assert.NotNil(t, ncExt, "Name Constraints extension should be present") {
+				assert.Equal(t, "2.5.29.30", *ncExt.ObjectIdentifier)
+				assert.True(t, *ncExt.Critical)
+				// Decode and check permitted/excluded DNS names
+				ncBytes, err := base64.StdEncoding.DecodeString(*ncExt.Value)
+				require.NoError(t, err)
+				// Look for 'permitted.com' and 'excluded.com' in the raw bytes
+				assert.Contains(t, string(ncBytes), "permitted.com", "Permitted DNS name should be present")
+				assert.Contains(t, string(ncBytes), "excluded.com", "Excluded DNS name should be present")
+			}
 		}
 	}
 
