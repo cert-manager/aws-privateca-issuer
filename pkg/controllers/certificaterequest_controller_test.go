@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,6 +39,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	issuerapi "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
@@ -583,6 +585,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 
 			if tc.mockProvisioner != nil {
 				GetProvisioner = tc.mockProvisioner
+				t.Cleanup(awspca.ClearProvisioners)
 			}
 
 			result, signErr := controller.Reconcile(ctx, reconcile.Request{NamespacedName: tc.name})
@@ -609,8 +612,6 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					assert.Equal(t, tc.expectedCACertificate, cr.Status.CA)
 				}
 			}
-
-			awspca.ClearProvisioners()
 		})
 	}
 }
@@ -628,4 +629,70 @@ func assertCertificateRequestHasReadyCondition(t *testing.T, status cmmeta.Condi
 	)
 	assert.Contains(t, validReasons, reason, "unexpected condition reason")
 	assert.Equal(t, reason, condition.Reason, "unexpected condition reason")
+}
+
+func TestCertificateRequestReconcile_UpdateConflict(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, issuerapi.AddToScheme(scheme))
+	require.NoError(t, cmapi.AddToScheme(scheme))
+	require.NoError(t, v1.AddToScheme(scheme))
+
+	objects := []client.Object{
+		cmgen.CertificateRequest(
+			"cr1",
+			cmgen.SetCertificateRequestNamespace("ns1"),
+			cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+				Name:  "issuer1",
+				Group: issuerapi.GroupVersion.Group,
+				Kind:  "Issuer",
+			}),
+			cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+				Type:   cmapi.CertificateRequestConditionReady,
+				Status: cmmeta.ConditionUnknown,
+			}),
+		),
+		&issuerapi.AWSPCAIssuer{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "issuer1",
+				Namespace: "ns1",
+			},
+			Spec: issuerapi.AWSPCAIssuerSpec{
+				Region: "us-east-1",
+				Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+			},
+			Status: issuerapi.AWSPCAIssuerStatus{
+				Conditions: []metav1.Condition{
+					{Type: issuerapi.ConditionTypeReady, Status: metav1.ConditionTrue},
+				},
+			},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(objects...).
+		WithStatusSubresource(objects...).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Update: func(ctx context.Context, client client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				return apierrors.NewConflict(cmapi.Resource("certificaterequests"), "cr1", errors.New("conflict"))
+			},
+		}).
+		Build()
+
+	controller := CertificateRequestReconciler{
+		Client:   fakeClient,
+		Log:      logrtesting.NewTestLogger(t),
+		Scheme:   scheme,
+		Recorder: record.NewFakeRecorder(10),
+	}
+
+	GetProvisioner = generateMockGetProvisioner(&fakeProvisioner{cert: []byte("cert"), caCert: []byte("cacert")}, nil)
+	t.Cleanup(awspca.ClearProvisioners)
+
+	result, err := controller.Reconcile(context.TODO(), reconcile.Request{
+		NamespacedName: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+	})
+
+	assert.NoError(t, err, "conflict should not return an error")
+	assert.True(t, result.Requeue, "conflict should trigger requeue")
 }
