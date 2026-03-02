@@ -5,6 +5,8 @@ VERSION := $(shell git remote add mainRepo https://github.com/cert-manager/aws-p
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
 
+# BLAH
+
 # Options for 'bundle-build'
 ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
