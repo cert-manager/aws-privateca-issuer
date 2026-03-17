@@ -1,7 +1,5 @@
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
-featureGates:
-  "ServiceAccountIssuerDiscovery": true
 networking:
   apiServerAddress: 0.0.0.0
   apiServerPort: 6443
@@ -11,14 +9,13 @@ containerdConfigPatches:
     endpoint = ["http://kind-registry:5000"]
 nodes:
 - role: control-plane
-  image: "kindest/node:v1.22.17@sha256:9af784f45a584f6b28bce2af84c494d947a05bd709151466489008f80a9ce9d5"
+  image: "kindest/node:v1.31.6@sha256:28b7cbb993dfe093c76641a0c95807637213c9109b761f1d422c2400e22b8e87"
   kubeadmConfigPatches:
   - |
     kind: ClusterConfiguration
     apiServer:
         extraArgs:
-            api-audiences: "kubernetes.svc.default"
-            service-account-api-audiences: "cluster.identifier.kubernetes.domain"
+            api-audiences: "kubernetes.svc.default,cluster.identifier.kubernetes.domain"
             service-account-issuer: "https://S3_BUCKET_NAME_PLACEHOLDER.s3.us-east-1.amazonaws.com/cluster/my-oidc-cluster"
             service-account-jwks-uri: "https://S3_BUCKET_NAME_PLACEHOLDER.s3.us-east-1.amazonaws.com/cluster/my-oidc-cluster/openid/v1/jwks"
             service-account-signing-key-file: "/etc/kubernetes/pki/sa.key"
