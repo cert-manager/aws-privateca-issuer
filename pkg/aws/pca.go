@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -188,6 +190,47 @@ func idempotencyToken(cr *cmapi.CertificateRequest) string {
 	return fullHash[:36] // Truncate to 36 characters
 }
 
+// extractNameConstraints finds the Name Constraints extension in the request and
+// returns its raw ASN.1 bytes. Returns (nil, nil) if the extension is not present.
+func extractNameConstraints(req *x509.CertificateRequest) ([]byte, error) {
+	var nc []byte
+	oidNameConstraints := []int{2, 5, 29, 30} // OID for Name Constraints
+	for _, ext := range req.Extensions {
+		if ext.Id.Equal(oidNameConstraints) {
+			nc = ext.Value
+			break
+		}
+	}
+
+	return nc, nil
+}
+
+// buildCustomExtensions builds a list of custom extensions from the certificate request.
+// Returns nil if no custom extensions are needed, which will result in ApiPassthrough
+// being omitted from the IssueCertificate request.
+func buildCustomExtensions(crX509 *x509.CertificateRequest) ([]acmpcatypes.CustomExtension, error) {
+	var customExtensions []acmpcatypes.CustomExtension
+
+	// Check for Name Constraints extension
+	nameConstraints, err := extractNameConstraints(crX509)
+	if err != nil {
+		return nil, err
+	}
+	if nameConstraints != nil {
+		customExtensions = append(customExtensions, acmpcatypes.CustomExtension{
+			ObjectIdentifier: aws.String("2.5.29.30"), // OID for Name Constraints
+			Value:            aws.String(base64.StdEncoding.EncodeToString(nameConstraints)),
+			Critical:         aws.Bool(true),
+		})
+	}
+
+	if len(customExtensions) == 0 {
+		return nil, nil
+	}
+
+	return customExtensions, nil
+}
+
 // Sign takes a certificate request and signs it using PCA
 func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error {
 	block, _ := pem.Decode(cr.Spec.Request)
@@ -210,11 +253,31 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return err
 	}
 
+	crX509, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		return err
+	}
+
+	customExtensions, err := buildCustomExtensions(crX509)
+	if err != nil {
+		return err
+	}
+
+	var apiPassthrough *acmpcatypes.ApiPassthrough
+	if customExtensions != nil {
+		apiPassthrough = &acmpcatypes.ApiPassthrough{
+			Extensions: &acmpcatypes.Extensions{
+				CustomExtensions: customExtensions,
+			},
+		}
+	}
+
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 		SigningAlgorithm:        *p.signingAlgorithm,
 		TemplateArn:             aws.String(tempArn),
 		Csr:                     cr.Spec.Request,
+		ApiPassthrough:          apiPassthrough,
 		Validity: &acmpcatypes.Validity{
 			Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 			Value: &validityExpiration,
