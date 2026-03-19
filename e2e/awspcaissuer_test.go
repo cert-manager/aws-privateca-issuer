@@ -42,6 +42,7 @@ type IssuerContext struct {
 	issuerType string
 	namespace  string
 	secretRef  v1beta1.AWSCredentialsSecretReference
+	certConfig CertificateConfig
 }
 
 var opts = godog.Options{
@@ -222,8 +223,9 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 func InitializeScenario(ctx *godog.ScenarioContext) {
 	// This initializes the IssuerContext struct for each test
 	issuerContext := &IssuerContext{
-		namespace: "default",
-		secretRef: v1beta1.AWSCredentialsSecretReference{},
+		namespace:  "default",
+		secretRef:  v1beta1.AWSCredentialsSecretReference{},
+		certConfig: defaultCertConfig(),
 	}
 
 	// This defines the mapping of steps --> functions
@@ -234,10 +236,16 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer with role assumption$`, issuerContext.createNamespaceIssuerWithRole)
-	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificate)
+	ctx.Step(`^I update my certificate spec to issue a CA certificate$`, issuerContext.setCAConfig)
+	ctx.Step(`^I update my certificate spec to issue a (RSA|ECDSA) certificate$`, issuerContext.setKeyAlgorithmConfig)
+	ctx.Step(`^I update my certificate spec to issue a certificate with duration of (\d+) hours$`, issuerContext.setDurationConfig)
+	ctx.Step(`^I update my certificate spec to issue a certificate with renew before of (\d+) hours$`, issuerContext.setRenewBeforeConfig)
+	ctx.Step(`^I update my certificate spec to issue a certificate with usages of (.+)$`, issuerContext.setUsagesConfig)
+	ctx.Step(`^I issue the certificate$`, issuerContext.issueConfiguredCertificate)
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
 	ctx.Step(`^the certificate request has been created$`, issuerContext.verifyCertificateRequestIsCreated)
 	ctx.Step(`^the certificate request has reason (Pending|Failed|Issued|Denied) and status (True|False|Unknown)$`, issuerContext.verifyCertificateRequestState)
+	ctx.Step(`^the certificate should be issued with usage (.+)$`, issuerContext.verifyCertificateContent)
 
 	// This cleans up all of the resources after a test
 	ctx.After(func(ctx context.Context, sc *godog.Scenario, err error) (context.Context, error) {
@@ -312,6 +320,10 @@ func GetErrorDetails(ctx context.Context, sc *godog.Scenario, issuerContext *Iss
 	errMsg += fmt.Sprintf("\nLogging Issuer conditions:\n")
 	for _, condition := range issuerConditions {
 		errMsg += fmt.Sprintf("Reason: %s, Status: %s, Message: %s\n", condition.Reason, condition.Status, condition.Message)
+	}
+
+	if len(issuerConditions) == 0 {
+		errMsg += "Issuer did not have any conditions. This most likely means there was an AWS permissions issue which prevented the issuer from entering a Ready state.\n"
 	}
 
 	crName := fmt.Sprintf("%s-%d", issuerContext.certName, 1)
