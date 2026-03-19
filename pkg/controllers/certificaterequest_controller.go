@@ -175,7 +175,11 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 			return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
 		}
 
-		return ctrl.Result{Requeue: true}, r.Client.Update(ctx, cr)
+		err = r.Client.Update(ctx, cr)
+		if err != nil && !apierrors.IsConflict(err) {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	pem, ca, err := provisioner.Get(ctx, cr, certArn, log)
@@ -219,5 +223,9 @@ func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.
 		eventType = core.EventTypeWarning
 	}
 	r.Recorder.Event(cr, eventType, reason, message)
-	return r.Client.Status().Update(ctx, cr)
+	err := r.Client.Status().Update(ctx, cr)
+	if apierrors.IsConflict(err) {
+		return nil
+	}
+	return err
 }
