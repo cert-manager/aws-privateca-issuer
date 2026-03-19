@@ -818,6 +818,35 @@ func TestPCASign(t *testing.T) {
 	}
 }
 
+func TestResolveTemplateArn_ExplicitSelection(t *testing.T) {
+	// Set up a minimal CSR
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
+
+	// Case 1: Issuer enables explicit template selection; annotation should be used
+	crWithAnnotation := &cmapi.CertificateRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"aws-privateca.cert-manager.io/template-arn": "arn:custom:template/Custom/V1",
+			},
+		},
+		Spec: cmapi.CertificateRequestSpec{
+			Request: pem.EncodeToMemory(&pem.Block{Bytes: csrBytes, Type: "CERTIFICATE REQUEST"}),
+		},
+	}
+
+	p := PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}, explicitTemplateSelection: true}
+	got := p.resolveTemplateArn(context.TODO(), crWithAnnotation)
+	assert.Equal(t, "arn:custom:template/Custom/V1", got, "should return the annotation when explicit selection enabled")
+
+	// Case 2: Issuer disables explicit template selection; annotation should be ignored
+	crWithAnnotation2 := crWithAnnotation.DeepCopy()
+	p2 := PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}, explicitTemplateSelection: false}
+	got2 := p2.resolveTemplateArn(context.TODO(), crWithAnnotation2)
+	// Should fall back to inference based on usages (none -> BlankEndEntity...)
+	assert.True(t, strings.HasSuffix(got2, ":acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1"), "should fall back to inferred template when explicit selection disabled")
+}
+
 func TestPCASignValidity(t *testing.T) {
 	now := time.Now()
 	client := &workingACMPCAClient{}
