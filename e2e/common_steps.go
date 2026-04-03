@@ -2,10 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	util "github.com/cert-manager/cert-manager/pkg/api/util"
 	cmv1 "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	"github.com/cucumber/godog"
@@ -16,6 +20,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+var usageMap = map[string]cmv1.KeyUsage{
+	"client_auth":  cmv1.UsageClientAuth,
+	"server_auth":  cmv1.UsageServerAuth,
+	"code_signing": cmv1.UsageCodeSigning,
+	"ocsp_signing": cmv1.UsageOCSPSigning,
+}
 
 func getCaArn(caType string) string {
 	caArn, exists := testContext.caArns[caType]
@@ -162,9 +173,23 @@ func getCaCertSpec(certSpec cmv1.CertificateSpec) cmv1.CertificateSpec {
 }
 
 func (issCtx *IssuerContext) issueCertificate(ctx context.Context, certType string) error {
+	return issCtx.issueCertificateWithUsage(ctx, certType, "")
+}
+
+func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, certType string, usage string) error {
 	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
 	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
 	certSpec := getCertSpec(certType)
+
+	if usage != "" && usage != "any" {
+		var usages []cmv1.KeyUsage
+		for _, u := range strings.Split(usage, ",") {
+			if mapped, ok := usageMap[u]; ok {
+				usages = append(usages, mapped)
+			}
+		}
+		certSpec.Usages = usages
+	}
 
 	secretName := issCtx.certName + "-cert-secret"
 	certSpec.SecretName = secretName
@@ -219,6 +244,63 @@ func (issCtx *IssuerContext) verifyCertificateRequestState(ctx context.Context, 
 
 	if err != nil {
 		assert.FailNow(godog.T(ctx), "Certificate Request did not reach specified state, Condition = "+reason+", Status = "+status+": "+err.Error())
+	}
+
+	return nil
+}
+
+func (issCtx *IssuerContext) parseCertificateSecret(ctx context.Context) *x509.Certificate {
+	secretName := issCtx.certName + "-cert-secret"
+	certData, err := getCertificateData(ctx, testContext.clientset, issCtx.namespace, secretName)
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Failed to get certificate data: "+err.Error())
+	}
+
+	block, _ := pem.Decode(certData)
+	if block == nil {
+		assert.FailNow(godog.T(ctx), "Failed to decode PEM block from certificate")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Failed to parse certificate: "+err.Error())
+	}
+
+	return cert
+}
+
+func (issCtx *IssuerContext) verifyCertificateUsage(ctx context.Context, usage string) error {
+	cert := issCtx.parseCertificateSecret(ctx)
+
+	var expectedX509Usages []x509.ExtKeyUsage
+	for _, expectedUsage := range strings.Split(usage, ",") {
+		mappedUsage, exists := usageMap[expectedUsage]
+		if !exists {
+			assert.FailNow(godog.T(ctx), "Expected usage %q not found in usageMap.", expectedUsage)
+		}
+
+		x509Usage, _ := util.ExtKeyUsageType(mappedUsage)
+		expectedX509Usages = append(expectedX509Usages, x509Usage)
+		if !slices.Contains(cert.ExtKeyUsage, x509Usage) {
+			assert.FailNow(godog.T(ctx), fmt.Sprintf("Certificate usage mismatch. Found: %v, Expected: %v", cert.ExtKeyUsage, mappedUsage))
+		}
+	}
+
+	if len(cert.ExtKeyUsage) != len(expectedX509Usages) {
+		assert.FailNow(godog.T(ctx), fmt.Sprintf("Certificate key usage mismatch. Found: %v, Expected: %v", cert.ExtKeyUsage, expectedX509Usages))
+	}
+
+	return nil
+}
+
+func (issCtx *IssuerContext) verifyCertificateAuthorityPathLen(ctx context.Context, pathLen int) error {
+	cert := issCtx.parseCertificateSecret(ctx)
+
+	if !cert.IsCA {
+		assert.FailNow(godog.T(ctx), "Certificate is not a CA certificate")
+	}
+	if cert.MaxPathLen != pathLen {
+		assert.FailNow(godog.T(ctx), fmt.Sprintf("Expected pathLen %d but got %d", pathLen, cert.MaxPathLen))
 	}
 
 	return nil

@@ -45,7 +45,7 @@ import (
 )
 
 var (
-	arn      = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+	caArn    = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
 	template = x509.CertificateRequest{
 		Subject: pkix.Name{
 			CommonName:         "domain.com",
@@ -163,6 +163,12 @@ type errorACMPCAClient struct {
 	acmPCAClient
 }
 
+type pcaTemplateTestCase struct {
+	expectedTemplateArn string
+	certificateSpec     cmapi.CertificateRequestSpec
+	templateName        string
+}
+
 func (m *errorACMPCAClient) DescribeCertificateAuthority(_ context.Context, input *acmpca.DescribeCertificateAuthorityInput, _ ...func(*acmpca.Options)) (*acmpca.DescribeCertificateAuthorityOutput, error) {
 	return &acmpca.DescribeCertificateAuthorityOutput{
 		CertificateAuthority: &acmpcatypes.CertificateAuthority{
@@ -253,107 +259,60 @@ func TestProvisonerOperation(t *testing.T) {
 	assert.Equal(t, err, nil)
 }
 
+func createPCATemplateTestCase(expectedTemplateName string, usages []cmapi.KeyUsage, isCA bool, pcaTemplateName string) pcaTemplateTestCase {
+	tc := pcaTemplateTestCase{
+		expectedTemplateArn: ":acm-pca:::template/" + expectedTemplateName,
+		certificateSpec: cmapi.CertificateRequestSpec{
+			Usages: usages,
+			IsCA:   isCA,
+		},
+		templateName: pcaTemplateName,
+	}
+
+	return tc
+}
+
 func TestPCATemplateArn(t *testing.T) {
 	var (
-		arn     = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
+		testArn = "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
 		govArn  = "arn:aws-us-gov:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
 		fakeArn = "arn:fake:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012"
 	)
 
-	type testCase struct {
-		expectedSuffix  string
-		certificateSpec cmapi.CertificateRequestSpec
+	tests := map[string]pcaTemplateTestCase{
+		"client":              createPCATemplateTestCase("EndEntityClientAuthCertificate/V1", []cmapi.KeyUsage{cmapi.UsageClientAuth}, false, ""),
+		"client issuer":       createPCATemplateTestCase("EndEntityClientAuthCertificate/V1", []cmapi.KeyUsage{cmapi.UsageServerAuth}, false, "EndEntityClientAuthCertificate/V1"),
+		"server":              createPCATemplateTestCase("EndEntityServerAuthCertificate/V1", []cmapi.KeyUsage{cmapi.UsageServerAuth}, false, ""),
+		"server issuer":       createPCATemplateTestCase("EndEntityServerAuthCertificate/V1", nil, false, "EndEntityServerAuthCertificate/V1"),
+		"client server":       createPCATemplateTestCase("EndEntityCertificate/V1", []cmapi.KeyUsage{cmapi.UsageClientAuth, cmapi.UsageServerAuth}, false, ""),
+		"server client":       createPCATemplateTestCase("EndEntityCertificate/V1", []cmapi.KeyUsage{cmapi.UsageServerAuth, cmapi.UsageClientAuth}, false, ""),
+		"code signing":        createPCATemplateTestCase("CodeSigningCertificate/V1", []cmapi.KeyUsage{cmapi.UsageCodeSigning}, false, ""),
+		"code signing issuer": createPCATemplateTestCase("EndEntityClientAuthCertificate/V1", nil, false, "EndEntityClientAuthCertificate/V1"),
+		"ocsp signing":        createPCATemplateTestCase("OCSPSigningCertificate/V1", []cmapi.KeyUsage{cmapi.UsageOCSPSigning}, false, ""),
+		"ocsp signing issuer": createPCATemplateTestCase("OCSPSigningCertificate/V1", nil, false, "OCSPSigningCertificate/V1"),
+		"other":               createPCATemplateTestCase("BlankEndEntityCertificate_APICSRPassthrough/V1", []cmapi.KeyUsage{cmapi.UsageTimestamping}, false, ""),
+		"isCA default":        createPCATemplateTestCase("SubordinateCACertificate_PathLen0/V1", nil, true, ""),
+		"isCA issuer":         createPCATemplateTestCase("SubordinateCACertificate_PathLen1/V1", nil, true, "SubordinateCACertificate_PathLen1/V1"),
 	}
-	tests := map[string]testCase{
-		"client": {
-			expectedSuffix: ":acm-pca:::template/EndEntityClientAuthCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageClientAuth,
-				},
-			},
-		},
-		"server": {
-			expectedSuffix: ":acm-pca:::template/EndEntityServerAuthCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageServerAuth,
-				},
-			},
-		},
-		"client server": {
-			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageClientAuth,
-					cmapi.UsageServerAuth,
-				},
-			},
-		},
-		"server client": {
-			expectedSuffix: ":acm-pca:::template/EndEntityCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageServerAuth,
-					cmapi.UsageClientAuth,
-				},
-			},
-		},
-		"code signing": {
-			expectedSuffix: ":acm-pca:::template/CodeSigningCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageCodeSigning,
-				},
-			},
-		},
-		"ocsp signing": {
-			expectedSuffix: ":acm-pca:::template/OCSPSigningCertificate/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageOCSPSigning,
-				},
-			},
-		},
-		"other": {
-			expectedSuffix: ":acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				Usages: []cmapi.KeyUsage{
-					cmapi.UsageTimestamping,
-				},
-			},
-		},
-		"isCA default": {
-			expectedSuffix: ":acm-pca:::template/SubordinateCACertificate_PathLen0/V1",
-			certificateSpec: cmapi.CertificateRequestSpec{
-				IsCA: true,
-			},
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			spec := tc.certificateSpec
 
-			response := templateArn(arn, spec)
-			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "returns expected template")
+	for name, tc := range tests {
+		certificateSpec := tc.certificateSpec
+		templateName := tc.templateName
+		t.Run(name, func(t *testing.T) {
+			response := buildTemplateArn(testArn, certificateSpec, templateName)
+			assert.True(t, strings.HasSuffix(response, tc.expectedTemplateArn), "returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:aws:"), "returns expected ARN prefix")
 		})
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			spec := tc.certificateSpec
 
-			response := templateArn(govArn, spec)
-			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "us-gov returns expected template")
+		t.Run(name, func(t *testing.T) {
+			response := buildTemplateArn(govArn, certificateSpec, templateName)
+			assert.True(t, strings.HasSuffix(response, tc.expectedTemplateArn), "us-gov returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:aws-us-gov:"), "us-gov returns expected ARN prefix")
 		})
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			spec := tc.certificateSpec
 
-			response := templateArn(fakeArn, spec)
-			assert.True(t, strings.HasSuffix(response, tc.expectedSuffix), "fake arn returns expected template")
+		t.Run(name, func(t *testing.T) {
+			response := buildTemplateArn(fakeArn, certificateSpec, templateName)
+			assert.True(t, strings.HasSuffix(response, tc.expectedTemplateArn), "fake arn returns expected template")
 			assert.True(t, strings.HasPrefix(response, "arn:fake:"), "fake arn returns expected ARN prefix")
 		})
 	}
@@ -731,13 +690,13 @@ func TestPCAGet(t *testing.T) {
 
 	tests := map[string]testCase{
 		"success": {
-			provisioner:   PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}},
+			provisioner:   PCAProvisioner{arn: caArn, pcaClient: &workingACMPCAClient{}},
 			expectFailure: false,
 			expectedChain: string([]byte(root + "\n")),
 			expectedCert:  string([]byte(cert + "\n" + intermediate + "\n")),
 		},
 		"failure-error-getCertificate": {
-			provisioner:   PCAProvisioner{arn: arn, pcaClient: &errorACMPCAClient{}},
+			provisioner:   PCAProvisioner{arn: caArn, pcaClient: &errorACMPCAClient{}},
 			expectFailure: true,
 		},
 	}
@@ -780,12 +739,12 @@ func TestPCASign(t *testing.T) {
 
 	tests := map[string]testCase{
 		"success": {
-			provisioner:     PCAProvisioner{arn: arn, pcaClient: &workingACMPCAClient{}},
+			provisioner:     PCAProvisioner{arn: caArn, pcaClient: &workingACMPCAClient{}},
 			expectFailure:   false,
 			expectedCertArn: "arn",
 		},
 		"failure-error-issueCertificate": {
-			provisioner:   PCAProvisioner{arn: arn, pcaClient: &errorACMPCAClient{}},
+			provisioner:   PCAProvisioner{arn: caArn, pcaClient: &errorACMPCAClient{}},
 			expectFailure: true,
 		},
 	}
@@ -804,7 +763,7 @@ func TestPCASign(t *testing.T) {
 				},
 			}
 
-			err := tc.provisioner.Sign(context.TODO(), cr, logr.Discard())
+			err := tc.provisioner.Sign(context.TODO(), cr, "", logr.Discard())
 
 			if tc.expectFailure && err == nil {
 				fmt.Print(err.Error())
@@ -821,7 +780,7 @@ func TestPCASign(t *testing.T) {
 func TestPCASignValidity(t *testing.T) {
 	now := time.Now()
 	client := &workingACMPCAClient{}
-	provisioner := PCAProvisioner{arn: arn, pcaClient: client}
+	provisioner := PCAProvisioner{arn: caArn, pcaClient: client}
 	provisioner.clock = func() time.Time { return now }
 	type testCase struct {
 		duration      *metav1.Duration
@@ -832,7 +791,7 @@ func TestPCASignValidity(t *testing.T) {
 		"default": {
 			duration: nil,
 			expectedInput: &acmpca.IssueCertificateInput{
-				CertificateAuthorityArn: aws.String(arn),
+				CertificateAuthorityArn: aws.String(caArn),
 				Validity: &acmpcatypes.Validity{
 					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 					Value: ptrInt(int64(now.Unix()) + DEFAULT_DURATION),
@@ -842,7 +801,7 @@ func TestPCASignValidity(t *testing.T) {
 		"duration specified": {
 			duration: ptrDuration(metav1.Duration{Duration: 3 * time.Hour}),
 			expectedInput: &acmpca.IssueCertificateInput{
-				CertificateAuthorityArn: aws.String(arn),
+				CertificateAuthorityArn: aws.String(caArn),
 				Validity: &acmpcatypes.Validity{
 					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 					Value: ptrInt(int64(now.Unix()) + int64(3*time.Hour.Seconds())),
@@ -867,7 +826,7 @@ func TestPCASignValidity(t *testing.T) {
 				},
 			}
 
-			_ = provisioner.Sign(context.TODO(), cr, logr.Discard())
+			_ = provisioner.Sign(context.TODO(), cr, "", logr.Discard())
 			got := client.issueCertInput
 			if got == nil {
 				assert.Fail(t, "Expected certificate input, got none")

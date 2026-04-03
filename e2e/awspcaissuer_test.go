@@ -145,6 +145,13 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 		testContext.caArns["ECDSA"] = testContext.createCertificateAuthority(ctx, cfg, false)
 		log.Printf("Created EC CA with arn %s", testContext.caArns["ECDSA"])
 
+		// Create subordinate CAs for template testing
+		testContext.caArns["RSA-SUB"] = createSubCertificateAuthority(ctx, cfg, true, testContext.caArns["RSA"])
+		log.Printf("Created RSA-SUB CA with arn %s", testContext.caArns["RSA-SUB"])
+
+		testContext.caArns["ECDSA-SUB"] = createSubCertificateAuthority(ctx, cfg, false, testContext.caArns["ECDSA"])
+		log.Printf("Created ECDSA-SUB CA with arn %s", testContext.caArns["ECDSA-SUB"])
+
 		xaRole, xaRoleExists := os.LookupEnv(CrossAccountRoleKey)
 		if xaRoleExists {
 			testContext.xaCfg = assumeRole(ctx, cfg, xaRole, testContext.region)
@@ -189,6 +196,12 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 			panic(cfgErr.Error())
 		}
 
+		deleteCertificateAuthority(ctx, cfg, testContext.caArns["RSA-SUB"])
+		log.Printf("Deleted the RSA-SUB CA")
+
+		deleteCertificateAuthority(ctx, cfg, testContext.caArns["ECDSA-SUB"])
+		log.Printf("Deleted the ECDSA-SUB CA")
+
 		deleteCertificateAuthority(ctx, cfg, testContext.caArns["RSA"])
 		log.Printf("Deleted the RSA CA")
 
@@ -229,13 +242,17 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	// This defines the mapping of steps --> functions
 	ctx.Step(`^I create a namespace`, issuerContext.createNamespace)
 	ctx.Step(`^I create a Secret with keys ([A-Za-z_]+) and ([A-Za-z_]+) for my AWS credentials$`, issuerContext.createSecret)
-	ctx.Step(`^I create an AWSPCAClusterIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createClusterIssuer)
+	ctx.Step(`^I create an AWSPCAClusterIssuer using a (RSA|ECDSA|RSA-SUB|ECDSA-SUB|XA) CA$`, issuerContext.createClusterIssuer)
+	ctx.Step(`^I create an AWSPCAClusterIssuer with template ([^\s]+) using a (RSA|ECDSA|RSA-SUB|ECDSA-SUB) CA$`, issuerContext.createClusterIssuerWithTemplate)
 	ctx.Step(`^I create an AWSPCAClusterIssuer with role assumption$`, issuerContext.createClusterIssuerWithRole)
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer with role assumption$`, issuerContext.createNamespaceIssuerWithRole)
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificate)
+	ctx.Step(`^I issue a ([A-Z_]+) certificate with usage ([a-z_,]+)$`, issuerContext.issueCertificateWithUsage)
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
+	ctx.Step(`^the certificate should be issued with usage ([a-z_,]+)$`, issuerContext.verifyCertificateUsage)
+	ctx.Step(`^the CA certificate should have path length (\d+)$`, issuerContext.verifyCertificateAuthorityPathLen)
 	ctx.Step(`^the certificate request has been created$`, issuerContext.verifyCertificateRequestIsCreated)
 	ctx.Step(`^the certificate request has reason (Pending|Failed|Issued|Denied) and status (True|False|Unknown)$`, issuerContext.verifyCertificateRequestState)
 

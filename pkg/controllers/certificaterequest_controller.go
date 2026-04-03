@@ -169,7 +169,11 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	certArn, exists := cr.ObjectMeta.GetAnnotations()["aws-privateca-issuer/certificate-arn"]
 	if !exists {
-		err := provisioner.Sign(ctx, cr, log)
+		var pcaTemplateName string
+		if iss.GetSpec().PCATemplate != nil {
+			pcaTemplateName = iss.GetSpec().PCATemplate.DefaultTemplateName
+		}
+		err := provisioner.Sign(ctx, cr, pcaTemplateName, log)
 		if err != nil {
 			log.Error(err, "failed to request certificate from PCA")
 			return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to request certificate from PCA: "+err.Error())
