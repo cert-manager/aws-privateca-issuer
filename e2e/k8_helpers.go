@@ -12,6 +12,7 @@ import (
 	cmclientv1 "github.com/cert-manager/cert-manager/pkg/client/clientset/versioned/typed/certmanager/v1"
 
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 )
 
 func waitForIssuerReady(ctx context.Context, client *clientV1beta1.Client, name string, namespace string) error {
@@ -54,7 +55,6 @@ func waitForCertificateRequestState(ctx context.Context, client *cmclientv1.Cert
 	return wait.PollUntilContextTimeout(ctx, 250*time.Millisecond, 2*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			cr, err := client.CertificateRequests(namespace).Get(ctx, name, metav1.GetOptions{})
-
 			if err != nil {
 				return false, fmt.Errorf("error getting CertificateRequest %q: %v", name, err)
 			}
@@ -97,4 +97,18 @@ func waitForCertificateState(ctx context.Context, client *cmclientv1.Certmanager
 			}
 			return false, nil
 		})
+}
+
+func getCertificateData(ctx context.Context, clientset *kubernetes.Clientset, namespace string, secretName string) ([]byte, error) {
+	secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting certificate secret %q: %v", secretName, err)
+	}
+
+	certBytes, exists := secret.Data["tls.crt"]
+	if !exists {
+		return nil, fmt.Errorf("certificate data not found in secret %q", secretName)
+	}
+
+	return certBytes, nil
 }

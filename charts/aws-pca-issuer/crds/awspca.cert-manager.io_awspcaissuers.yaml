@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.19.0
+    controller-gen.kubebuilder.io/version: v0.20.1
   name: awspcaissuers.awspca.cert-manager.io
 spec:
   group: awspca.cert-manager.io
@@ -42,6 +42,15 @@ spec:
               arn:
                 description: Specifies the ARN of the PCA resource
                 type: string
+              pcaTemplate:
+                description: Specifies PCA template configuration for this issuer.
+                properties:
+                  defaultTemplateName:
+                    description: |-
+                      Specifies the default template name for all certificate requests made to this issuer.
+                      If not specified, the template is determined from the usages on the certificate resource.
+                    type: string
+                type: object
               region:
                 description: Should contain the AWS region if it cannot be inferred
                 type: string

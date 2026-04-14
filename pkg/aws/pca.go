@@ -23,11 +23,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -58,7 +58,7 @@ var collection = new(sync.Map)
 // GenericProvisioner abstracts over the Provisioner type for mocking purposes
 type GenericProvisioner interface {
 	Get(ctx context.Context, cr *cmapi.CertificateRequest, certArn string, log logr.Logger) ([]byte, []byte, error)
-	Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error
+	Sign(ctx context.Context, cr *cmapi.CertificateRequest, pcaTemplateName string, log logr.Logger) error
 }
 
 // acmPCAClient abstracts over the methods used from acmpca.Client
@@ -189,7 +189,7 @@ func idempotencyToken(cr *cmapi.CertificateRequest) string {
 }
 
 // Sign takes a certificate request and signs it using PCA
-func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, log logr.Logger) error {
+func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest, pcaTemplateName string, log logr.Logger) error {
 	block, _ := pem.Decode(cr.Spec.Request)
 	if block == nil {
 		return fmt.Errorf("failed to decode CSR")
@@ -200,8 +200,6 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		validityExpiration = int64(p.now().Unix()) + int64(cr.Spec.Duration.Seconds())
 	}
 
-	tempArn := templateArn(p.arn, cr.Spec)
-
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
 	token := idempotencyToken(cr)
 
@@ -210,10 +208,12 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return err
 	}
 
+	pcaTemplateArn := buildTemplateArn(p.arn, cr.Spec, pcaTemplateName)
+
 	issueParams := acmpca.IssueCertificateInput{
 		CertificateAuthorityArn: aws.String(p.arn),
 		SigningAlgorithm:        *p.signingAlgorithm,
-		TemplateArn:             aws.String(tempArn),
+		TemplateArn:             aws.String(pcaTemplateArn),
 		Csr:                     cr.Spec.Request,
 		Validity: &acmpcatypes.Validity{
 			Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
@@ -285,34 +285,38 @@ func (p *PCAProvisioner) now() time.Time {
 	return time.Now()
 }
 
-func templateArn(caArn string, spec cmapi.CertificateRequestSpec) string {
-	arn := strings.SplitAfterN(caArn, ":", 3)
-	prefix := arn[0] + arn[1]
+func buildTemplateArn(caArn string, spec cmapi.CertificateRequestSpec, templateName string) string {
+	parsedArn, _ := arn.Parse(caArn)
+	prefix := "arn:" + parsedArn.Partition + ":acm-pca:::template/"
+
+	if templateName != "" {
+		return prefix + templateName
+	}
 
 	if spec.IsCA {
-		return prefix + "acm-pca:::template/SubordinateCACertificate_PathLen0/V1"
+		return prefix + "SubordinateCACertificate_PathLen0/V1"
 	}
 
 	if len(spec.Usages) == 1 {
 		switch spec.Usages[0] {
 		case cmapi.UsageCodeSigning:
-			return prefix + "acm-pca:::template/CodeSigningCertificate/V1"
+			return prefix + "CodeSigningCertificate/V1"
 		case cmapi.UsageClientAuth:
-			return prefix + "acm-pca:::template/EndEntityClientAuthCertificate/V1"
+			return prefix + "EndEntityClientAuthCertificate/V1"
 		case cmapi.UsageServerAuth:
-			return prefix + "acm-pca:::template/EndEntityServerAuthCertificate/V1"
+			return prefix + "EndEntityServerAuthCertificate/V1"
 		case cmapi.UsageOCSPSigning:
-			return prefix + "acm-pca:::template/OCSPSigningCertificate/V1"
+			return prefix + "OCSPSigningCertificate/V1"
 		}
 	} else if len(spec.Usages) == 2 {
 		clientServer := (spec.Usages[0] == cmapi.UsageClientAuth && spec.Usages[1] == cmapi.UsageServerAuth)
 		serverClient := (spec.Usages[0] == cmapi.UsageServerAuth && spec.Usages[1] == cmapi.UsageClientAuth)
 		if clientServer || serverClient {
-			return prefix + "acm-pca:::template/EndEntityCertificate/V1"
+			return prefix + "EndEntityCertificate/V1"
 		}
 	}
 
-	return prefix + "acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1"
+	return prefix + "BlankEndEntityCertificate_APICSRPassthrough/V1"
 }
 
 func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {

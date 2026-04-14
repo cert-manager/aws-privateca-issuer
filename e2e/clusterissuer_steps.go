@@ -20,6 +20,14 @@ func (issCtx *IssuerContext) createClusterIssuerWithRole(ctx context.Context) er
 	return issCtx.createClusterIssuerWithSpec(ctx, "RSA", getIssuerSpecWithRole("RSA"))
 }
 
+func (issCtx *IssuerContext) createClusterIssuerWithTemplate(ctx context.Context, pcaTemplateName string, caType string) error {
+	spec := getIssuerSpec(caType)
+	spec.PCATemplate = &v1beta1.PCATemplate{
+		DefaultTemplateName: pcaTemplateName,
+	}
+	return issCtx.createClusterIssuerWithSpec(ctx, caType, spec)
+}
+
 func (issCtx *IssuerContext) createClusterIssuerWithSpec(ctx context.Context, caType string, spec v1beta1.AWSPCAIssuerSpec) error {
 	if issCtx.issuerName == "" {
 		issCtx.issuerName = uuid.New().String() + "--cluster-issuer--" + strings.ToLower(caType)
