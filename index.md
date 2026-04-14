@@ -180,10 +180,14 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
     * [End-to-End TLS encryption on Amazon Elastic Kubernetes Service](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/)(Amazon EKS).
     * [TLS-enabled Kubernetes clusters with AWS Private CA and Amazon EKS](https://aws.amazon.com/blogs/security/tls-enabled-kubernetes-clusters-with-acm-private-ca-and-amazon-eks-2/)
     * Cross Account CA sharing with supported Cross Account templates
-    * [Supported PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties): CodeSigningCertificate/V1; EndEntityClientAuthCertificate/V1; EndEntityServerAuthCertificate/V1; OCSPSigningCertificate/V1; EndEntityCertificate/V1; BlankEndEntityCertificate_APICSRPassthrough/V1
+    * Full support for all [PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties)
 
 
-## Mapping Cert-Manager Usage Types to AWS PCA Template Arns
+## Using AWS PCA Template ARNs
+
+When creating an AWSPCAIssuer or AWSPCAClusterIssuer, you can set a default template under ```spec.pcaTemplate.defaultTemplateName``` from the list of [PCA Certificate Templates](https://docs.aws.amazon.com/acm-pca/latest/userguide/UsingTemplates.html#template-varieties). When specifying an ARN, omit the part up to, and including ```:::template/```. For example, suppose you wanted to use ```arn:aws:acm-pca:::template/SubordinateCACertificate_PathLen1/V1```, then specify ```SubordinateCACertificate_PathLen1/V1``` in the issuer. See ```/config/examples/config/issuer-with-template.yaml```.
+
+This will lock all certificate requests made to that issuer into using the specified template, overriding other fields in your certificate requests. This is particularly useful if you wish to only allow certain namespaces to access a subset of all PCA templates. Some of the Usages types map to templates as well. Note that if you specify a UsageType here that conflicts with the template of the issuer, the UsageType in your request will be ignored.
 
 The code for the translation can be found [here](https://github.com/cert-manager/aws-privateca-issuer/blob/main/pkg/aws/pca.go#L177).
 
