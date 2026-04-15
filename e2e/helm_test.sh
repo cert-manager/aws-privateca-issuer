@@ -38,10 +38,8 @@ print_line_separation() {
 set_variables() {
   DIR="$( dirname -- "$0"; )"
   K8S_NAMESPACE="aws-privateca-issuer"
-  HELM_CHART_NAME="$DIR/../charts/aws-pca-issuer"
   AWS_REGION="us-east-1"
   DEPLOYMENT_NAME="aws-privateca-issuer"
-  VALUES_FILE="$DIR/test-values.yaml"
 }
 
 clean_up() {
@@ -52,18 +50,21 @@ clean_up() {
 }
 
 main() {
+  HELM_CHART_NAME="$1"
+  VALUES_FILE="$2"
+
   set -eo pipefail
 
   check_is_installed kubectl "kubectl is not installed"
   check_is_installed helm "helm is not installed"
-
-  set_variables
 
   clean_up
 
   set -e
 
   echo "Installing the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
+
+  helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
 
   helm install "$DEPLOYMENT_NAME" "$HELM_CHART_NAME" --create-namespace --namespace "$K8S_NAMESPACE" -f $VALUES_FILE 1>/dev/null || exit 1
 
@@ -118,6 +119,9 @@ main() {
   echo "uninstalling the Helm Chart $HELM_CHART_NAME in namespace $K8S_NAMESPACE ... "
   helm uninstall --namespace "$K8S_NAMESPACE" "$DEPLOYMENT_NAME" 1>/dev/null || exit 1
 
+  echo "removing awspca repo"
+  helm repo remove awspca
+
   echo "deleting $K8S_NAMESPACE namespace ... "
   kubectl delete namespace "$K8S_NAMESPACE" 1>/dev/null || exit 1
 
@@ -125,4 +129,13 @@ main() {
 
 }
 
-main
+set_variables
+
+if [ "$1" = "-p" ]; then
+    echo "Running against prod ecr"
+    main awspca/aws-privateca-issuer $DIR/test-values.yaml
+    exit
+fi
+
+main $DIR/../charts/aws-pca-issuer $DIR/test-values.yaml
+main awspca/aws-privateca-issuer $DIR/test-ecr.yaml
