@@ -10,5 +10,17 @@ spec:
   selector:
     matchLabels:
       {{- include "aws-privateca-issuer.selectorLabels" . | nindent 6 }}
-  {{- toYaml .Values.podDisruptionBudget | nindent 2 }}
+
+  {{- /* Ensure at most one of minAvailable or maxUnavailable is set */}}
+  {{- if .Values.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- else }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+
+  {{- /* Set the remaining PDB values */}}
+  {{- $rest := omit .Values.podDisruptionBudget "minAvailable" "maxUnavailable" }}
+  {{- if $rest }}
+    {{-  toYaml $rest | nindent 2 }}
+  {{- end }}
 {{- end }}
