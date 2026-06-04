@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,7 +57,8 @@ func waitForCertificateRequestState(ctx context.Context, client *cmclientv1.Cert
 		func(ctx context.Context) (bool, error) {
 			cr, err := client.CertificateRequests(namespace).Get(ctx, name, metav1.GetOptions{})
 			if err != nil {
-				return false, fmt.Errorf("error getting CertificateRequest %q: %v", name, err)
+				log.Printf("Waiting for CertificateRequest %q: %v", name, err)
+				return false, nil
 			}
 
 			for _, condition := range cr.Status.Conditions {

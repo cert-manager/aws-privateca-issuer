@@ -95,6 +95,9 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 			panic(fmt.Sprintf("Ensure that that the kubeconfig for the cluster that is being tested is placed in %s", KubeConfigPath))
 		}
 
+		clientConfig.QPS = -1
+		clientConfig.Burst = -1
+
 		testContext.clientset, err = kubernetes.NewForConfig(clientConfig)
 		if err != nil {
 			panic(err.Error())
