@@ -41,6 +41,10 @@ const (
 )
 
 func TestIssuerReconcile(t *testing.T) {
+	origAWSDefaultRegion := awsDefaultRegion
+	awsDefaultRegion = ""
+	t.Cleanup(func() { awsDefaultRegion = origAWSDefaultRegion })
+
 	type testCase struct {
 		kind                         string
 		name                         types.NamespacedName

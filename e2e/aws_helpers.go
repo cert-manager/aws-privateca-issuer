@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -16,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ram"
 	ramtypes "github.com/aws/aws-sdk-go-v2/service/ram/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/google/uuid"
 )
 
 type statementEntry struct {
@@ -62,7 +62,7 @@ func createUser(ctx context.Context, cfg aws.Config) (string, string) {
 		panic(err.Error())
 	}
 
-	policyName := "CMPolicy" + strconv.FormatInt(time.Now().Unix(), 10)
+	policyName := "CMPolicy-" + uuid.NewString()
 
 	policyParams := iam.CreatePolicyInput{
 		PolicyName:     aws.String(policyName),
@@ -77,7 +77,7 @@ func createUser(ctx context.Context, cfg aws.Config) (string, string) {
 
 	policyArn := policyOutput.Policy.Arn
 
-	userName := "CMUser" + strconv.FormatInt(time.Now().Unix(), 10)
+	userName := "CMUser-" + uuid.NewString()
 
 	userParams := iam.CreateUserInput{
 		UserName:            aws.String(userName),
@@ -190,7 +190,7 @@ func deleteCertificateAuthority(ctx context.Context, cfg aws.Config, caArn strin
 func (testCtx *TestContext) createCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool) string {
 	var caParams caParams
 	caParams.caType = types.CertificateAuthorityTypeRoot
-	caParams.commonName = "CMTest-" + strconv.FormatInt(time.Now().Unix(), 10)
+	caParams.commonName = "CMTest-" + uuid.NewString()
 	caParams.issuerCAArn = nil // will be self-signed later
 	caParams.templateArn = "arn:aws:acm-pca:::template/RootCACertificate/V1"
 	caParams.validity = types.Validity{
@@ -205,7 +205,7 @@ func createSubCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bo
 	var caParams caParams
 
 	caParams.caType = types.CertificateAuthorityTypeSubordinate
-	caParams.commonName = "CMSubordinate-" + strconv.FormatInt(time.Now().Unix(), 10)
+	caParams.commonName = "CMSubordinate-" + uuid.NewString()
 	caParams.issuerCAArn = &parentCAArn
 	caParams.templateArn = "arn:aws:acm-pca:::template/SubordinateCACertificate_PathLen1/V1"
 	caParams.validity = types.Validity{

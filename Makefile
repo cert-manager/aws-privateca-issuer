@@ -1,6 +1,6 @@
 # The version which will be reported by the --version argument of each binary
 # and which will be used as the Docker image tag
-VERSION := $(shell git remote add mainRepo https://github.com/cert-manager/aws-privateca-issuer.git && git fetch mainRepo --tags && git describe --tags | awk -F"-" '{print $$1}' && git remote remove mainRepo)
+VERSION := $(shell git fetch --tags --force https://github.com/cert-manager/aws-privateca-issuer.git 2>/dev/null; git describe --tags 2>/dev/null | awk -F"-" '{print $$1}')
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -227,9 +227,10 @@ SERVICE_ACCOUNT := ${NAMESPACE}-${ARCH}-sa
 TEST_KUBECONFIG_LOCATION := /tmp/pca_kubeconfig
 
 create-local-registry:
+	docker network create kind 2>/dev/null || true
 	RUNNING=$$(docker inspect -f '{{.State.Running}}' ${REGISTRY_NAME} 2>/dev/null || true)
 	if [ "$$RUNNING" != 'true' ]; then
-		docker run -d --restart=always -p "127.0.0.1:${REGISTRY_PORT}:5000" --name ${REGISTRY_NAME} registry:2
+		docker run -d --restart=always -p "127.0.0.1:${REGISTRY_PORT}:5000" --network kind --name ${REGISTRY_NAME} registry:2
 	fi
 	sleep 15
 
@@ -252,7 +253,6 @@ kind-cluster: ${KIND}
 	${KIND} get clusters | grep ${K8S_CLUSTER_NAME} || \
 	${KIND} create cluster --name ${K8S_CLUSTER_NAME} --config=/tmp/config.yaml
 	${KIND} get kubeconfig --name ${K8S_CLUSTER_NAME} > ${TEST_KUBECONFIG_LOCATION}
-	docker network connect "kind" ${REGISTRY_NAME} || true
 	kubectl apply -f e2e/kind_config/registry_configmap.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	#Create namespace and service account
 	kubectl get namespace ${NAMESPACE} --kubeconfig=${TEST_KUBECONFIG_LOCATION} || \
