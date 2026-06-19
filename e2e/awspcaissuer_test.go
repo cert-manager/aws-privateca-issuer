@@ -149,10 +149,10 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 		log.Printf("Created EC CA with arn %s", testContext.caArns["ECDSA"])
 
 		// Create subordinate CAs for template testing
-		testContext.caArns["RSA-SUB"] = createSubCertificateAuthority(ctx, cfg, true, testContext.caArns["RSA"])
+		testContext.caArns["RSA-SUB"] = testContext.createSubCertificateAuthority(ctx, cfg, true, testContext.caArns["RSA"])
 		log.Printf("Created RSA-SUB CA with arn %s", testContext.caArns["RSA-SUB"])
 
-		testContext.caArns["ECDSA-SUB"] = createSubCertificateAuthority(ctx, cfg, false, testContext.caArns["ECDSA"])
+		testContext.caArns["ECDSA-SUB"] = testContext.createSubCertificateAuthority(ctx, cfg, false, testContext.caArns["ECDSA"])
 		log.Printf("Created ECDSA-SUB CA with arn %s", testContext.caArns["ECDSA-SUB"])
 
 		xaRole, xaRoleExists := os.LookupEnv(CrossAccountRoleKey)

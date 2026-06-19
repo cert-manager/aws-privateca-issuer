@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
@@ -192,7 +193,7 @@ func (testCtx *TestContext) createCertificateAuthority(ctx context.Context, cfg 
 	caParams.caType = types.CertificateAuthorityTypeRoot
 	caParams.commonName = "CMTest-" + uuid.NewString()
 	caParams.issuerCAArn = nil // will be self-signed later
-	caParams.templateArn = "arn:aws:acm-pca:::template/RootCACertificate/V1"
+	caParams.templateArn = fmt.Sprintf("arn:%s:acm-pca:::template/RootCACertificate/V1", testCtx.partition)
 	caParams.validity = types.Validity{
 		Type:  types.ValidityPeriodTypeYears,
 		Value: aws.Int64(365),
@@ -201,13 +202,13 @@ func (testCtx *TestContext) createCertificateAuthority(ctx context.Context, cfg 
 	return createCertificateAuthority(ctx, cfg, caParams, isRSA)
 }
 
-func createSubCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool, parentCAArn string) string {
+func (testCtx *TestContext) createSubCertificateAuthority(ctx context.Context, cfg aws.Config, isRSA bool, parentCAArn string) string {
 	var caParams caParams
 
 	caParams.caType = types.CertificateAuthorityTypeSubordinate
 	caParams.commonName = "CMSubordinate-" + uuid.NewString()
 	caParams.issuerCAArn = &parentCAArn
-	caParams.templateArn = "arn:aws:acm-pca:::template/SubordinateCACertificate_PathLen1/V1"
+	caParams.templateArn = fmt.Sprintf("arn:%s:acm-pca:::template/SubordinateCACertificate_PathLen1/V1", testCtx.partition)
 	caParams.validity = types.Validity{
 		Type:  types.ValidityPeriodTypeYears,
 		Value: aws.Int64(30),
