@@ -1,0 +1,59 @@
+name: Trivy Scanner - Container Images
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  security-events: write
+
+jobs:
+  trivy-scan:
+    name: Scan published container image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Get image tag from Helm chart
+        id: image
+        run: echo "tag=$(yq '.appVersion' charts/aws-pca-issuer/Chart.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e7f100cf4c008499ea8adda475de1042d6975c7b # v6.2.0
+        with:
+          role-to-assume: arn:aws:iam::105154636954:role/GithubActionsScanRole-prod-us-east-1
+          aws-region: us-east-1
+          role-session-name: TrivyScan-${{ github.run_id }}
+
+      - name: Login to Amazon Public ECR
+        uses: aws-actions/amazon-ecr-login@fa648b43de3d4d023bcb3f89ed6940096949c419 # v2.1.5
+        with:
+          registry-type: public
+
+      - name: Pull container image
+        env:
+          IMAGE_TAG: ${{ steps.image.outputs.tag }}
+        run: docker pull "public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer:${IMAGE_TAG}"
+
+      - name: Scan container image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          # Fall back to the AWS public ECR mirror if GHCR rate-limits the Trivy DB pull.
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+        with:
+          image-ref: 'public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer:${{ steps.image.outputs.tag }}'
+          output: 'results.sarif'
+          format: 'sarif'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        with:
+          sarif_file: 'results.sarif'
+          category: trivy-published
