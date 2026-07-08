@@ -43,7 +43,43 @@ jobs:
       - name: Scan container image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         env:
-          # Fall back to the AWS public ECR mirror if GHCR rate-limits the Trivy DB pull.
+          TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
+        with:
+          image-ref: 'public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer:${{ steps.image.outputs.tag }}'
+          output: 'results.json'
+          format: 'json'
+          ignore-unfixed: true
+          severity: 'HIGH,CRITICAL'
+
+      - name: Summarize results
+        id: summary
+        run: |
+          CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' results.json)
+          HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH")] | length' results.json)
+          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+          echo "total=$((CRITICAL + HIGH))" >> "$GITHUB_OUTPUT"
+
+      - name: Send scan results to Slack
+        if: steps.summary.outputs.total != '0'
+        uses: slackapi/slack-github-action@v3.0.3
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "Trivy daily scan: aws-privateca-issuer:${{ steps.image.outputs.tag }} — ${{ steps.summary.outputs.total }} vulnerabilities (${{ steps.summary.outputs.critical }} critical, ${{ steps.summary.outputs.high }} high)",
+              "image_tag": "${{ steps.image.outputs.tag }}",
+              "total": "${{ steps.summary.outputs.total }}",
+              "critical": "${{ steps.summary.outputs.critical }}",
+              "high": "${{ steps.summary.outputs.high }}",
+              "scan_url": "${{ github.server_url }}/${{ github.repository }}/security/code-scanning",
+              "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
+
+      - name: Convert results to SARIF
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
           TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
         with:
           image-ref: 'public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer:${{ steps.image.outputs.tag }}'
@@ -51,6 +87,7 @@ jobs:
           format: 'sarif'
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
+          skip-setup-trivy: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
