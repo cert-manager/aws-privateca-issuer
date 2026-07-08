@@ -51,10 +51,10 @@ KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.20.0
+CERT_MANAGER_VERSION ?= v1.20.3
 
 # Controller tools
-CONTROLLER_GEN_VERSION := 0.20.1
+CONTROLLER_GEN_VERSION := 0.21.0
 CONTROLLER_GEN := ${BIN}/controller-gen-${CONTROLLER_GEN_VERSION}
 
 # Helm tools
@@ -74,10 +74,10 @@ envtest:
 	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 
 test: generate fmt vet lint manifests envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" GOTOOLCHAIN=go1.26.3+auto go test -v ./pkg/... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" go test -v ./pkg/... -coverprofile cover.out
 
 e2etest: test envtest
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" GOTOOLCHAIN=go1.26.3+auto go test -v ./e2e/... -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" go test -v ./e2e/... -coverprofile cover.out
 
 helm-test: manager kind-cluster
 	$$SHELL e2e/helm_test.sh
