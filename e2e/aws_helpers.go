@@ -31,13 +31,21 @@ type policyDocument struct {
 }
 
 type caParams struct {
-	signingAlgorithm types.SigningAlgorithm
-	keyAlgorithm     types.KeyAlgorithm
-	caType           types.CertificateAuthorityType
-	commonName       string
-	issuerCAArn      *string
-	templateArn      string
-	validity         types.Validity
+	signingAlgorithm           types.SigningAlgorithm
+	keyAlgorithm               types.KeyAlgorithm
+	caType                     types.CertificateAuthorityType
+	commonName                 string
+	issuerCAArn                *string
+	templateArn                string
+	validity                   types.Validity
+	keyStorageSecurityStandard types.KeyStorageSecurityStandard
+}
+
+func keyStorageSecurityStandardForPartition(partition string) types.KeyStorageSecurityStandard {
+	if partition == "aws-cn" {
+		return types.KeyStorageSecurityStandardCcpcLevel1OrHigher
+	}
+	return types.KeyStorageSecurityStandardFips1402Level3OrHigher
 }
 
 func createUser(ctx context.Context, cfg aws.Config) (string, string) {
@@ -194,6 +202,7 @@ func (testCtx *TestContext) createCertificateAuthority(ctx context.Context, cfg 
 	caParams.commonName = "CMTest-" + uuid.NewString()
 	caParams.issuerCAArn = nil // will be self-signed later
 	caParams.templateArn = fmt.Sprintf("arn:%s:acm-pca:::template/RootCACertificate/V1", testCtx.partition)
+	caParams.keyStorageSecurityStandard = keyStorageSecurityStandardForPartition(testCtx.partition)
 	caParams.validity = types.Validity{
 		Type:  types.ValidityPeriodTypeYears,
 		Value: aws.Int64(365),
@@ -209,6 +218,7 @@ func (testCtx *TestContext) createSubCertificateAuthority(ctx context.Context, c
 	caParams.commonName = "CMSubordinate-" + uuid.NewString()
 	caParams.issuerCAArn = &parentCAArn
 	caParams.templateArn = fmt.Sprintf("arn:%s:acm-pca:::template/SubordinateCACertificate_PathLen1/V1", testCtx.partition)
+	caParams.keyStorageSecurityStandard = keyStorageSecurityStandardForPartition(testCtx.partition)
 	caParams.validity = types.Validity{
 		Type:  types.ValidityPeriodTypeYears,
 		Value: aws.Int64(30),
@@ -229,7 +239,8 @@ func createCertificateAuthority(ctx context.Context, cfg aws.Config, caParams ca
 	}
 
 	createCertificateAuthorityParams := acmpca.CreateCertificateAuthorityInput{
-		CertificateAuthorityType: caParams.caType,
+		CertificateAuthorityType:           caParams.caType,
+		KeyStorageSecurityStandard:         caParams.keyStorageSecurityStandard,
 		CertificateAuthorityConfiguration: &types.CertificateAuthorityConfiguration{
 			KeyAlgorithm:     caParams.keyAlgorithm,
 			SigningAlgorithm: caParams.signingAlgorithm,
