@@ -42,7 +42,7 @@ jobs:
           export TAG_BASE=${{ env.PUBLIC_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push container images
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
@@ -64,7 +64,7 @@ jobs:
           export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/eks/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
           echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push arm image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
@@ -76,7 +76,7 @@ jobs:
             ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-arm64
           push: true
       - name: Build and push amd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
@@ -88,7 +88,7 @@ jobs:
             ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-amd64
           push: true
       - name: Build and push manifest list
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ steps.tag.outputs.tag }}
