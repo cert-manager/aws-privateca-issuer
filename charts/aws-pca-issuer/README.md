@@ -77,7 +77,24 @@ IfNotPresent
 <td>image.tag</td>
 <td>
 
-Image tag
+Image tag (used only when digest is empty)
+
+</td>
+<td>string</td>
+<td>
+
+```yaml
+""
+```
+
+</td>
+</tr>
+<tr>
+
+<td>image.digest</td>
+<td>
+
+Image digest (overrides tag when set). Example: sha256:aaaaaa...
 
 </td>
 <td>string</td>
