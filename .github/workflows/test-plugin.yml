@@ -7,15 +7,24 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# pull_request_target runs with the base repository's token, so grant it per job
+# rather than relying on the repository default. A called workflow can only ever
+# reduce what is granted here, so these must cover what its jobs request.
 jobs:
   run-for-arm:
     if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
+    permissions:
+      id-token: write # assume the testing role via OIDC
+      contents: read
     uses: './.github/workflows/on-safe-to-test-label.yml'
     with:
       architecture: 'arm64'
 
   run-for-x86:
     if: ${{ (contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm')) || (contains(github.event_name, 'workflow_dispatch')) }}
+    permissions:
+      id-token: write # assume the testing role via OIDC
+      contents: read
     uses: './.github/workflows/on-safe-to-test-label.yml'
     with:
       architecture: 'x86_64'
@@ -24,6 +33,8 @@ jobs:
     name: Remove Safe to Test Label
     needs: run-for-x86
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # the only thing this job does is drop the label
     if: ${{ contains(github.event.pull_request.labels.*.name, 'safe to test') && !contains(github.event.pull_request.labels.*.name, 'lgtm') && always() }} # required to stop the runner even if the error happened in the previous jobs
     steps:
       - name: Remove Label

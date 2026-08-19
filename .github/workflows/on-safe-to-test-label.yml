@@ -63,15 +63,27 @@ jobs:
     name: Do the job on the runner
     needs: start-runner # required to start the main job when the runner is ready
     runs-on: ${{ needs.start-runner.outputs.label }} # run the job on the newly created runner
+    # This job builds and runs the pull request's own code (its Makefile, scripts
+    # and dependencies), so treat it as untrusted: no id-token, and no token left
+    # behind on the runner for that code to find.
+    permissions:
+      contents: read
     steps:
       - name: Install Git
         run: sudo yum install git -y
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+          persist-credentials: false
+          # Checking out fork code under pull_request_target is a "pwn request"
+          # risk; https://gh.io/securely-using-pull_request_target. Accepted here
+          # because the run is gated on a maintainer applying the 'safe to test'
+          # label, pinned to the sha that was labelled, and confined to an
+          # ephemeral runner in the test account.
+          allow-unsafe-pr-checkout: true
       - name: Install Development Tools
         run: |
           sudo yum groupinstall "Development Tools" -y
