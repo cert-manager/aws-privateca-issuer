@@ -40,7 +40,7 @@ jobs:
           echo AMI=$AMI >> $GITHUB_ENV
       - name: Start EC2 runner
         id: start-ec2-runner
-        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
+        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@46a464e192039be36e1066c49baeabded9065c51
         with:
           mode: start
           github-token: GithubToken-test-us-east-1
@@ -255,7 +255,7 @@ jobs:
           AWS_REGION=us-east-1
           echo AWS_REGION=$AWS_REGION >> $GITHUB_ENV
       - name: Stop EC2 runner
-        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@001b8975c07ebdbc838650b9ff7635735f915c5f
+        uses: aws-pca-k8s-plugin-ops-admin/ec2-github-runner@46a464e192039be36e1066c49baeabded9065c51
         with:
           mode: stop
           github-token: GithubToken-test-us-east-1
