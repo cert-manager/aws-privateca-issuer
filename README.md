@@ -203,6 +203,25 @@ This table shows how the UsageTypes are being translated into which template to 
 | ClientAuth, ServerAuth     | acm-pca:::template/EndEntityCertificate/V1                       |
 | Everything Else            | acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1   |
 
+### Important: Cross-Account PCA Access via AWS RAM
+
+When using AWS Resource Access Manager (RAM) to share a PCA across accounts, be aware that **changing the `usages` field in a Certificate resource can change which PCA template is used** (as shown in the table above), which may result in `AccessDeniedException` errors.
+
+This happens because RAM managed permissions control which templates are allowed. The default RAM managed permission for ACM PCA (`AWSRAMDefaultPermissionCertificateAuthority`) only permits specific templates. If the template selected by the issuer based on `usages` is not included in the RAM permission, the `IssueCertificate` call will fail with:
+
+```
+AccessDeniedException: User is not authorized to perform: acm-pca:IssueCertificate
+because no resource-based policy allows the acm-pca:IssueCertificate action
+```
+
+**Example:** If your RAM share permits `EndEntityClientAuthCertificate` and your Certificate has `usages: [server auth, client auth]`, it works. But if you remove `client auth` (changing to `usages: [server auth]`), the issuer switches to `EndEntityServerAuthCertificate`, which may not be permitted by the RAM share.
+
+**Recommendations for cross-account setups:**
+- Use `spec.pcaTemplate.defaultTemplateName` on the issuer to lock the template explicitly, avoiding implicit template changes when `usages` are modified.
+- Or ensure the RAM managed permission allows all templates that may be selected based on your Certificate `usages`.
+
+See [AWS RAM Managed Permissions for ACM PCA](https://docs.aws.amazon.com/privateca/latest/userguide/pca-ram.html) for details on configuring RAM permissions.
+
 ## Understanding/Running the tests
 
 ### Running the Unit Tests
