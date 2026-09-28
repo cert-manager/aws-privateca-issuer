@@ -43,6 +43,13 @@ spec:
               arn:
                 description: Specifies the ARN of the PCA resource
                 type: string
+              notBeforeOffset:
+                description: |-
+                  Specifies how far before the issuance time to set NotBefore on issued
+                  certificates, up to a maximum of 24h. If unset, PCA applies its own 1h.
+                maxLength: 32
+                pattern: ^([0-9]{1,5}(s|m|h))+$
+                type: string
               pcaTemplate:
                 description: Specifies PCA template configuration for this issuer.
                 properties:

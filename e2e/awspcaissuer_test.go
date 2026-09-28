@@ -37,11 +37,12 @@ type TestContext struct {
 
 // These are variables specific to each test
 type IssuerContext struct {
-	certName   string
-	issuerName string
-	issuerType string
-	namespace  string
-	secretRef  v1beta1.AWSCredentialsSecretReference
+	certName     string
+	issuerName   string
+	issuerType   string
+	namespace    string
+	secretRef    v1beta1.AWSCredentialsSecretReference
+	certDuration time.Duration
 }
 
 var opts = godog.Options{
@@ -248,6 +249,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I create an AWSPCAClusterIssuer using a (RSA|ECDSA|RSA-SUB|ECDSA-SUB|XA) CA$`, issuerContext.createClusterIssuer)
 	ctx.Step(`^I create an AWSPCAClusterIssuer with template ([^\s]+) using a (RSA|ECDSA|RSA-SUB|ECDSA-SUB) CA$`, issuerContext.createClusterIssuerWithTemplate)
 	ctx.Step(`^I create an AWSPCAClusterIssuer with role assumption$`, issuerContext.createClusterIssuerWithRole)
+	ctx.Step(`^I create an AWSPCAClusterIssuer with notBeforeOffset ([^\s]+) using a (RSA|ECDSA) CA$`, issuerContext.createClusterIssuerWithNotBeforeOffset)
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer with role assumption$`, issuerContext.createNamespaceIssuerWithRole)
@@ -256,6 +258,7 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)
 	ctx.Step(`^the certificate should be issued with usage ([a-z_,]+)$`, issuerContext.verifyCertificateUsage)
 	ctx.Step(`^the CA certificate should have path length (\d+)$`, issuerContext.verifyCertificateAuthorityPathLen)
+	ctx.Step(`^the certificate validity window should exceed its duration by ([^\s]+)$`, issuerContext.verifyCertificateNotBeforeOffset)
 	ctx.Step(`^the certificate request has been created$`, issuerContext.verifyCertificateRequestIsCreated)
 	ctx.Step(`^the certificate request has reason (Pending|Failed|Issued|Denied) and status (True|False|Unknown)$`, issuerContext.verifyCertificateRequestState)
 

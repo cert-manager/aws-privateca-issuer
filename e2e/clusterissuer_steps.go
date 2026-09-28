@@ -28,6 +28,12 @@ func (issCtx *IssuerContext) createClusterIssuerWithTemplate(ctx context.Context
 	return issCtx.createClusterIssuerWithSpec(ctx, caType, spec)
 }
 
+func (issCtx *IssuerContext) createClusterIssuerWithNotBeforeOffset(ctx context.Context, offset string, caType string) error {
+	spec := getIssuerSpec(caType)
+	spec.NotBeforeOffset = parseNotBeforeOffset(ctx, offset)
+	return issCtx.createClusterIssuerWithSpec(ctx, caType, spec)
+}
+
 func (issCtx *IssuerContext) createClusterIssuerWithSpec(ctx context.Context, caType string, spec v1beta1.AWSPCAIssuerSpec) error {
 	if issCtx.issuerName == "" {
 		issCtx.issuerName = uuid.New().String() + "--cluster-issuer--" + strings.ToLower(caType)

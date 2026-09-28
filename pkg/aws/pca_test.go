@@ -257,6 +257,13 @@ func TestProvisonerOperation(t *testing.T) {
 	output, err = GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
 	assert.NotEqual(t, output, provisioner)
 	assert.Equal(t, err, nil)
+
+	issSpec.NotBeforeOffset = ptrDuration(metav1.Duration{Duration: 30 * time.Second})
+	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
+	output, err = GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	require.NoError(t, err)
+	require.NotNil(t, output.(*PCAProvisioner).notBeforeOffset)
+	assert.Equal(t, 30*time.Second, output.(*PCAProvisioner).notBeforeOffset.Duration)
 }
 
 func createPCATemplateTestCase(expectedTemplateName string, usages []cmapi.KeyUsage, isCA bool, pcaTemplateName string) pcaTemplateTestCase {
@@ -778,13 +785,14 @@ func TestPCASign(t *testing.T) {
 }
 
 func TestPCASignValidity(t *testing.T) {
-	now := time.Now()
+	now := time.Now().Add(-24 * time.Hour)
 	client := &workingACMPCAClient{}
 	provisioner := PCAProvisioner{arn: caArn, pcaClient: client}
 	provisioner.clock = func() time.Time { return now }
 	type testCase struct {
-		duration      *metav1.Duration
-		expectedInput *acmpca.IssueCertificateInput
+		duration        *metav1.Duration
+		notBeforeOffset *metav1.Duration
+		expectedInput   *acmpca.IssueCertificateInput
 	}
 
 	tests := map[string]testCase{
@@ -808,11 +816,42 @@ func TestPCASignValidity(t *testing.T) {
 				},
 			},
 		},
+		"not before offset specified": {
+			duration:        ptrDuration(metav1.Duration{Duration: 3 * time.Hour}),
+			notBeforeOffset: ptrDuration(metav1.Duration{Duration: 30 * time.Second}),
+			expectedInput: &acmpca.IssueCertificateInput{
+				CertificateAuthorityArn: aws.String(caArn),
+				Validity: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) + int64(3*time.Hour.Seconds())),
+				},
+				ValidityNotBefore: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) - 30),
+				},
+			},
+		},
+		"zero not before offset": {
+			duration:        ptrDuration(metav1.Duration{Duration: 3 * time.Hour}),
+			notBeforeOffset: ptrDuration(metav1.Duration{Duration: 0}),
+			expectedInput: &acmpca.IssueCertificateInput{
+				CertificateAuthorityArn: aws.String(caArn),
+				Validity: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) + int64(3*time.Hour.Seconds())),
+				},
+				ValidityNotBefore: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix())),
+				},
+			},
+		},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			client.issueCertInput = nil
+			provisioner.notBeforeOffset = tc.notBeforeOffset
 			key, _ := rsa.GenerateKey(rand.Reader, 2048)
 			csrBytes, _ := x509.CreateCertificateRequest(rand.Reader, &template, key)
 
@@ -834,6 +873,13 @@ func TestPCASignValidity(t *testing.T) {
 				assert.Equal(t, *got.CertificateAuthorityArn, *tc.expectedInput.CertificateAuthorityArn, name)
 				assert.Equal(t, got.Validity.Type, tc.expectedInput.Validity.Type, name)
 				assert.Equal(t, *got.Validity.Value, *tc.expectedInput.Validity.Value, name)
+
+				if tc.expectedInput.ValidityNotBefore == nil {
+					assert.Nil(t, got.ValidityNotBefore, name)
+				} else if assert.NotNil(t, got.ValidityNotBefore, name) {
+					assert.Equal(t, got.ValidityNotBefore.Type, tc.expectedInput.ValidityNotBefore.Type, name)
+					assert.Equal(t, *got.ValidityNotBefore.Value, *tc.expectedInput.ValidityNotBefore.Value, name)
+				}
 			}
 
 		})

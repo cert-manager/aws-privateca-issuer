@@ -74,6 +74,7 @@ type PCAProvisioner struct {
 	arn              string
 	signingAlgorithm *acmpcatypes.SigningAlgorithm
 	clock            func() time.Time
+	notBeforeOffset  *metav1.Duration
 }
 
 func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
@@ -173,7 +174,8 @@ func GetProvisioner(ctx context.Context, client client.Client, name types.Namesp
 		pcaClient: acmpca.NewFromConfig(config, acmpca.WithAPIOptions(
 			middleware.AddUserAgentKeyValue(injections.UserAgent, injections.PlugInVersion),
 		)),
-		arn: spec.Arn,
+		arn:             spec.Arn,
+		notBeforeOffset: spec.NotBeforeOffset,
 	}
 	collection.Store(name, provisioner)
 
@@ -195,9 +197,11 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 		return fmt.Errorf("failed to decode CSR")
 	}
 
-	validityExpiration := int64(p.now().Unix()) + DEFAULT_DURATION
+	issuedAt := p.now()
+
+	validityExpiration := issuedAt.Unix() + DEFAULT_DURATION
 	if cr.Spec.Duration != nil {
-		validityExpiration = int64(p.now().Unix()) + int64(cr.Spec.Duration.Seconds())
+		validityExpiration = issuedAt.Unix() + int64(cr.Spec.Duration.Seconds())
 	}
 
 	// Consider it a "retry" if we try to re-create a cert with the same name in the same namespace
@@ -219,7 +223,8 @@ func (p *PCAProvisioner) Sign(ctx context.Context, cr *cmapi.CertificateRequest,
 			Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 			Value: &validityExpiration,
 		},
-		IdempotencyToken: aws.String(token),
+		IdempotencyToken:  aws.String(token),
+		ValidityNotBefore: notBeforeValidity(issuedAt, p.notBeforeOffset),
 	}
 
 	issueOutput, err := p.pcaClient.IssueCertificate(ctx, &issueParams)
@@ -283,6 +288,18 @@ func (p *PCAProvisioner) now() time.Time {
 	}
 
 	return time.Now()
+}
+
+func notBeforeValidity(issuedAt time.Time, offset *metav1.Duration) *acmpcatypes.Validity {
+	if offset == nil {
+		return nil
+	}
+
+	notBefore := issuedAt.Add(-offset.Duration).Unix()
+	return &acmpcatypes.Validity{
+		Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+		Value: &notBefore,
+	}
 }
 
 func buildTemplateArn(caArn string, spec cmapi.CertificateRequestSpec, templateName string) string {

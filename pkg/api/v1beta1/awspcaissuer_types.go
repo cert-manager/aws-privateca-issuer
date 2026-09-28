@@ -43,6 +43,13 @@ type AWSPCAIssuerSpec struct {
 	// Specifies PCA template configuration for this issuer.
 	// +optional
 	PCATemplate *PCATemplate `json:"pcaTemplate,omitempty"`
+	// Specifies how far before the issuance time to set NotBefore on issued
+	// certificates, up to a maximum of 24h. If unset, PCA applies its own 1h.
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern="^([0-9]{1,5}(s|m|h))+$"
+	// +kubebuilder:validation:MaxLength=32
+	// +optional
+	NotBeforeOffset *metav1.Duration `json:"notBeforeOffset,omitempty"`
 }
 
 // PCATemplate defines PCA template configuration

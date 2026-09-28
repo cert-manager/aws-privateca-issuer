@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
@@ -35,9 +36,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const maxNotBeforeOffset = 24 * time.Hour
+
 var (
-	errNoArnInSpec    = errors.New("no Arn found in Issuer Spec")
-	errNoRegionInSpec = errors.New("no Region found in Issuer Spec")
+	errNoArnInSpec             = errors.New("no Arn found in Issuer Spec")
+	errNoRegionInSpec          = errors.New("no Region found in Issuer Spec")
+	errNegativeNotBeforeOffset = errors.New("notBeforeOffset in Issuer Spec must not be negative")
+	errLargeNotBeforeOffset    = fmt.Errorf("notBeforeOffset in Issuer Spec must not exceed %dh", int(maxNotBeforeOffset.Hours()))
 )
 
 var awsDefaultRegion = os.Getenv("AWS_REGION")
@@ -111,6 +116,10 @@ func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 		return errNoArnInSpec
 	case spec.Region == "" && awsDefaultRegion == "":
 		return errNoRegionInSpec
+	case spec.NotBeforeOffset != nil && spec.NotBeforeOffset.Duration < 0:
+		return errNegativeNotBeforeOffset
+	case spec.NotBeforeOffset != nil && spec.NotBeforeOffset.Duration > maxNotBeforeOffset:
+		return errLargeNotBeforeOffset
 	}
 	return nil
 }

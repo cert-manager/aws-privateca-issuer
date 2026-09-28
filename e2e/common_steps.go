@@ -51,6 +51,30 @@ func getIssuerSpecWithRole(caType string) v1beta1.AWSPCAIssuerSpec {
 	return spec
 }
 
+func parseNotBeforeOffset(ctx context.Context, offset string) *metav1.Duration {
+	duration, err := time.ParseDuration(offset)
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Could not parse notBeforeOffset "+offset+": "+err.Error())
+	}
+
+	return &metav1.Duration{Duration: duration}
+}
+
+func (issCtx *IssuerContext) verifyCertificateNotBeforeOffset(ctx context.Context, offset string) error {
+	cert := issCtx.parseCertificateSecret(ctx)
+	if issCtx.certDuration == 0 {
+		assert.FailNow(godog.T(ctx), "the scenario must issue a certificate before verifying its NotBefore")
+	}
+	expected := issCtx.certDuration + parseNotBeforeOffset(ctx, offset).Duration
+
+	window := cert.NotAfter.Sub(cert.NotBefore)
+	if window != expected {
+		assert.FailNow(godog.T(ctx), fmt.Sprintf("NotAfter - NotBefore is %s, expected %s", window, expected))
+	}
+
+	return nil
+}
+
 func (issCtx *IssuerContext) createNamespace(ctx context.Context) error {
 	namespaceName := "pca-issuer-ns-" + uuid.New().String()
 	namespace := v1.Namespace{
@@ -180,6 +204,7 @@ func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, cert
 	sanitizedCertType := strings.Replace(strings.ToLower(certType), "_", "-", -1)
 	issCtx.certName = issCtx.issuerName + "-" + sanitizedCertType + "-cert"
 	certSpec := getCertSpec(certType)
+	issCtx.certDuration = certSpec.Duration.Duration
 
 	if usage != "" && usage != "any" {
 		var usages []cmv1.KeyUsage

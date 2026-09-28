@@ -83,6 +83,20 @@ Feature: Issue certificates using an AWSPCAClusterIssuer
       | ECDSA-SUB | ECDSA    | SubordinateCACertificate_PathLen3/V1 |
       | RSA-SUB   | RSA      | SubordinateCACertificate_PathLen2/V1 |
 
+  @NotBeforeOffset
+  Scenario Outline: Issue a certificate with a NotBefore offset instead of PCA's 1 hour
+    Given I create an AWSPCAClusterIssuer with notBeforeOffset <offset> using a RSA CA
+    When I issue a SHORT_VALIDITY certificate
+    Then the certificate should be issued successfully
+    And the certificate validity window should exceed its duration by <offset>
+
+    Examples:
+      | offset |
+      | 30s    |
+      | 5m     |
+      | 2h     |
+      | 0s     |
+
   @CertificateRecovery
   Scenario: Issue a certificate with a non-existent issuer, is successfully issued after the issuer is created
     Given I create an AWSPCAClusterIssuer using a RSA CA
