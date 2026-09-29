@@ -2,7 +2,8 @@
   "extends": [
     ":automergeDisabled",
     "config:base",
-    ":gitSignOff"
+    ":gitSignOff",
+    ":semanticCommits"
   ],
   "dependencyDashboard": false,
   "ignorePaths" : [
@@ -32,6 +33,13 @@
         "major" 
       ],
       "enabled": false
+    },
+    {
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
     }
   ],
   "prConcurrentLimit": 3,
@@ -60,7 +68,6 @@
   ],
   "vulnerabilityAlerts": {
     "schedule": [],
-    "commitMessagePrefix": "[SECURITY]",
     "commitMessageSuffix": "",
     "automerge": false
   },

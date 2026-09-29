@@ -1,3 +1,8 @@
+<!--
+Commit messages must follow Conventional Commits (https://www.conventionalcommits.org).
+Breaking changes ("!" or a BREAKING CHANGE footer) are rejected.
+-->
+
 ### Issue # (if applicable)
 
 Closes #<issue number here>.
