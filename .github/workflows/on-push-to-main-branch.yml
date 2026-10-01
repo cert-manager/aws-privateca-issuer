@@ -38,3 +38,70 @@ jobs:
       chart_branch: gh-pages-beta
       charts_url: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages-beta
     secrets: inherit
+
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        fetch-depth: 0
+    - name: Compute next release
+      id: semantic
+      uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+      with:
+        semantic_version: 25.0.9
+        dry_run: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: [ plan, beta ]
+    if: ${{ needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    environment: Release
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        fetch-depth: 0
+    - name: Tag and create GitHub release
+      id: semantic
+      uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+      with:
+        semantic_version: 25.0.9
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Check release matches plan
+      env:
+        PLANNED: ${{ needs.plan.outputs.tag }}
+        RELEASED: ${{ steps.semantic.outputs.new_release_git_tag }}
+      run: |
+        if [[ "$PLANNED" != "$RELEASED" ]]; then
+          echo "::error::released '$RELEASED' but planned '$PLANNED'"
+          exit 1
+        fi
+
+  prod:
+    needs: release
+    if: ${{ needs.release.outputs.tag != '' }}
+    permissions:
+      id-token: write
+      contents: read
+    uses: './.github/workflows/publish-and-test.yml'
+    with:
+      version: ${{ needs.release.outputs.tag }}
+      role: arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1
+      public_repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
+      private_repository: 105154636954.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer
+      chart_branch: gh-pages
+      charts_url: https://cert-manager.github.io/aws-privateca-issuer
+    secrets: inherit
