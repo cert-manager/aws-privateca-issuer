@@ -1,11 +1,6 @@
 serviceAccount:
   create: false
 
-image:
-  repository: localhost:5000/aws-privateca-issuer
-  tag: latest
-  pullPolicy: Always
-
 env:
   AWS_EC2_METADATA_SERVICE_ENDPOINT: "http://127.0.0.1:9911"
 

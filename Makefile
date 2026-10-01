@@ -79,8 +79,11 @@ test: generate fmt vet lint manifests envtest
 e2etest: test envtest
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" go test -v ./e2e/... -coverprofile cover.out
 
-helm-test: manager kind-cluster
-	$$SHELL e2e/helm_test.sh
+helm-test: manager kind-cluster deploy-cert-manager
+	KIND=${KIND} K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME} hack/helm-test-local.sh
+
+helm-test-published: manager kind-cluster deploy-cert-manager
+	HELM_REPO=${CHART_REPOSITORY} HELM_CHART_VERSION=${CHART_VERSION} e2e/helm_test.sh
 
 blog-test:
 	$$SHELL e2e/blog_test.sh
@@ -225,6 +228,10 @@ LOCAL_IMAGE := "localhost:${REGISTRY_PORT}/aws-privateca-issuer"
 NAMESPACE := aws-privateca-issuer
 SERVICE_ACCOUNT := ${NAMESPACE}-${ARCH}-sa
 TEST_KUBECONFIG_LOCATION := /tmp/pca_kubeconfig
+CHART_REPOSITORY ?=
+CHART_VERSION ?=
+ISSUER_VALUES ?=
+INSTALL_ISSUER := $(if $(CHART_VERSION),install-chart,install-local)
 
 create-local-registry:
 	docker network create kind 2>/dev/null || true
@@ -283,7 +290,7 @@ setup-eks-webhook:
 	kubectl annotate serviceaccount ${SERVICE_ACCOUNT} -n ${NAMESPACE} eks.amazonaws.com/role-arn=$$OIDC_IAM_ROLE --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
 .PHONY: install-eks-webhook
-install-eks-webhook: setup-eks-webhook upgrade-local
+install-eks-webhook: setup-eks-webhook uninstall-local install-issuer
 
 .PHONY: kind-cluster-delete
 kind-cluster-delete:
@@ -305,7 +312,16 @@ install-local: docker-build docker-push-local
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
 	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
-	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always
+	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
+
+.PHONY: install-chart
+install-chart:
+	sleep 15
+	helm install issuer aws-privateca-issuer --repo ${CHART_REPOSITORY} --version ${CHART_VERSION} -n ${NAMESPACE} \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
+
+.PHONY: install-issuer
+install-issuer: $(INSTALL_ISSUER)
 
 .PHONY: install-beta-ecr
 install-beta-ecr: 
@@ -325,7 +341,7 @@ upgrade-local: uninstall-local install-local
 
 #Sets up a kind cluster using the latest commit on the current branch
 .PHONY: cluster
-cluster: manager create-local-registry kind-cluster deploy-cert-manager install-local
+cluster: manager create-local-registry kind-cluster deploy-cert-manager install-issuer
 
 .PHONY: cluster-beta
 cluster-beta: manager kind-cluster deploy-cert-manager install-beta-ecr
