@@ -1,0 +1,54 @@
+name: Publish and Test
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      role:
+        required: true
+        type: string
+      public_repository:
+        required: true
+        type: string
+      private_repository:
+        required: true
+        type: string
+      chart_branch:
+        required: true
+        type: string
+      charts_url:
+        required: true
+        type: string
+
+jobs:
+  publish:
+    permissions:
+      id-token: write
+      contents: read
+    uses: './.github/workflows/on-release.yml'
+    with:
+      version: ${{ inputs.version }}
+      role: ${{ inputs.role }}
+      public_repository: ${{ inputs.public_repository }}
+      private_repository: ${{ inputs.private_repository }}
+      chart_branch: ${{ inputs.chart_branch }}
+      charts_url: ${{ inputs.charts_url }}
+    secrets: inherit
+
+  e2e:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [ arm64, x86_64 ]
+    permissions:
+      id-token: write
+      contents: read
+    uses: './.github/workflows/on-safe-to-test-label.yml'
+    with:
+      architecture: ${{ matrix.architecture }}
+      chart_repository: ${{ inputs.charts_url }}
+      chart_version: ${{ inputs.version }}
+      image_repository: ${{ inputs.public_repository }}

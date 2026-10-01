@@ -4,47 +4,104 @@ on:
   push:
     branches: [ main ]
 
-env:
-  ECR_REPO: public.ecr.aws/z0d6s8x8
+concurrency:
+  group: main-release
+  cancel-in-progress: false
 
 jobs:
-  build:
+  describe:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.describe.outputs.version }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      with:
+        fetch-depth: 0
+    - name: Describe commit
+      id: describe
+      run: echo "version=$(git describe --tags)" >> "$GITHUB_OUTPUT"
+
+  beta:
+    needs: describe
     permissions:
       id-token: write
       contents: read
+    uses: './.github/workflows/publish-and-test.yml'
+    with:
+      version: ${{ needs.describe.outputs.version }}
+      role: arn:aws:iam::783680406432:role/GithubActionsPublishRole-test-us-east-1
+      public_repository: public.ecr.aws/z0d6s8x8/cert-manager-aws-privateca-issuer-test
+      private_repository: 783680406432.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer-test
+      chart_branch: gh-pages-beta
+      charts_url: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages-beta
+    secrets: inherit
+
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
     steps:
     - name: Check out code
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       with:
         fetch-depth: 0
-    - name: Setup Dockerx
-      uses: docker/setup-buildx-action@v1
-    - name: Setup AWS Credentials
-      uses: aws-actions/configure-aws-credentials@master
+    - name: Compute next release
+      id: semantic
+      uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
       with:
-        role-to-assume: arn:aws:iam::783680406432:role/GithubActionsPublishRole-test-us-east-1
-        aws-region: us-east-1
-    - name: Login to Public ECR
-      uses: docker/login-action@v1
-      with:
-        registry: public.ecr.aws
+        semantic_version: 25.0.9
+        dry_run: true
       env:
-        AWS_REGION: us-east-1
-    - name: Setup Push to ECR
-      run: |
-        export PLUGIN_VERSION=$(git describe --tags)
-        export TAG_BASE=${{ env.ECR_REPO }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)-test
-        echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
-        echo PLUGIN_VERSION=$PLUGIN_VERSION >> $GITHUB_ENV
-    - name: Build and push container images
-      uses: docker/build-push-action@v6
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    needs: [ plan, beta ]
+    if: ${{ needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    environment: Release
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+    steps:
+    - name: Check out code
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       with:
-        build-args: |
-          pkg_version=${{ env.PLUGIN_VERSION }}
-        context: .
-        platforms: linux/amd64,linux/arm64
-        tags: |
-          ${{ env.TAG_BASE }}:latest
-          ${{ env.TAG_BASE }}:${{ env.PLUGIN_VERSION }}
-        push: true
+        fetch-depth: 0
+    - name: Tag and create GitHub release
+      id: semantic
+      uses: cycjimmy/semantic-release-action@b12c8f6015dc215fe37bc154d4ad456dd3833c90 # v6.0.0
+      with:
+        semantic_version: 25.0.9
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Check release matches plan
+      env:
+        PLANNED: ${{ needs.plan.outputs.tag }}
+        RELEASED: ${{ steps.semantic.outputs.new_release_git_tag }}
+      run: |
+        if [[ "$PLANNED" != "$RELEASED" ]]; then
+          echo "::error::released '$RELEASED' but planned '$PLANNED'"
+          exit 1
+        fi
+
+  prod:
+    needs: release
+    if: ${{ needs.release.outputs.tag != '' }}
+    permissions:
+      id-token: write
+      contents: read
+    uses: './.github/workflows/publish-and-test.yml'
+    with:
+      version: ${{ needs.release.outputs.tag }}
+      role: arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1
+      public_repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
+      private_repository: 105154636954.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer
+      chart_branch: gh-pages
+      charts_url: https://cert-manager.github.io/aws-privateca-issuer
+    secrets: inherit

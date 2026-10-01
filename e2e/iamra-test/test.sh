@@ -25,15 +25,8 @@ aws acm-pca get-certificate \
 
 PROFILE_ARN=$PROFILE_ARN ROLE_ARN=$ROLE_ARN TRUST_ANCHOR_ARN=$TRUST_ANCHOR_ARN envsubst <e2e/iamra-test/iamra-values.yaml >replaced-values.yaml
 
-make manager
-make create-local-registry
-make kind-cluster
-make deploy-cert-manager
-make docker-build
-make docker-push-local
+make manager create-local-registry kind-cluster deploy-cert-manager
 
 kubectl create secret tls -n aws-privateca-issuer cert --cert=iamra-cert.pem --key=iamra.key
 
-sleep 15
-
-helm install issuer ./charts/aws-pca-issuer -f replaced-values.yaml -n aws-privateca-issuer
+make install-issuer ISSUER_VALUES=replaced-values.yaml
