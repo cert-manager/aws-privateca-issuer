@@ -318,7 +318,7 @@ For the most part, updating end-to-end will be updating these "issuer specs" and
 
 1. Test to ensure that the workflow laid out in the blog [Setting up end-to-end TLS encryption on Amazon EKS with the new AWS Load Balancer Controller](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/) is functional. To run the test: ```make cluster && make install-eks-webhook && make blog-test```
 
-2. Test that pulls down the latest release via Helm, checks that the plugin was installed correctly, with the correct version, then gets deleted correctly. To run the test ```make cluster && make install-eks-webhook && make helm-test```
+2. Test that installs the chart the way users do. It builds the image, packages the chart as a release would, serves it as a Helm repository, and runs `helm repo add` and `helm install`. It then checks that the plugin runs the expected image and uninstalls cleanly. To run the test ```make helm-test```
 
 ## Troubleshooting
 
