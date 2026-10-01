@@ -51,28 +51,54 @@ jobs:
           ignore-unfixed: true
           severity: 'HIGH,CRITICAL'
 
-      - name: Summarize results
+      - name: Download previous CVE list
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-cve-list
+        continue-on-error: true
+
+      - name: Summarize and detect new CVEs
         id: summary
         run: |
-          CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' results.json)
-          HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity == "HIGH")] | length' results.json)
-          echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
-          echo "high=$HIGH" >> "$GITHUB_OUTPUT"
-          echo "total=$((CRITICAL + HIGH))" >> "$GITHUB_OUTPUT"
+          # Rename previously downloaded artifact, default to empty list
+          [ -f current-cves.json ] && mv current-cves.json previous-cves.json || echo '[]' > previous-cves.json
+
+          # Extract current CVE IDs
+          jq '[.Results[].Vulnerabilities[]?.VulnerabilityID] | unique' results.json > current-cves.json
+
+          # Count by severity in one pass
+          eval "$(jq -r '.Results[].Vulnerabilities[]? | .Severity' results.json | sort | uniq -c | awk '{print tolower($2) "=" $1}')"
+          echo "critical=${critical:-0}" >> "$GITHUB_OUTPUT"
+          echo "high=${high:-0}" >> "$GITHUB_OUTPUT"
+          echo "total=$(( ${critical:-0} + ${high:-0} ))" >> "$GITHUB_OUTPUT"
+
+          # Count new CVEs via jq array subtraction
+          NEW_COUNT=$(jq --slurpfile prev previous-cves.json '. - $prev[0] | length' current-cves.json)
+          echo "new_count=$NEW_COUNT" >> "$GITHUB_OUTPUT"
+
+          # Is it Monday?
+          [ "$(date -u +%u)" = "1" ] && echo "is_monday=true" >> "$GITHUB_OUTPUT" || echo "is_monday=false" >> "$GITHUB_OUTPUT"
+
+      - name: Upload current CVE list
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-cve-list
+          path: current-cves.json
+          overwrite: true
 
       - name: Send scan results to Slack
-        if: steps.summary.outputs.total != '0'
         uses: slackapi/slack-github-action@v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
           payload: |
             {
-              "text": "Trivy daily scan: aws-privateca-issuer:${{ steps.image.outputs.tag }} — ${{ steps.summary.outputs.total }} vulnerabilities (${{ steps.summary.outputs.critical }} critical, ${{ steps.summary.outputs.high }} high)",
               "image_tag": "${{ steps.image.outputs.tag }}",
               "total": "${{ steps.summary.outputs.total }}",
               "critical": "${{ steps.summary.outputs.critical }}",
               "high": "${{ steps.summary.outputs.high }}",
+              "new_count": "${{ steps.summary.outputs.new_count }}",
+              "is_monday": "${{ steps.summary.outputs.is_monday }}",
               "scan_url": "${{ github.server_url }}/${{ github.repository }}/security/code-scanning",
               "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
             }
