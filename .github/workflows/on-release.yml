@@ -4,10 +4,28 @@ on:
     tags:
       - "*"
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      role:
+        required: true
+        type: string
+      public_repository:
+        required: true
+        type: string
+      private_repository:
+        required: true
+        type: string
+      chart_branch:
+        required: true
+        type: string
+      charts_url:
+        required: true
+        type: string
 
 env:
-  PUBLIC_REGISTRY: public.ecr.aws/k1n1h4h4
-  PRIVATE_REGISTRY: 105154636954.dkr.ecr.us-east-1.amazonaws.com
   ECR_USER_AGENT: aws-privateca-issuer
   EKS_USER_AGENT: aws-privateca-connector-for-kubernetes-eks-addon
 
@@ -15,21 +33,29 @@ jobs:
   build:
     name: release
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || github.ref_name }}
+      PUBLIC_REPOSITORY: ${{ inputs.public_repository || 'public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer' }}
+      PRIVATE_REPOSITORY: ${{ inputs.private_repository || '105154636954.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer' }}
     permissions:
       id-token: write
       contents: read
     steps:
+      - name: Validate version
+        run: |
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::version '$VERSION' does not match vMAJOR.MINOR.PATCH[-PRERELEASE]"
+            exit 1
+          fi
+          echo "PRIVATE_REGISTRY=${PRIVATE_REPOSITORY%%/*}" >> "$GITHUB_ENV"
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Get release version
-        id: tag
-        uses: aws-pca-k8s-plugin-ops-admin/action-get-tag@727a6f0a561be04e09013531e73a3983a65e3479
       - name: Setup Dockerx
         uses: docker/setup-buildx-action@v1
       - name: Setup AWS Credentials
         uses: aws-actions/configure-aws-credentials@master
         with:
-          role-to-assume: arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1
+          role-to-assume: ${{ inputs.role || 'arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1' }}
           aws-region: us-east-1
       - name: Login to Public ECR
         uses: docker/login-action@v1
@@ -37,21 +63,17 @@ jobs:
           registry: public.ecr.aws
         env:
           AWS_REGION: us-east-1
-      - name: Setup Push to Public ECR
-        run: |
-          export TAG_BASE=${{ env.PUBLIC_REGISTRY }}/$(echo $GITHUB_REPOSITORY | sed s#/#-#)
-          echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push container images
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            pkg_version=${{ steps.tag.outputs.tag }}
+            pkg_version=${{ env.VERSION }}
             user_agent=${{ env.ECR_USER_AGENT }}
           context: .
           platforms: linux/amd64,linux/arm64
           tags: |
-            ${{ env.TAG_BASE }}:latest
-            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
+            ${{ env.PUBLIC_REPOSITORY }}:latest
+            ${{ env.PUBLIC_REPOSITORY }}:${{ env.VERSION }}
           push: true
       - name: Login to Staging ECR
         uses: docker/login-action@v1
@@ -59,50 +81,57 @@ jobs:
           registry: ${{ env.PRIVATE_REGISTRY }}
         env:
           AWS_REGION: us-east-1
-      - name: Setup Push to Staging ECR
-        run: |
-          export TAG_BASE=${{ env.PRIVATE_REGISTRY }}/eks/$(echo $GITHUB_REPOSITORY | sed s#.*/##)
-          echo TAG_BASE=$TAG_BASE >> $GITHUB_ENV
       - name: Build and push arm image
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            pkg_version=${{ steps.tag.outputs.tag }}
+            pkg_version=${{ env.VERSION }}
             user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/arm64
           provenance: false
           tags: |
-            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-arm64
+            ${{ env.PRIVATE_REPOSITORY }}:${{ env.VERSION }}-arm64
           push: true
       - name: Build and push amd image
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            pkg_version=${{ steps.tag.outputs.tag }}
+            pkg_version=${{ env.VERSION }}
             user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/amd64
           provenance: false
           tags: |
-            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}-amd64
+            ${{ env.PRIVATE_REPOSITORY }}:${{ env.VERSION }}-amd64
           push: true
       - name: Build and push manifest list
         uses: docker/build-push-action@v6
         with:
           build-args: |
-            pkg_version=${{ steps.tag.outputs.tag }}
+            pkg_version=${{ env.VERSION }}
             user_agent=${{ env.EKS_USER_AGENT }}
           context: .
           platforms: linux/amd64,linux/arm64
           provenance: false
           tags: |
-            ${{ env.TAG_BASE }}:latest
-            ${{ env.TAG_BASE }}:${{steps.tag.outputs.tag}}
+            ${{ env.PRIVATE_REPOSITORY }}:latest
+            ${{ env.PRIVATE_REPOSITORY }}:${{ env.VERSION }}
           push: true
+      - name: Install yq
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL -o "$RUNNER_TEMP/bin/yq" https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x "$RUNNER_TEMP/bin/yq"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Point chart at published image
+        run: hack/set-chart-image-repository.sh charts/aws-pca-issuer/values.yaml "$PUBLIC_REPOSITORY"
       - name: Publish Helm chart
         uses: aws-pca-k8s-plugin-ops-admin/helm-gh-pages@12f5926e622ccae035cf5a3bb8d67ae6db7dc4b7
         with:
           token: ${{ secrets.CR_PAT }}
+          branch: ${{ inputs.chart_branch || 'gh-pages' }}
+          charts_url: ${{ inputs.charts_url || 'https://cert-manager.github.io/aws-privateca-issuer' }}
           linting: "off"
-          app_version: ${{ steps.tag.outputs.tag }}
+          app_version: ${{ env.VERSION }}
+          chart_version: ${{ env.VERSION }}
