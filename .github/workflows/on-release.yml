@@ -64,7 +64,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
       - name: Build and push container images
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ env.VERSION }}
@@ -82,7 +82,7 @@ jobs:
         env:
           AWS_REGION: us-east-1
       - name: Build and push arm image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ env.VERSION }}
@@ -94,7 +94,7 @@ jobs:
             ${{ env.PRIVATE_REPOSITORY }}:${{ env.VERSION }}-arm64
           push: true
       - name: Build and push amd image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ env.VERSION }}
@@ -106,7 +106,7 @@ jobs:
             ${{ env.PRIVATE_REPOSITORY }}:${{ env.VERSION }}-amd64
           push: true
       - name: Build and push manifest list
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             pkg_version=${{ env.VERSION }}
