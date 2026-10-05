@@ -7,6 +7,7 @@ Feature: Issue certificates using an AWSPCAClusterIssuer
     Given I create an AWSPCAClusterIssuer using a <caType> CA
     When I issue a <certType> certificate
     Then the certificate should be issued successfully
+    And the certificate validity window should exceed its duration by 15m
 
     Examples:
       | caType | certType       |
@@ -84,7 +85,7 @@ Feature: Issue certificates using an AWSPCAClusterIssuer
       | RSA-SUB   | RSA      | SubordinateCACertificate_PathLen2/V1 |
 
   @NotBeforeOffset
-  Scenario Outline: Issue a certificate with a NotBefore offset instead of PCA's 1 hour
+  Scenario Outline: Issue a certificate with a configured NotBefore offset
     Given I create an AWSPCAClusterIssuer with notBeforeOffset <offset> using a RSA CA
     When I issue a SHORT_VALIDITY certificate
     Then the certificate should be issued successfully

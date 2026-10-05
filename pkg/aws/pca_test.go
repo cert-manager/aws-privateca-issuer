@@ -804,6 +804,10 @@ func TestPCASignValidity(t *testing.T) {
 					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 					Value: ptrInt(int64(now.Unix()) + DEFAULT_DURATION),
 				},
+				ValidityNotBefore: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) - 15*60),
+				},
 			},
 		},
 		"duration specified": {
@@ -813,6 +817,10 @@ func TestPCASignValidity(t *testing.T) {
 				Validity: &acmpcatypes.Validity{
 					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 					Value: ptrInt(int64(now.Unix()) + int64(3*time.Hour.Seconds())),
+				},
+				ValidityNotBefore: &acmpcatypes.Validity{
+					Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
+					Value: ptrInt(int64(now.Unix()) - 15*60),
 				},
 			},
 		},
@@ -874,9 +882,7 @@ func TestPCASignValidity(t *testing.T) {
 				assert.Equal(t, got.Validity.Type, tc.expectedInput.Validity.Type, name)
 				assert.Equal(t, *got.Validity.Value, *tc.expectedInput.Validity.Value, name)
 
-				if tc.expectedInput.ValidityNotBefore == nil {
-					assert.Nil(t, got.ValidityNotBefore, name)
-				} else if assert.NotNil(t, got.ValidityNotBefore, name) {
+				if assert.NotNil(t, got.ValidityNotBefore, name) {
 					assert.Equal(t, got.ValidityNotBefore.Type, tc.expectedInput.ValidityNotBefore.Type, name)
 					assert.Equal(t, *got.ValidityNotBefore.Value, *tc.expectedInput.ValidityNotBefore.Value, name)
 				}

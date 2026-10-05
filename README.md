@@ -13,7 +13,7 @@
 > Amazon Elastic Kubernetes Service (EKS) supports AWS Private CA Issuer as an EKS Add-on named `aws-privateca-connector-for-kubernetes`. This simplifies installation and configuration for Amazon EKS users. See <a href="https://docs.aws.amazon.com/eks/latest/userguide/workloads-add-ons-available-eks.html#add-ons-aws-privateca-connector">AWS add-ons</ulink> for more information.
 
 > [!IMPORTANT]
-> If you are issuing short lived certificates, such as with istio + ztunnel, set [`spec.notBeforeOffset`](#setting-notbefore-on-issued-certificates) on your issuer. AWS Private CA backdates `NotBefore` by 1 hour by default, which can cause clients to constantly renew their certificates.
+> If you are issuing short lived certificates, such as with istio + ztunnel, set [`spec.notBeforeOffset`](#setting-notbefore-on-issued-certificates) on your issuer. AWS Private CA backdates `NotBefore` by 1 hour by default, which can cause clients to constantly renew their certificates. As of v1.10.0, the issuer adds `spec.notBeforeOffset` and backdates by 15 minutes when it is unset, instead of PCA's 1 hour.
 
 AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certificates.
 
@@ -91,10 +91,9 @@ This CR is identical to the AWSPCAIssuer. The only difference being that it's no
 
 ### Setting NotBefore on issued certificates
 
-By default, AWS Private CA sets the `NotBefore` on the issued certificate to be 1 hour before issuance time. The default here is set to deal with
-clock skew across machines. This can cause problems for shorter lived certificates. We recommend setting the `spec.notBeforeOffset` to something well below the requested duration. The value is a whole number of seconds, minutes or hours, must not be negative, and cannot exceed 24 hours.
+The issuer sets `NotBefore` on issued certificates to 15 minutes before issuance time, to allow for clock skew across machines, rather than AWS Private CA's own default of 1 hour. We recommend setting `spec.notBeforeOffset` to something well below the requested duration. The value is a whole number of seconds, minutes or hours, must not be negative, and cannot exceed 24 hours.
 
-For instance, when working with istio + ztunnel and requesting 1h certificates, ztunnel will constantly be requesting certificates unless you set this field on the issuer. See ```/config/examples/config/issuer-with-not-before-offset.yaml```.
+For instance, if you set the offset to 1h when working with istio + ztunnel and requesting 1h certificates, ztunnel would constantly request certificates. See ```/config/examples/config/issuer-with-not-before-offset.yaml```.
 
 ### Usage with cert-manager Ingress Annotations
 
