@@ -6,15 +6,19 @@ on:
       version:
         required: true
         type: string
-      role:
+      account:
         required: true
         type: string
-      public_repository:
+      stage:
         required: true
         type: string
-      private_repository:
+      registry_alias:
         required: true
         type: string
+      repository_suffix:
+        required: false
+        type: string
+        default: ''
       chart_branch:
         required: true
         type: string
@@ -30,9 +34,9 @@ jobs:
     uses: './.github/workflows/on-release.yml'
     with:
       version: ${{ inputs.version }}
-      role: ${{ inputs.role }}
-      public_repository: ${{ inputs.public_repository }}
-      private_repository: ${{ inputs.private_repository }}
+      role: arn:aws:iam::${{ inputs.account }}:role/GithubActionsPublishRole-${{ inputs.stage }}-us-east-1
+      public_repository: public.ecr.aws/${{ inputs.registry_alias }}/${{ github.repository_owner }}-${{ github.event.repository.name }}${{ inputs.repository_suffix }}
+      private_repository: ${{ inputs.account }}.dkr.ecr.us-east-1.amazonaws.com/eks/${{ github.event.repository.name }}${{ inputs.repository_suffix }}
       chart_branch: ${{ inputs.chart_branch }}
       charts_url: ${{ inputs.charts_url }}
     secrets: inherit
@@ -51,4 +55,4 @@ jobs:
       architecture: ${{ matrix.architecture }}
       chart_repository: ${{ inputs.charts_url }}
       chart_version: ${{ inputs.version }}
-      image_repository: ${{ inputs.public_repository }}
+      image_repository: public.ecr.aws/${{ inputs.registry_alias }}/${{ github.repository_owner }}-${{ github.event.repository.name }}${{ inputs.repository_suffix }}
