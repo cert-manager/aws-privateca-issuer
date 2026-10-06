@@ -12,6 +12,16 @@ entries:
     - https://raw.githubusercontent.com/cert-manager/aws-privateca-issuer/gh-pages-beta/aws-privateca-issuer-v1.9.2-6-ga51ab6e.tgz
     version: v1.9.2-6-ga51ab6e
   - apiVersion: v2
+    appVersion: v1.9.2-14-g7f6fac6
+    created: "2026-10-06T17:10:55.223382129Z"
+    description: An addon for cert-manager to sign certificates using AWS PCA
+    digest: 104fb7d5ecd88a1e1b333172cba0f9905de1a2083249280fc13497bec9473b67
+    name: aws-privateca-issuer
+    type: application
+    urls:
+    - https://raw.githubusercontent.com/cert-manager/aws-privateca-issuer/gh-pages-beta/aws-privateca-issuer-v1.9.2-14-g7f6fac6.tgz
+    version: v1.9.2-14-g7f6fac6
+  - apiVersion: v2
     appVersion: v1.9.2-12-gaf07125
     created: "2026-10-05T16:45:59.870155142Z"
     description: An addon for cert-manager to sign certificates using AWS PCA
@@ -31,4 +41,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/cert-manager/aws-privateca-issuer/gh-pages-beta/aws-privateca-issuer-v1.9.2-10-ge8bebf3.tgz
     version: v1.9.2-10-ge8bebf3
-generated: "2026-10-05T16:45:59.868866614Z"
+generated: "2026-10-06T17:10:55.222296347Z"
