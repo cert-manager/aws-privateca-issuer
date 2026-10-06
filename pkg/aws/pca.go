@@ -48,6 +48,9 @@ import (
 
 const DEFAULT_DURATION = 30 * 24 * 3600
 
+// Sent in place of PCA's own 1h backdate, which can cause constant renewals for short-lived certificates.
+const DEFAULT_NOT_BEFORE_OFFSET = 15 * time.Minute
+
 var (
 	ErrNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
 	ErrNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
@@ -291,11 +294,12 @@ func (p *PCAProvisioner) now() time.Time {
 }
 
 func notBeforeValidity(issuedAt time.Time, offset *metav1.Duration) *acmpcatypes.Validity {
-	if offset == nil {
-		return nil
+	backdate := DEFAULT_NOT_BEFORE_OFFSET
+	if offset != nil {
+		backdate = offset.Duration
 	}
 
-	notBefore := issuedAt.Add(-offset.Duration).Unix()
+	notBefore := issuedAt.Add(-backdate).Unix()
 	return &acmpcatypes.Validity{
 		Type:  acmpcatypes.ValidityPeriodTypeAbsolute,
 		Value: &notBefore,

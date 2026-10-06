@@ -46,7 +46,7 @@ spec:
               notBeforeOffset:
                 description: |-
                   Specifies how far before the issuance time to set NotBefore on issued
-                  certificates, up to a maximum of 24h. If unset, PCA applies its own 1h.
+                  certificates, up to a maximum of 24h. Defaults to 15m.
                 maxLength: 32
                 pattern: ^([0-9]{1,5}(s|m|h))+$
                 type: string

@@ -44,7 +44,7 @@ type AWSPCAIssuerSpec struct {
 	// +optional
 	PCATemplate *PCATemplate `json:"pcaTemplate,omitempty"`
 	// Specifies how far before the issuance time to set NotBefore on issued
-	// certificates, up to a maximum of 24h. If unset, PCA applies its own 1h.
+	// certificates, up to a maximum of 24h. Defaults to 15m.
 	// +kubebuilder:validation:Type=string
 	// +kubebuilder:validation:Pattern="^([0-9]{1,5}(s|m|h))+$"
 	// +kubebuilder:validation:MaxLength=32
