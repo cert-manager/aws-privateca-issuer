@@ -18,6 +18,7 @@ package util
 
 import (
 	"context"
+	"fmt"
 
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	"github.com/go-logr/logr"
@@ -29,22 +30,38 @@ import (
 
 var realtimeClock clock.Clock = clock.RealClock{}
 
-// GetIssuer returns either an AWSPCAClusterIssuer or AWSPCAIssuer by its name
-func GetIssuer(ctx context.Context, client client.Client, name types.NamespacedName) (api.GenericIssuer, error) {
-	iss := new(api.AWSPCAIssuer)
-	err := client.Get(ctx, name, iss)
-	if err != nil {
-		ciss := new(api.AWSPCAClusterIssuer)
-		cname := types.NamespacedName{
-			Name: name.Name,
+const (
+	// IssuerKind is the kind of the namespaced issuer resource
+	IssuerKind = "AWSPCAIssuer"
+	// ClusterIssuerKind is the kind of the cluster-scoped issuer resource
+	ClusterIssuerKind = "AWSPCAClusterIssuer"
+)
+
+// IsSupportedIssuerKind reports whether kind names an issuer type this controller handles
+func IsSupportedIssuerKind(kind string) bool {
+	return kind == IssuerKind || kind == ClusterIssuerKind
+}
+
+// GetIssuer returns the AWSPCAIssuer or AWSPCAClusterIssuer named by kind and name.
+// Only the resource of the requested kind is looked up.
+func GetIssuer(ctx context.Context, client client.Client, kind string, name types.NamespacedName) (api.GenericIssuer, error) {
+	switch kind {
+	case IssuerKind:
+		iss := new(api.AWSPCAIssuer)
+		if err := client.Get(ctx, name, iss); err != nil {
+			return nil, err
 		}
-		err = client.Get(ctx, cname, ciss)
-		if err != nil {
+		return iss, nil
+	case ClusterIssuerKind:
+		ciss := new(api.AWSPCAClusterIssuer)
+		cname := types.NamespacedName{Name: name.Name}
+		if err := client.Get(ctx, cname, ciss); err != nil {
 			return nil, err
 		}
 		return ciss, nil
+	default:
+		return nil, fmt.Errorf("unsupported issuer kind %q", kind)
 	}
-	return iss, nil
 }
 
 // SetIssuerCondition sets the ready state of an issuer and updates it in the cluster
