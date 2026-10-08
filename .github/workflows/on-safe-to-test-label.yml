@@ -99,6 +99,19 @@ jobs:
           # label, pinned to the sha that was labelled, and confined to an
           # ephemeral runner in the test account.
           allow-unsafe-pr-checkout: true
+      - name: Pick the version reported in usage metrics
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          echo SINCE=$(date +%s) >> $GITHUB_ENV
+          if [[ -n "$CHART_VERSION" ]]; then
+            echo METRICS_VERSION=$CHART_VERSION >> $GITHUB_ENV
+          else
+            git fetch --tags --force https://github.com/cert-manager/aws-privateca-issuer.git
+            METRICS_VERSION=$(git describe --tags --abbrev=0)-pr${PR_NUMBER:-dispatch}.$(git rev-parse --short=7 HEAD)
+            echo METRICS_VERSION=$METRICS_VERSION >> $GITHUB_ENV
+            echo MAKEFLAGS=VERSION=$METRICS_VERSION >> $GITHUB_ENV
+          fi
       - name: Install Development Tools
         run: |
           sudo yum groupinstall "Development Tools" -y
@@ -261,29 +274,8 @@ jobs:
           export E2E_ARTIFACTS_DIRECTORY=logs-blog
           make kind-export-logs
           aws s3 cp --recursive logs-blog s3://aws-privateca-issuer-k8s-logs-test-us-east-1/${{ needs.start-runner.outputs.ec2-instance-id }}-blog/
-
-  check-metrics:
-    name: Check usage metrics for this version
-    needs: do-the-job
-    if: ${{ inputs.chart_version != '' }}
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Check out code
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - name: Setup AWS Credentials
-        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d # v6.2.2
-        with:
-          role-to-assume: arn:aws:iam::783680406432:role/GithubActionsTestingRole-test-us-east-1
-          aws-region: us-east-1
       - name: Check usage metrics were posted
-        env:
-          CHART_VERSION: ${{ inputs.chart_version }}
-        run: hack/check-usage-metrics.sh "UsageMetricsQueryLambda-test-us-east-1" "$CHART_VERSION" "$GO_ARCHITECTURE"
+        run: hack/check-usage-metrics.sh "UsageMetricsQueryLambda-test-us-east-1" "$METRICS_VERSION" "$GO_ARCHITECTURE"
 
   stop-runner:
     name: Stop self-hosted EC2 runner
