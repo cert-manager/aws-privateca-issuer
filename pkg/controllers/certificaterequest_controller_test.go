@@ -94,7 +94,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -154,7 +154,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "ClusterIssuer",
+						Kind:  "AWSPCAClusterIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -211,7 +211,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "ClusterIssuer",
+						Kind:  "AWSPCAClusterIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -273,7 +273,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "ClusterIssuer",
+						Kind:  "AWSPCAClusterIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -331,7 +331,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -377,7 +377,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -435,7 +435,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -492,7 +492,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -547,7 +547,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -578,7 +578,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
-						Kind:  "Issuer",
+						Kind:  "AWSPCAIssuer",
 					}),
 					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 						Type:   cmapi.CertificateRequestConditionReady,
@@ -624,6 +624,125 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
 			expectedError:                false,
 			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{signErr: errors.New("Sign Failure")}, nil),
+		},
+		"failure-namespaced-issuer-missing-does-not-use-cluster-issuer": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "shared",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "AWSPCAIssuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAClusterIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "shared",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
+			expectedError:                true,
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
+		},
+		"failure-cluster-issuer-missing-does-not-use-namespaced-issuer": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "shared",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "AWSPCAClusterIssuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "shared",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
+			expectedError:                true,
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
+		},
+		"failure-unsupported-kind": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
+			objects: []client.Object{
+				cmgen.CertificateRequest(
+					"cr1",
+					cmgen.SetCertificateRequestNamespace("ns1"),
+					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+						Name:  "issuer1",
+						Group: issuerapi.GroupVersion.Group,
+						Kind:  "Issuer",
+					}),
+					cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
+						Type:   cmapi.CertificateRequestConditionReady,
+						Status: cmmeta.ConditionUnknown,
+					}),
+				),
+				&issuerapi.AWSPCAIssuer{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "issuer1",
+						Namespace: "ns1",
+					},
+					Spec: issuerapi.AWSPCAIssuerSpec{
+						Region: "us-east-1",
+						Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					},
+					Status: issuerapi.AWSPCAIssuerStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:   issuerapi.ConditionTypeReady,
+								Status: metav1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			expectedReadyConditionStatus: cmmeta.ConditionFalse,
+			expectedReadyConditionReason: cmapi.CertificateRequestReasonFailed,
+			expectedError:                false,
+			mockProvisioner:              generateMockGetProvisioner(&fakeProvisioner{caCert: []byte("cacert"), cert: []byte("cert")}, nil),
 		},
 	}
 
@@ -714,7 +833,7 @@ func TestCertificateRequestReconcile_UpdateConflict(t *testing.T) {
 			cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
 				Name:  "issuer1",
 				Group: issuerapi.GroupVersion.Group,
-				Kind:  "Issuer",
+				Kind:  "AWSPCAIssuer",
 			}),
 			cmgen.SetCertificateRequestStatusCondition(cmapi.CertificateRequestCondition{
 				Type:   cmapi.CertificateRequestConditionReady,

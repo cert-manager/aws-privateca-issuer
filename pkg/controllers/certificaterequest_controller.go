@@ -139,15 +139,21 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, nil
 	}
 
+	issuerKind := cr.Spec.IssuerRef.Kind
+	if !util.IsSupportedIssuerKind(issuerKind) {
+		log.Info("unsupported issuer kind", "kind", issuerKind)
+		return ctrl.Result{}, r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "unsupported issuer kind: "+issuerKind)
+	}
+
 	issuerName := types.NamespacedName{
 		Namespace: cr.Namespace,
 		Name:      cr.Spec.IssuerRef.Name,
 	}
-	if cr.Spec.IssuerRef.Kind == "AWSPCAClusterIssuer" {
+	if issuerKind == util.ClusterIssuerKind {
 		issuerName.Namespace = ""
 	}
 
-	iss, err := util.GetIssuer(ctx, r.Client, issuerName)
+	iss, err := util.GetIssuer(ctx, r.Client, issuerKind, issuerName)
 	if err != nil {
 		log.Error(err, "failed to retrieve Issuer resource")
 		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonPending, "issuer could not be found")
