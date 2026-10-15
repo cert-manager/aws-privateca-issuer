@@ -166,7 +166,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	provisioner, err := GetProvisioner(ctx, r.Client, issuerName, iss.GetSpec())
+	provisioner, err := GetProvisioner(ctx, r.Client, iss)
 	if err != nil {
 		log.Error(err, "failed to retrieve provisioner")
 		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to retrieve provisioner")

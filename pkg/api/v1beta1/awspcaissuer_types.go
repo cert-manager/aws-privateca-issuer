@@ -34,7 +34,8 @@ type AWSPCAIssuerSpec struct {
 	// Should contain the AWS region if it cannot be inferred
 	// +optional
 	Region string `json:"region,omitempty"`
-	// Needs to be specified if you want to authorize with AWS using an access and secret key
+	// Needs to be specified if you want to authorize with AWS using an access and secret key.
+	// For an AWSPCAIssuer the Secret must be in the Issuer's namespace.
 	// +optional
 	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
 	// Specifies the ARN of role to assume when issuing certificates.

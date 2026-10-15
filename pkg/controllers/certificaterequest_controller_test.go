@@ -64,8 +64,8 @@ func (p *fakeProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest,
 	return p.cert, p.caCert, p.getErr
 }
 
-func generateMockGetProvisioner(p *fakeProvisioner, err error) func(context.Context, client.Client, types.NamespacedName, *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error) {
-	return func(_ context.Context, _ client.Client, name types.NamespacedName, _ *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error) {
+func generateMockGetProvisioner(p *fakeProvisioner, err error) func(context.Context, client.Client, issuerapi.GenericIssuer) (awspca.GenericProvisioner, error) {
+	return func(_ context.Context, _ client.Client, _ issuerapi.GenericIssuer) (awspca.GenericProvisioner, error) {
 		return p, err
 	}
 }
@@ -82,7 +82,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 		expectedCertificate          []byte
 		expectedCACertificate        []byte
 		expectedTemplate             string
-		mockProvisioner              func(context.Context, client.Client, types.NamespacedName, *issuerapi.AWSPCAIssuerSpec) (awspca.GenericProvisioner, error)
+		mockProvisioner              func(context.Context, client.Client, issuerapi.GenericIssuer) (awspca.GenericProvisioner, error)
 	}
 	tests := map[string]testCase{
 		"success-issuer": {
@@ -779,7 +779,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			assert.Equal(t, tc.expectedGetResult, result, "Unexpected get result")
 
 			if tc.expectedTemplate != "" {
-				p, _ := GetProvisioner(ctx, fakeClient, tc.name, nil)
+				p, _ := GetProvisioner(ctx, fakeClient, nil)
 				assert.Equal(t, tc.expectedTemplate, p.(*fakeProvisioner).pcaTemplateName)
 			}
 
