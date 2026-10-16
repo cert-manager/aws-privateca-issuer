@@ -303,6 +303,23 @@ Port the service should listen on
 </tr>
 <tr>
 
+<td>deploymentAnnotations</td>
+<td>
+
+Annotations to add to the issuer Deployment
+
+</td>
+<td>object</td>
+<td>
+
+```yaml
+{}
+```
+
+</td>
+</tr>
+<tr>
+
 <td>podAnnotations</td>
 <td>
 

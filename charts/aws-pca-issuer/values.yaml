@@ -52,6 +52,9 @@ service:
   # Port the service should listen on
   port: 8080
 
+# Annotations to add to the issuer Deployment
+deploymentAnnotations: {}
+
 # Annotations to add to the issuer Pod
 podAnnotations: {}
 
