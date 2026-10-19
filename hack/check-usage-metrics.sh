@@ -9,6 +9,7 @@ REGION=${4:-us-east-1}
 ATTEMPTS=${ATTEMPTS:-20}
 INTERVAL=${INTERVAL:-60}
 LOOKBACK_MINUTES=${LOOKBACK_MINUTES:-60}
+SINCE=${SINCE:-}
 
 module_version() {
   awk -v module="$1" '$1 == module { sub(/^v/, "", $2); print $2; exit }' go.mod
@@ -18,21 +19,32 @@ sdk_version=$(module_version github.com/aws/aws-sdk-go-v2)
 acmpca_version=$(module_version github.com/aws/aws-sdk-go-v2/service/acmpca)
 go_version=$(sed -n 's/^FROM .*golang:\([0-9.]*\).*/\1/p' Dockerfile | head -n 1)
 
-payload=$(jq -cn \
-  --arg version "$VERSION" \
-  --arg sdkVersion "$sdk_version" \
-  --arg goVersion "$go_version" \
-  --arg acmpcaVersion "$acmpca_version" \
-  --arg region "$REGION" \
-  --arg arch "$ARCH" \
-  --argjson lookbackMinutes "$LOOKBACK_MINUTES" \
-  '{version: $version, sdkVersion: $sdkVersion, goVersion: $goVersion, acmpcaVersion: $acmpcaVersion, region: $region, arch: $arch, lookbackMinutes: $lookbackMinutes}')
-echo "Querying $FUNCTION_NAME with $payload"
+lookback_minutes() {
+  if [[ -n "$SINCE" ]]; then
+    echo $(( ($(date +%s) - SINCE + 59) / 60 ))
+  else
+    echo "$LOOKBACK_MINUTES"
+  fi
+}
+
+build_payload() {
+  jq -cn \
+    --arg version "$VERSION" \
+    --arg sdkVersion "$sdk_version" \
+    --arg goVersion "$go_version" \
+    --arg acmpcaVersion "$acmpca_version" \
+    --arg region "$REGION" \
+    --arg arch "$ARCH" \
+    --argjson lookbackMinutes "$(lookback_minutes)" \
+    '{version: $version, sdkVersion: $sdkVersion, goVersion: $goVersion, acmpcaVersion: $acmpcaVersion, region: $region, arch: $arch, lookbackMinutes: $lookbackMinutes}'
+}
 
 result=$(mktemp)
 trap 'rm -f "$result"' EXIT
 
 for ((attempt = 1; attempt <= ATTEMPTS; attempt++)); do
+  payload=$(build_payload)
+  echo "Querying $FUNCTION_NAME with $payload"
   meta=$(aws lambda invoke \
     --region us-east-1 \
     --function-name "$FUNCTION_NAME" \
