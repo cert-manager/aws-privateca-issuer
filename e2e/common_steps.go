@@ -218,7 +218,7 @@ func (issCtx *IssuerContext) issueCertificateWithUsage(ctx context.Context, cert
 
 	secretName := issCtx.certName + "-cert-secret"
 	certSpec.SecretName = secretName
-	certSpec.IssuerRef = cmmeta.ObjectReference{
+	certSpec.IssuerRef = cmmeta.IssuerReference{
 		Kind:  issCtx.issuerType,
 		Group: "awspca.cert-manager.io",
 		Name:  issCtx.issuerName,
