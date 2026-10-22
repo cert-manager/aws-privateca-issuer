@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} golang:1.27.2 as builder
+FROM --platform=${BUILDPLATFORM} golang:1.27.3 as builder
 WORKDIR /workspace
 
 ARG TARGETARCH

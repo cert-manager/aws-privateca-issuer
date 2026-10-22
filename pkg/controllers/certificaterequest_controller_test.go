@@ -91,7 +91,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -151,7 +151,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAClusterIssuer",
@@ -208,7 +208,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAClusterIssuer",
@@ -270,7 +270,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "clusterissuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAClusterIssuer",
@@ -328,7 +328,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -374,7 +374,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -432,7 +432,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -489,7 +489,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -544,7 +544,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -575,7 +575,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -631,7 +631,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "shared",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAIssuer",
@@ -670,7 +670,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "shared",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "AWSPCAClusterIssuer",
@@ -710,7 +710,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				cmgen.CertificateRequest(
 					"cr1",
 					cmgen.SetCertificateRequestNamespace("ns1"),
-					cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+					cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 						Name:  "issuer1",
 						Group: issuerapi.GroupVersion.Group,
 						Kind:  "Issuer",
@@ -830,7 +830,7 @@ func TestCertificateRequestReconcile_UpdateConflict(t *testing.T) {
 		cmgen.CertificateRequest(
 			"cr1",
 			cmgen.SetCertificateRequestNamespace("ns1"),
-			cmgen.SetCertificateRequestIssuer(cmmeta.ObjectReference{
+			cmgen.SetCertificateRequestIssuer(cmmeta.IssuerReference{
 				Name:  "issuer1",
 				Group: issuerapi.GroupVersion.Group,
 				Kind:  "AWSPCAIssuer",
