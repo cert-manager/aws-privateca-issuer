@@ -197,6 +197,9 @@ jobs:
       - name: Run test cases with IRSA and K8s Secret
         if: ${{ always() }}
         run: |
+          # Namespaced issuers refused ambient credentials, plus serviceAccountRef via the IRSA role.
+          export ISSUER_AMBIENT_CREDENTIALS=false
+          export SERVICE_ACCOUNT_AUTH_ROLE=$OIDC_IAM_ROLE
           make cluster
           make install-eks-webhook
           make e2etest

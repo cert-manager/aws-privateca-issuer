@@ -20,6 +20,13 @@ func (issCtx *IssuerContext) createClusterIssuerWithRole(ctx context.Context) er
 	return issCtx.createClusterIssuerWithSpec(ctx, "RSA", getIssuerSpecWithRole("RSA"))
 }
 
+func (issCtx *IssuerContext) createClusterIssuerWithServiceAccount(ctx context.Context, caType string) error {
+	spec := getIssuerSpec(caType)
+	spec.Role = testContext.serviceAccountAuthRole
+	spec.ServiceAccountRef = &v1beta1.ServiceAccountRef{Name: testContext.controllerServiceAccount, Namespace: testContext.controllerNamespace}
+	return issCtx.createClusterIssuerWithSpec(ctx, caType, spec)
+}
+
 func (issCtx *IssuerContext) createClusterIssuerWithTemplate(ctx context.Context, pcaTemplateName string, caType string) error {
 	spec := getIssuerSpec(caType)
 	spec.PCATemplate = &v1beta1.PCATemplate{

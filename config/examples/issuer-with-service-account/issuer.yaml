@@ -1,0 +1,42 @@
+apiVersion: awspca.cert-manager.io/v1beta1
+kind: AWSPCAIssuer
+metadata:
+  name: example
+  namespace: team-a
+spec:
+  arn: <some-pca-arn>
+  region: <some-region>
+  role: <role-arn-trusting-system:serviceaccount:team-a:pca-issuer>
+  serviceAccountRef:
+    name: pca-issuer
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pca-issuer
+  namespace: team-a
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aws-privateca-issuer-tokenrequest
+  namespace: team-a
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    resourceNames: ["pca-issuer"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aws-privateca-issuer-tokenrequest
+  namespace: team-a
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: aws-privateca-issuer-tokenrequest
+subjects:
+  - kind: ServiceAccount
+    name: <controller-service-account>
+    namespace: <controller-namespace>

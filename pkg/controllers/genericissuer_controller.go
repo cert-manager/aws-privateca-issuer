@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go"
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/util"
@@ -43,6 +44,9 @@ var (
 	errNoRegionInSpec          = errors.New("no Region found in Issuer Spec")
 	errNegativeNotBeforeOffset = errors.New("notBeforeOffset in Issuer Spec must not be negative")
 	errLargeNotBeforeOffset    = fmt.Errorf("notBeforeOffset in Issuer Spec must not exceed %dh", int(maxNotBeforeOffset.Hours()))
+	errServiceAccountNoName    = errors.New("serviceAccountRef.name is required")
+	errServiceAccountNoRole    = errors.New("role must be set when using serviceAccountRef")
+	errServiceAccountAndSecret = errors.New("set only one of secretRef and serviceAccountRef")
 )
 
 var awsDefaultRegion = os.Getenv("AWS_REGION")
@@ -60,6 +64,8 @@ type GenericIssuerReconciler struct {
 	// but can be skipped during unit tests to avoid having a dependency on a
 	// live STS service.
 	GetCallerIdentity bool
+
+	CredentialOptions awspca.CredentialOptions
 }
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
@@ -78,7 +84,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	awspca.DeleteProvisioner(ctx, r.Client, req.NamespacedName)
-	cfg, err := awspca.GetConfig(ctx, r.Client, issuer)
+	cfg, err := awspca.GetConfig(ctx, r.Client, issuer, r.CredentialOptions)
 	if err != nil {
 		log.Error(err, "Error loading config")
 		_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", err.Error())
@@ -89,6 +95,7 @@ func (r *GenericIssuerReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		id, err := sts.NewFromConfig(cfg).GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 		if err != nil {
 			log.Error(err, "failed to sts.GetCallerIdentity")
+			_ = r.setStatus(ctx, issuer, metav1.ConditionFalse, "Error", stableErrorMessage(err))
 			return ctrl.Result{}, err
 		}
 		log.Info("sts.GetCallerIdentity", "arn", id.Arn, "account", id.Account, "user_id", id.UserId)
@@ -110,8 +117,24 @@ func (r *GenericIssuerReconciler) setStatus(ctx context.Context, issuer api.Gene
 	return r.Client.Status().Update(ctx, issuer)
 }
 
+// AWS errors embed a per-request ID. Dropping it keeps the status unchanged while
+// the cause is, since every status change re-triggers a reconcile and so an STS call.
+func stableErrorMessage(err error) string {
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		return fmt.Sprintf("%s: %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
+	}
+	return err.Error()
+}
+
 func validateIssuer(spec *api.AWSPCAIssuerSpec) error {
 	switch {
+	case spec.ServiceAccountRef != nil && spec.ServiceAccountRef.Name == "":
+		return errServiceAccountNoName
+	case spec.ServiceAccountRef != nil && spec.Role == "":
+		return errServiceAccountNoRole
+	case spec.ServiceAccountRef != nil && spec.SecretRef.Name != "":
+		return errServiceAccountAndSecret
 	case spec.Arn == "":
 		return errNoArnInSpec
 	case spec.Region == "" && awsDefaultRegion == "":

@@ -125,6 +125,40 @@ false
 </tr>
 <tr>
 
+<td>disableClusterIssuerAmbientCredentials</td>
+<td>
+
+Stops AWSPCAClusterIssuers that set neither `secretRef` nor `serviceAccountRef` from using the controller's own AWS credentials (IRSA, EKS Pod Identity, instance profile).
+
+</td>
+<td>bool</td>
+<td>
+
+```yaml
+false
+```
+
+</td>
+</tr>
+<tr>
+
+<td>enableIssuerAmbientCredentials</td>
+<td>
+
+Lets AWSPCAIssuers that set neither `secretRef` nor `serviceAccountRef` use the controller's own AWS credentials. Enabling this lets anyone who can create an AWSPCAIssuer in any namespace issue certificates using the controller's IAM identity.
+
+</td>
+<td>bool</td>
+<td>
+
+```yaml
+false
+```
+
+</td>
+</tr>
+<tr>
+
 <td>imagePullSecrets</td>
 <td>
 

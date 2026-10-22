@@ -64,8 +64,8 @@ func (p *fakeProvisioner) Get(ctx context.Context, cr *cmapi.CertificateRequest,
 	return p.cert, p.caCert, p.getErr
 }
 
-func generateMockGetProvisioner(p *fakeProvisioner, err error) func(context.Context, client.Client, issuerapi.GenericIssuer) (awspca.GenericProvisioner, error) {
-	return func(_ context.Context, _ client.Client, _ issuerapi.GenericIssuer) (awspca.GenericProvisioner, error) {
+func generateMockGetProvisioner(p *fakeProvisioner, err error) func(context.Context, client.Client, issuerapi.GenericIssuer, awspca.CredentialOptions) (awspca.GenericProvisioner, error) {
+	return func(_ context.Context, _ client.Client, _ issuerapi.GenericIssuer, _ awspca.CredentialOptions) (awspca.GenericProvisioner, error) {
 		return p, err
 	}
 }
@@ -82,7 +82,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 		expectedCertificate          []byte
 		expectedCACertificate        []byte
 		expectedTemplate             string
-		mockProvisioner              func(context.Context, client.Client, issuerapi.GenericIssuer) (awspca.GenericProvisioner, error)
+		mockProvisioner              func(context.Context, client.Client, issuerapi.GenericIssuer, awspca.CredentialOptions) (awspca.GenericProvisioner, error)
 	}
 	tests := map[string]testCase{
 		"success-issuer": {
@@ -759,16 +759,20 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				WithStatusSubresource(tc.objects...).
 				Build()
 			controller := CertificateRequestReconciler{
-				Client:   fakeClient,
-				Log:      logrtesting.NewTestLogger(t),
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(10),
+				Client:            fakeClient,
+				Log:               logrtesting.NewTestLogger(t),
+				Scheme:            scheme,
+				Recorder:          record.NewFakeRecorder(10),
+				CredentialOptions: awspca.CredentialOptions{IssuerAmbientCredentials: true},
 			}
 
 			ctx := context.TODO()
 
 			if tc.mockProvisioner != nil {
-				GetProvisioner = tc.mockProvisioner
+				GetProvisioner = func(ctx context.Context, c client.Client, iss issuerapi.GenericIssuer, opts awspca.CredentialOptions) (awspca.GenericProvisioner, error) {
+					assert.Equal(t, controller.CredentialOptions, opts)
+					return tc.mockProvisioner(ctx, c, iss, opts)
+				}
 				t.Cleanup(awspca.ClearProvisioners)
 			}
 
@@ -779,7 +783,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 			assert.Equal(t, tc.expectedGetResult, result, "Unexpected get result")
 
 			if tc.expectedTemplate != "" {
-				p, _ := GetProvisioner(ctx, fakeClient, nil)
+				p, _ := GetProvisioner(ctx, fakeClient, nil, controller.CredentialOptions)
 				assert.Equal(t, tc.expectedTemplate, p.(*fakeProvisioner).pcaTemplateName)
 			}
 

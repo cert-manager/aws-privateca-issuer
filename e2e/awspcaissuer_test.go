@@ -32,7 +32,7 @@ type TestContext struct {
 	xaCfg     aws.Config
 	caArns    map[string]string
 
-	region, partition, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn, roleToAssume string
+	region, partition, accessKey, secretKey, endEntityResourceShareArn, subordinateCaResourceShareArn, userName, policyArn, roleToAssume, controllerNamespace, controllerServiceAccount, serviceAccountAuthRole string
 }
 
 // These are variables specific to each test
@@ -53,22 +53,45 @@ var opts = godog.Options{
 }
 
 const (
-	KubeConfigPath      = "/tmp/pca_kubeconfig"
-	CrossAccountRoleKey = "PLUGIN_CROSS_ACCOUNT_ROLE"
-	DefaultRegion       = "us-east-1"
-	UserNameOverrideKey = "PLUGIN_USER_NAME_OVERRIDE"
+	KubeConfigPath              = "/tmp/pca_kubeconfig"
+	CrossAccountRoleKey         = "PLUGIN_CROSS_ACCOUNT_ROLE"
+	DefaultRegion               = "us-east-1"
+	UserNameOverrideKey         = "PLUGIN_USER_NAME_OVERRIDE"
+	IssuerAmbientCredentialsKey = "ISSUER_AMBIENT_CREDENTIALS"
+	ControllerNamespaceKey      = "CONTROLLER_NAMESPACE"
+	ControllerServiceAccountKey = "CONTROLLER_SERVICE_ACCOUNT"
+	ServiceAccountAuthRoleKey   = "SERVICE_ACCOUNT_AUTH_ROLE"
 )
 
 func TestMain(m *testing.M) {
 	o := opts
+	var excludedTags []string
 
 	roleName, xaRoleExists := os.LookupEnv(CrossAccountRoleKey)
 	if !xaRoleExists {
 		log.Printf("Skipping CrossAccount tests")
-		o.Tags = "~@CrossAccount"
+		excludedTags = append(excludedTags, "~@CrossAccount")
 	} else {
 		log.Printf("Using CrossAccount role: %s", roleName)
 	}
+
+	if os.Getenv(IssuerAmbientCredentialsKey) == "false" {
+		log.Printf("Issuer ambient credentials disabled, skipping IssuerAmbientCredentials tests")
+		excludedTags = append(excludedTags, "~@IssuerAmbientCredentials")
+	} else {
+		log.Printf("Issuer ambient credentials enabled, skipping NoIssuerAmbientCredentials tests")
+		excludedTags = append(excludedTags, "~@NoIssuerAmbientCredentials")
+	}
+
+	saRole, saRoleExists := os.LookupEnv(ServiceAccountAuthRoleKey)
+	if !saRoleExists {
+		log.Printf("Skipping ServiceAccountAuth tests")
+		excludedTags = append(excludedTags, "~@ServiceAccountAuth")
+	} else {
+		log.Printf("Using ServiceAccountAuth role: %s", saRole)
+	}
+
+	o.Tags = strings.Join(excludedTags, "&&")
 
 	log.Printf("Running tests with the following tags: %s", o.Tags)
 	status := godog.TestSuite{
@@ -129,6 +152,10 @@ func InitializeTestSuite(suiteCtx *godog.TestSuiteContext) {
 		if roleToAssumeOverride, exists := os.LookupEnv("ROLE_TO_ASSUME_OVERRIDE"); exists {
 			testContext.roleToAssume = roleToAssumeOverride
 		}
+
+		testContext.controllerNamespace = os.Getenv(ControllerNamespaceKey)
+		testContext.controllerServiceAccount = os.Getenv(ControllerServiceAccountKey)
+		testContext.serviceAccountAuthRole = os.Getenv(ServiceAccountAuthRoleKey)
 
 		testContext.iclient, err = clientV1beta1.NewForConfig(clientConfig)
 
@@ -253,6 +280,8 @@ func InitializeScenario(ctx *godog.ScenarioContext) {
 	ctx.Step(`^I delete the AWSPCAClusterIssuer$`, issuerContext.deleteClusterIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer using a (RSA|ECDSA|XA) CA$`, issuerContext.createNamespaceIssuer)
 	ctx.Step(`^I create an AWSPCAIssuer with role assumption$`, issuerContext.createNamespaceIssuerWithRole)
+	ctx.Step(`^the AWSPCAIssuer should fail with "([^"]*)"$`, issuerContext.verifyNamespaceIssuerFails)
+	ctx.Step(`^I create an AWSPCAClusterIssuer using the controller's ServiceAccount and a (RSA|ECDSA) CA$`, issuerContext.createClusterIssuerWithServiceAccount)
 	ctx.Step(`^I issue a (SHORT_VALIDITY|RSA|ECDSA|CA) certificate$`, issuerContext.issueCertificate)
 	ctx.Step(`^I issue a ([A-Z_]+) certificate with usage ([a-z_,]+)$`, issuerContext.issueCertificateWithUsage)
 	ctx.Step(`^the certificate should be issued successfully$`, issuerContext.verifyCertificateIssued)

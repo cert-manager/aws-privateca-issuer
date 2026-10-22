@@ -8,6 +8,7 @@ Feature: Issue certificates using role assumption
     When I issue a RSA certificate
     Then the certificate should be issued successfully
 
+  @IssuerAmbientCredentials
   Scenario: Issue a certificate with a namespaced Issuer using role assumption
     Given I create a namespace
     And I create an AWSPCAIssuer with role assumption

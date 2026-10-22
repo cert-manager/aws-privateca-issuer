@@ -77,6 +77,7 @@ test: generate fmt vet lint manifests envtest
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" go test -v ./pkg/... -coverprofile cover.out
 
 e2etest: test envtest
+	ISSUER_AMBIENT_CREDENTIALS=$(ISSUER_AMBIENT_CREDENTIALS) CONTROLLER_NAMESPACE=$(NAMESPACE) CONTROLLER_SERVICE_ACCOUNT=$(SERVICE_ACCOUNT) \
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(shell pwd)/bin -p path)" go test -v ./e2e/... -coverprofile cover.out
 
 helm-test: manager kind-cluster deploy-cert-manager
@@ -231,6 +232,7 @@ TEST_KUBECONFIG_LOCATION := /tmp/pca_kubeconfig
 CHART_REPOSITORY ?=
 CHART_VERSION ?=
 ISSUER_VALUES ?=
+ISSUER_AMBIENT_CREDENTIALS ?= true
 INSTALL_ISSUER := $(if $(CHART_VERSION),install-chart,install-local)
 
 create-local-registry:
@@ -311,14 +313,14 @@ install-local: docker-build docker-push-local
 	#install plugin from local docker repo
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) \
 	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
 
 .PHONY: install-chart
 install-chart:
 	sleep 15
 	helm install issuer aws-privateca-issuer --repo ${CHART_REPOSITORY} --version ${CHART_VERSION} -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
 
 .PHONY: install-issuer
 install-issuer: $(INSTALL_ISSUER)
@@ -328,7 +330,7 @@ install-beta-ecr:
 	#install plugin from local docker repo
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) \
 	--set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
 	--set image.tag=latest --set image.pullPolicy=Always
 

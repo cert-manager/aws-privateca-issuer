@@ -23,10 +23,13 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	authv1 "k8s.io/api/authentication/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -42,6 +45,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
 
 var (
@@ -248,21 +252,22 @@ func TestProvisonerOperation(t *testing.T) {
 
 	iss := &issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}, Spec: *issSpec}
 
+	opts := CredentialOptions{}
 	ClearProvisioners()
-	provisioner, err := GetProvisioner(context.TODO(), fakeClient, iss)
+	provisioner, err := GetProvisioner(context.TODO(), fakeClient, iss, opts)
 	assert.Equal(t, err, nil)
-	output, err := GetProvisioner(context.TODO(), fakeClient, iss)
+	output, err := GetProvisioner(context.TODO(), fakeClient, iss, opts)
 	assert.Equal(t, output, provisioner)
 	assert.Equal(t, err, nil)
 
 	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
-	output, err = GetProvisioner(context.TODO(), fakeClient, iss)
+	output, err = GetProvisioner(context.TODO(), fakeClient, iss, opts)
 	assert.NotEqual(t, output, provisioner)
 	assert.Equal(t, err, nil)
 
 	iss.Spec.NotBeforeOffset = ptrDuration(metav1.Duration{Duration: 30 * time.Second})
 	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
-	output, err = GetProvisioner(context.TODO(), fakeClient, iss)
+	output, err = GetProvisioner(context.TODO(), fakeClient, iss, opts)
 	require.NoError(t, err)
 	require.NotNil(t, output.(*PCAProvisioner).notBeforeOffset)
 	assert.Equal(t, 30*time.Second, output.(*PCAProvisioner).notBeforeOffset.Duration)
@@ -670,7 +675,7 @@ func TestPCAGetConfig(t *testing.T) {
 			iss := new(issuerapi.AWSPCAIssuer)
 			require.NoError(t, fakeClient.Get(ctx, tc.name, iss))
 
-			config, err := GetConfig(ctx, fakeClient, iss)
+			config, err := GetConfig(ctx, fakeClient, iss, CredentialOptions{})
 
 			if tc.expectFailure && err == nil {
 				assert.Fail(t, "Expected an error but got none")
@@ -690,6 +695,7 @@ func TestPCAGetConfig(t *testing.T) {
 }
 
 func TestLoadConfigCredentials(t *testing.T) {
+	const role = "arn:aws:iam::123456789012:role/pca-issuer"
 	fakeClient := fake.NewClientBuilder().WithObjects(&v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "creds"},
 		Data:       map[string][]byte{"AWS_ACCESS_KEY_ID": []byte("static"), "AWS_SECRET_ACCESS_KEY": []byte("static")},
@@ -699,28 +705,128 @@ func TestLoadConfigCredentials(t *testing.T) {
 			SecretReference: v1.SecretReference{Namespace: secretNamespace, Name: "creds"},
 		}}
 	}
+	withServiceAccount := func(spec issuerapi.AWSPCAIssuerSpec, namespace string) issuerapi.AWSPCAIssuerSpec {
+		spec.Role = role
+		spec.ServiceAccountRef = &issuerapi.ServiceAccountRef{Name: "sa", Namespace: namespace}
+		return spec
+	}
 	issuerMeta := metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}
+	clusterIssuerMeta := metav1.ObjectMeta{Name: "issuer1"}
+	issuerAmbient := CredentialOptions{IssuerAmbientCredentials: true}
+	clusterIssuerAmbient := CredentialOptions{ClusterIssuerAmbientCredentials: true}
 
 	tests := map[string]struct {
 		issuer      issuerapi.GenericIssuer
+		opts        CredentialOptions
 		expectedErr error
 	}{
-		"issuer-secret-namespace-defaulted":   {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("")}},
-		"issuer-secret-other-namespace":       {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("ns2")}, expectedErr: ErrSecretNamespaceMismatch},
-		"cluster-issuer-secret-any-namespace": {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1"}, Spec: spec("ns1")}},
+		"issuer-secret-namespace-defaulted":       {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("")}},
+		"issuer-secret-other-namespace":           {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("ns2")}, expectedErr: ErrNamespaceMismatch},
+		"cluster-issuer-secret-any-namespace":     {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: spec("ns1")}},
+		"cluster-issuer-secret-without-namespace": {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: spec("")}, expectedErr: ErrNamespaceRequired},
+
+		"issuer-ambient-disallowed":           {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta}, opts: clusterIssuerAmbient, expectedErr: ErrAmbientDisallowed},
+		"issuer-role-only-ambient-disallowed": {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: issuerapi.AWSPCAIssuerSpec{Role: role}}, opts: clusterIssuerAmbient, expectedErr: ErrAmbientDisallowed},
+		"issuer-ambient-allowed":              {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta}, opts: issuerAmbient},
+		"cluster-issuer-ambient-disallowed":   {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta}, opts: issuerAmbient, expectedErr: ErrAmbientDisallowed},
+		"cluster-issuer-ambient-allowed":      {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta}, opts: clusterIssuerAmbient},
+
+		"issuer-sa-ref-other-namespace":           {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: withServiceAccount(issuerapi.AWSPCAIssuerSpec{}, "kube-system")}, expectedErr: ErrNamespaceMismatch},
+		"cluster-issuer-sa-ref-without-namespace": {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: withServiceAccount(issuerapi.AWSPCAIssuerSpec{}, "")}, expectedErr: ErrNamespaceRequired},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			cfg, err := LoadConfig(context.TODO(), fakeClient, tc.issuer)
+			cfg, err := LoadConfig(context.TODO(), fakeClient, tc.issuer, tc.opts)
 			require.ErrorIs(t, err, tc.expectedErr)
-			if err == nil {
+			if err == nil && tc.issuer.GetSpec().SecretRef.Name != "" {
 				creds, err := cfg.Credentials.Retrieve(context.TODO())
 				require.NoError(t, err)
 				assert.Equal(t, "static", creds.AccessKeyID)
 			}
 		})
 	}
+}
+
+func TestServiceAccountToken(t *testing.T) {
+	tests := map[string]struct {
+		issuer            issuerapi.GenericIssuer
+		expectedNamespace string
+	}{
+		"issuer-uses-own-namespace": {
+			issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+				ServiceAccountRef: &issuerapi.ServiceAccountRef{Name: "sa"},
+			}},
+			expectedNamespace: "ns1",
+		},
+		"cluster-issuer-uses-ref-namespace": {
+			issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+				ServiceAccountRef: &issuerapi.ServiceAccountRef{Name: "sa", Namespace: "issuer-system"},
+			}},
+			expectedNamespace: "issuer-system",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			var requests []*authv1.TokenRequest
+			fakeClient := fake.NewClientBuilder().
+				WithObjects(&v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Namespace: tc.expectedNamespace, Name: "sa"}}).
+				WithInterceptorFuncs(interceptor.Funcs{
+					SubResourceCreate: func(ctx context.Context, c client.Client, subResource string, obj client.Object, req client.Object, opts ...client.SubResourceCreateOption) error {
+						requests = append(requests, req.(*authv1.TokenRequest))
+						return c.SubResource(subResource).Create(ctx, obj, req, opts...)
+					},
+				}).
+				Build()
+
+			token, err := serviceAccountToken(fakeClient, tc.issuer)
+			require.NoError(t, err)
+			for range 2 {
+				_, err := token.GetIdentityToken()
+				require.NoError(t, err)
+			}
+			require.Len(t, requests, 2, "every exchange needs a fresh token")
+			assert.Equal(t, []string{"sts.amazonaws.com"}, requests[0].Spec.Audiences)
+			assert.Equal(t, int64(600), *requests[0].Spec.ExpirationSeconds)
+		})
+	}
+}
+
+func TestLoadConfigServiceAccountRef(t *testing.T) {
+	const role = "arn:aws:iam::123456789012:role/pca-issuer"
+	var stsCalls int
+	sts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		stsCalls++
+		assert.NoError(t, r.ParseForm())
+		assert.Equal(t, "AssumeRoleWithWebIdentity", r.Form.Get("Action"))
+		assert.Equal(t, role, r.Form.Get("RoleArn"))
+		assert.Equal(t, "fake-token", r.Form.Get("WebIdentityToken"))
+		assert.Equal(t, "aws-privateca-issuer", r.Form.Get("RoleSessionName"))
+		fmt.Fprint(w, `<AssumeRoleWithWebIdentityResponse><AssumeRoleWithWebIdentityResult><Credentials>`+
+			`<AccessKeyId>AKID</AccessKeyId><SecretAccessKey>SECRET</SecretAccessKey>`+
+			`<SessionToken>SESSION</SessionToken><Expiration>2099-01-01T00:00:00Z</Expiration>`+
+			`</Credentials></AssumeRoleWithWebIdentityResult></AssumeRoleWithWebIdentityResponse>`)
+	}))
+	t.Cleanup(sts.Close)
+	t.Setenv("AWS_ENDPOINT_URL_STS", sts.URL)
+
+	fakeClient := fake.NewClientBuilder().WithObjects(&v1.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "sa"}}).Build()
+	issuer := &issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+		Region:            "us-east-1",
+		Role:              role,
+		ServiceAccountRef: &issuerapi.ServiceAccountRef{Name: "sa"},
+	}}
+
+	cfg, err := LoadConfig(context.TODO(), fakeClient, issuer, CredentialOptions{})
+	require.NoError(t, err)
+	creds, err := cfg.Credentials.Retrieve(context.TODO())
+	require.NoError(t, err)
+	assert.Equal(t, "AKID", creds.AccessKeyID)
+
+	_, err = cfg.Credentials.Retrieve(context.TODO())
+	require.NoError(t, err)
+	assert.Equal(t, 1, stsCalls, "credentials are cached until the session expires")
 }
 
 func TestPCAGet(t *testing.T) {

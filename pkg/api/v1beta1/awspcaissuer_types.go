@@ -35,12 +35,18 @@ type AWSPCAIssuerSpec struct {
 	// +optional
 	Region string `json:"region,omitempty"`
 	// Needs to be specified if you want to authorize with AWS using an access and secret key.
-	// For an AWSPCAIssuer the Secret must be in the Issuer's namespace.
+	// An AWSPCAIssuer can only use a Secret in its own namespace; an AWSPCAClusterIssuer must specify the Secret's namespace.
 	// +optional
 	SecretRef AWSCredentialsSecretReference `json:"secretRef,omitempty"`
 	// Specifies the ARN of role to assume when issuing certificates.
 	// +optional
 	Role string `json:"role,omitempty"`
+	// Names a ServiceAccount whose bound token (also known as "projected token")
+	// the controller exchanges for role, so role must also be set. The controller
+	// needs RBAC to create tokens for the ServiceAccount; the chart grants this
+	// only for the controller's own ServiceAccount. Cannot be set with secretRef.
+	// +optional
+	ServiceAccountRef *ServiceAccountRef `json:"serviceAccountRef,omitempty"`
 	// Specifies PCA template configuration for this issuer.
 	// +optional
 	PCATemplate *PCATemplate `json:"pcaTemplate,omitempty"`
@@ -70,6 +76,16 @@ type AWSCredentialsSecretReference struct {
 	// Specifies the secret key where the AWS Secret Access Key exists
 	// +optional
 	SecretAccessKeySelector v1.SecretKeySelector `json:"secretAccessKeySelector,omitempty"`
+}
+
+// ServiceAccountRef names a ServiceAccount whose bound token is exchanged for role.
+type ServiceAccountRef struct {
+	// Name of the ServiceAccount used to request a token.
+	Name string `json:"name"`
+	// Namespace of the ServiceAccount. Required for an AWSPCAClusterIssuer. For an
+	// AWSPCAIssuer it must be the Issuer's namespace.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 }
 
 // AWSPCAIssuerStatus defines the observed state of AWSPCAIssuer

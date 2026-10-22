@@ -67,7 +67,7 @@ spec:
               secretRef:
                 description: |-
                   Needs to be specified if you want to authorize with AWS using an access and secret key.
-                  For an AWSPCAIssuer the Secret must be in the Issuer's namespace.
+                  An AWSPCAIssuer can only use a Secret in its own namespace; an AWSPCAClusterIssuer must specify the Secret's namespace.
                 properties:
                   accessKeyIDSelector:
                     description: Specifies the secret key where the AWS Access Key
@@ -129,6 +129,24 @@ spec:
                     x-kubernetes-map-type: atomic
                 type: object
                 x-kubernetes-map-type: atomic
+              serviceAccountRef:
+                description: |-
+                  Names a ServiceAccount whose bound token (also known as "projected token")
+                  the controller exchanges for role, so role must also be set. The controller
+                  needs RBAC to create tokens for the ServiceAccount; the chart grants this
+                  only for the controller's own ServiceAccount. Cannot be set with secretRef.
+                properties:
+                  name:
+                    description: Name of the ServiceAccount used to request a token.
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace of the ServiceAccount. Required for an AWSPCAClusterIssuer. For an
+                      AWSPCAIssuer it must be the Issuer's namespace.
+                    type: string
+                required:
+                - name
+                type: object
             type: object
           status:
             description: AWSPCAIssuerStatus defines the observed state of AWSPCAIssuer

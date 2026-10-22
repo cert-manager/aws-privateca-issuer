@@ -17,6 +17,8 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -46,6 +48,14 @@ func TestIssuerReconcile(t *testing.T) {
 	awsDefaultRegion = ""
 	t.Cleanup(func() { awsDefaultRegion = origAWSDefaultRegion })
 
+	sts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `<ErrorResponse><Error><Type>Sender</Type><Code>AccessDenied</Code>`+
+			`<Message>Not authorized</Message></Error><RequestId>req-1</RequestId></ErrorResponse>`)
+	}))
+	t.Cleanup(sts.Close)
+	t.Setenv("AWS_ENDPOINT_URL_STS", sts.URL)
+
 	type testCase struct {
 		kind                         string
 		name                         types.NamespacedName
@@ -53,9 +63,56 @@ func TestIssuerReconcile(t *testing.T) {
 		expectedResult               ctrl.Result
 		expectedError                error
 		expectedReadyConditionStatus metav1.ConditionStatus
+		credentialOptions            awspca.CredentialOptions
+		getCallerIdentity            bool
+		expectedErrorContains        string
+		expectedReadyMessage         string
 	}
 
 	tests := map[string]testCase{
+		"success-issuer-ambient-allowed": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1", Namespace: "ns1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+					Region: "us-east-1",
+					Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+				}},
+			},
+			credentialOptions:            awspca.CredentialOptions{IssuerAmbientCredentials: true},
+			expectedReadyConditionStatus: metav1.ConditionTrue,
+		},
+		"failure-service-account-token": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1", Namespace: "ns1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+					Region:            "us-east-1",
+					Arn:               "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					Role:              "arn:aws:iam::123456789012:role/pca-issuer",
+					ServiceAccountRef: &issuerapi.ServiceAccountRef{Name: "missing"},
+				}},
+			},
+			getCallerIdentity:            true,
+			expectedErrorContains:        "failed to request token for ServiceAccount ns1/missing",
+			expectedReadyConditionStatus: metav1.ConditionFalse,
+		},
+		"failure-sts-error-status-omits-request-id": {
+			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
+			objects: []client.Object{
+				&issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1", Namespace: "ns1"}, Spec: issuerapi.AWSPCAIssuerSpec{
+					Region:    "us-east-1",
+					Arn:       "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
+					SecretRef: issuerapi.AWSCredentialsSecretReference{SecretReference: v1.SecretReference{Name: "creds", Namespace: "ns1"}},
+				}},
+				&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "creds", Namespace: "ns1"},
+					Data:       map[string][]byte{"AWS_ACCESS_KEY_ID": []byte("id"), "AWS_SECRET_ACCESS_KEY": []byte("secret")},
+				},
+			},
+			getCallerIdentity:            true,
+			expectedErrorContains:        "req-1",
+			expectedReadyConditionStatus: metav1.ConditionFalse,
+			expectedReadyMessage:         "AccessDenied: Not authorized",
+		},
 		"success-with-secret-selector": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "issuer1"},
 			objects: []client.Object{
@@ -155,7 +212,8 @@ func TestIssuerReconcile(t *testing.T) {
 					Spec: issuerapi.AWSPCAIssuerSpec{
 						SecretRef: issuerapi.AWSCredentialsSecretReference{
 							SecretReference: v1.SecretReference{
-								Name: "clusterissuer1-credentials",
+								Name:      "clusterissuer1-credentials",
+								Namespace: "ns1",
 							},
 						},
 						Region: "us-east-1",
@@ -172,7 +230,8 @@ func TestIssuerReconcile(t *testing.T) {
 				},
 				&v1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "clusterissuer1-credentials",
+						Name:      "clusterissuer1-credentials",
+						Namespace: "ns1",
 					},
 					Data: map[string][]byte{
 						"AWS_ACCESS_KEY_ID":     []byte("ZXhhbXBsZQ=="),
@@ -538,10 +597,12 @@ func TestIssuerReconcile(t *testing.T) {
 				Build()
 
 			controller := GenericIssuerReconciler{
-				Client:   fakeClient,
-				Log:      logrtesting.NewTestLogger(t),
-				Scheme:   scheme,
-				Recorder: record.NewFakeRecorder(10),
+				Client:            fakeClient,
+				Log:               logrtesting.NewTestLogger(t),
+				Scheme:            scheme,
+				Recorder:          record.NewFakeRecorder(10),
+				CredentialOptions: tc.credentialOptions,
+				GetCallerIdentity: tc.getCallerIdentity,
 			}
 
 			var (
@@ -572,6 +633,8 @@ func TestIssuerReconcile(t *testing.T) {
 
 			if tc.expectedError != nil {
 				assertErrorIs(t, tc.expectedError, err)
+			} else if tc.expectedErrorContains != "" {
+				assert.ErrorContains(t, err, tc.expectedErrorContains)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -580,6 +643,9 @@ func TestIssuerReconcile(t *testing.T) {
 
 			if tc.expectedReadyConditionStatus != "" {
 				assertIssuerHasReadyCondition(t, tc.expectedReadyConditionStatus, &status)
+			}
+			if tc.expectedReadyMessage != "" {
+				assert.Equal(t, tc.expectedReadyMessage, status.Conditions[0].Message)
 			}
 		})
 	}
@@ -623,4 +689,16 @@ func TestValidateIssuerNotBeforeOffset(t *testing.T) {
 			assert.Equal(t, tc.expectedError, validateIssuer(specWithOffset(tc.offset)))
 		})
 	}
+}
+
+func TestValidateIssuerServiceAccountRef(t *testing.T) {
+	spec := &issuerapi.AWSPCAIssuerSpec{Arn: "arn", Region: "us-east-1", Role: "role", ServiceAccountRef: &issuerapi.ServiceAccountRef{Name: "sa"}}
+	assert.NoError(t, validateIssuer(spec))
+	spec.SecretRef.Name = "creds"
+	assert.Equal(t, errServiceAccountAndSecret, validateIssuer(spec))
+	spec.SecretRef.Name = ""
+	spec.Role = ""
+	assert.Equal(t, errServiceAccountNoRole, validateIssuer(spec))
+	spec.ServiceAccountRef.Name = ""
+	assert.Equal(t, errServiceAccountNoName, validateIssuer(spec))
 }
