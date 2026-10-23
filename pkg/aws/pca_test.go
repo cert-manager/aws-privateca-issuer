@@ -899,3 +899,56 @@ func ptrInt(i int64) *int64 {
 func ptrDuration(d metav1.Duration) *metav1.Duration {
 	return &d
 }
+
+func TestLoadConfigSessionToken(t *testing.T) {
+	tests := map[string]struct {
+		data          map[string][]byte
+		expectedToken string
+	}{
+		"without-session-token": {
+			data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("AKIAEXAMPLE"),
+				"AWS_SECRET_ACCESS_KEY": []byte("secret"),
+			},
+			expectedToken: "",
+		},
+		"with-session-token": {
+			data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("AKIAEXAMPLE"),
+				"AWS_SECRET_ACCESS_KEY": []byte("secret"),
+				"AWS_SESSION_TOKEN":     []byte("temporary-token"),
+			},
+			expectedToken: "temporary-token",
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			require.NoError(t, v1.AddToScheme(scheme))
+
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(&v1.Secret{
+					ObjectMeta: metav1.ObjectMeta{Name: "creds", Namespace: "ns1"},
+					Data:       tc.data,
+				}).
+				Build()
+
+			spec := &issuerapi.AWSPCAIssuerSpec{
+				Region: "us-east-1",
+				SecretRef: issuerapi.AWSCredentialsSecretReference{
+					SecretReference: v1.SecretReference{Name: "creds", Namespace: "ns1"},
+				},
+			}
+
+			cfg, err := LoadConfig(context.TODO(), fakeClient, spec)
+			require.NoError(t, err)
+
+			creds, err := cfg.Credentials.Retrieve(context.TODO())
+			require.NoError(t, err)
+			assert.Equal(t, "AKIAEXAMPLE", creds.AccessKeyID)
+			assert.Equal(t, tc.expectedToken, creds.SessionToken)
+		})
+	}
+}
