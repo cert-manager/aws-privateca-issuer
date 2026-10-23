@@ -129,8 +129,11 @@ func LoadConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssue
 			return aws.Config{}, ErrNoSecretAccessKey
 		}
 
+		// The session token is optional and only needed for temporary credentials.
+		sessionToken := secret.Data["AWS_SESSION_TOKEN"]
+
 		configOptions = append(configOptions, config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
+			credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), string(sessionToken))),
 		)
 	}
 
