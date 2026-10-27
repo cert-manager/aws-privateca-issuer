@@ -49,7 +49,7 @@ helm install awspca/aws-privateca-issuer --generate-name \
 ```
 ## Configuration
 
-As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
+As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`. When using temporary credentials, the secret can also contain `AWS_SESSION_TOKEN`.
 
 Alternatively, you can supply arbitrary secrets for the access and secret keys with the `accessKeyIDSelector` and `secretAccessKeySelector` fields in the clusterissuer and/or issuer manifests.
 
