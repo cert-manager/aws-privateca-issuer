@@ -58,6 +58,10 @@ deploymentAnnotations: {}
 # Annotations to add to the issuer Pod
 podAnnotations: {}
 
+# Pod dnsConfig : https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-dns-config
+# +docs:property
+dnsConfig: {}
+
 # Pod security context 
 # +docs:property
 podSecurityContext:
