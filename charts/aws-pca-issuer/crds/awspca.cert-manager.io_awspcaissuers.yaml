@@ -65,8 +65,9 @@ spec:
                 description: Specifies the ARN of role to assume when issuing certificates.
                 type: string
               secretRef:
-                description: Needs to be specified if you want to authorize with AWS
-                  using an access and secret key
+                description: |-
+                  Needs to be specified if you want to authorize with AWS using an access and secret key.
+                  For an AWSPCAIssuer the Secret must be in the Issuer's namespace.
                 properties:
                   accessKeyIDSelector:
                     description: Specifies the secret key where the AWS Access Key

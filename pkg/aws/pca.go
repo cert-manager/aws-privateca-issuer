@@ -18,6 +18,7 @@ package aws
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/pem"
@@ -52,8 +53,9 @@ const DEFAULT_DURATION = 30 * 24 * 3600
 const DEFAULT_NOT_BEFORE_OFFSET = 15 * time.Minute
 
 var (
-	ErrNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
-	ErrNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
+	ErrNoSecretAccessKey       = errors.New("no AWS Secret Access Key Found")
+	ErrNoAccessKeyID           = errors.New("no AWS Access Key ID Found")
+	ErrSecretNamespaceMismatch = errors.New("secretRef namespace in Issuer Spec must match the Issuer's namespace")
 )
 
 var collection = new(sync.Map)
@@ -80,8 +82,8 @@ type PCAProvisioner struct {
 	notBeforeOffset  *metav1.Duration
 }
 
-func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
-	cfg, err := LoadConfig(ctx, client, spec)
+func GetConfig(ctx context.Context, client client.Client, iss api.GenericIssuer) (aws.Config, error) {
+	cfg, err := LoadConfig(ctx, client, iss)
 
 	if err != nil {
 		return aws.Config{}, err
@@ -94,15 +96,21 @@ func GetConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuer
 	return cfg, nil
 }
 
-func LoadConfig(ctx context.Context, client client.Client, spec *api.AWSPCAIssuerSpec) (aws.Config, error) {
+func LoadConfig(ctx context.Context, client client.Client, iss api.GenericIssuer) (aws.Config, error) {
+	spec := iss.GetSpec()
 	var configOptions []func(*config.LoadOptions) error
 	if spec.Region != "" {
 		configOptions = append(configOptions, config.WithRegion(spec.Region))
 	}
 
 	if spec.SecretRef.Name != "" {
+		issuerNamespace := iss.GetNamespace()
+		namespace := cmp.Or(spec.SecretRef.Namespace, issuerNamespace)
+		if issuerNamespace != "" && namespace != issuerNamespace {
+			return aws.Config{}, ErrSecretNamespaceMismatch
+		}
 		secretNamespaceName := types.NamespacedName{
-			Namespace: spec.SecretRef.Namespace,
+			Namespace: namespace,
 			Name:      spec.SecretRef.Name,
 		}
 
@@ -161,18 +169,20 @@ func DeleteProvisioner(ctx context.Context, client client.Client, name types.Nam
 }
 
 // GetProvisioner gets a provisioner that has previously been stored or creates a new one
-func GetProvisioner(ctx context.Context, client client.Client, name types.NamespacedName, spec *api.AWSPCAIssuerSpec) (GenericProvisioner, error) {
+func GetProvisioner(ctx context.Context, client client.Client, iss api.GenericIssuer) (GenericProvisioner, error) {
+	name := types.NamespacedName{Namespace: iss.GetNamespace(), Name: iss.GetName()}
 	value, _ := collection.Load(name)
 	p, isProvisioner := value.(GenericProvisioner)
 	if isProvisioner {
 		return p, nil
 	}
 
-	config, err := GetConfig(ctx, client, spec)
+	config, err := GetConfig(ctx, client, iss)
 	if err != nil {
 		return nil, err
 	}
 
+	spec := iss.GetSpec()
 	provisioner := &PCAProvisioner{
 		pcaClient: acmpca.NewFromConfig(config, acmpca.WithAPIOptions(
 			middleware.AddUserAgentKeyValue(injections.UserAgent, injections.PlugInVersion),

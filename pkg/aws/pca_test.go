@@ -246,21 +246,23 @@ func TestProvisonerOperation(t *testing.T) {
 		Arn:    "arn:aws:acm-pca:us-east-1:account:certificate-authority/12345678-1234-1234-1234-123456789012",
 	}
 
+	iss := &issuerapi.AWSPCAIssuer{ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}, Spec: *issSpec}
+
 	ClearProvisioners()
-	provisioner, err := GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	provisioner, err := GetProvisioner(context.TODO(), fakeClient, iss)
 	assert.Equal(t, err, nil)
-	output, err := GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	output, err := GetProvisioner(context.TODO(), fakeClient, iss)
 	assert.Equal(t, output, provisioner)
 	assert.Equal(t, err, nil)
 
 	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
-	output, err = GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	output, err = GetProvisioner(context.TODO(), fakeClient, iss)
 	assert.NotEqual(t, output, provisioner)
 	assert.Equal(t, err, nil)
 
-	issSpec.NotBeforeOffset = ptrDuration(metav1.Duration{Duration: 30 * time.Second})
+	iss.Spec.NotBeforeOffset = ptrDuration(metav1.Duration{Duration: 30 * time.Second})
 	DeleteProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"})
-	output, err = GetProvisioner(context.TODO(), fakeClient, types.NamespacedName{Namespace: "ns1", Name: "issuer1"}, issSpec)
+	output, err = GetProvisioner(context.TODO(), fakeClient, iss)
 	require.NoError(t, err)
 	require.NotNil(t, output.(*PCAProvisioner).notBeforeOffset)
 	assert.Equal(t, 30*time.Second, output.(*PCAProvisioner).notBeforeOffset.Duration)
@@ -668,7 +670,7 @@ func TestPCAGetConfig(t *testing.T) {
 			iss := new(issuerapi.AWSPCAIssuer)
 			require.NoError(t, fakeClient.Get(ctx, tc.name, iss))
 
-			config, err := GetConfig(ctx, fakeClient, iss.GetSpec())
+			config, err := GetConfig(ctx, fakeClient, iss)
 
 			if tc.expectFailure && err == nil {
 				assert.Fail(t, "Expected an error but got none")
@@ -682,6 +684,40 @@ func TestPCAGetConfig(t *testing.T) {
 				creds, _ := config.Credentials.Retrieve(ctx)
 				assert.Equal(t, "ZXhhbXBsZQ==", creds.AccessKeyID)
 				assert.Equal(t, "ZXhhbXBsZQ==", creds.SecretAccessKey)
+			}
+		})
+	}
+}
+
+func TestLoadConfigCredentials(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().WithObjects(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "creds"},
+		Data:       map[string][]byte{"AWS_ACCESS_KEY_ID": []byte("static"), "AWS_SECRET_ACCESS_KEY": []byte("static")},
+	}).Build()
+	spec := func(secretNamespace string) issuerapi.AWSPCAIssuerSpec {
+		return issuerapi.AWSPCAIssuerSpec{SecretRef: issuerapi.AWSCredentialsSecretReference{
+			SecretReference: v1.SecretReference{Namespace: secretNamespace, Name: "creds"},
+		}}
+	}
+	issuerMeta := metav1.ObjectMeta{Namespace: "ns1", Name: "issuer1"}
+
+	tests := map[string]struct {
+		issuer      issuerapi.GenericIssuer
+		expectedErr error
+	}{
+		"issuer-secret-namespace-defaulted":   {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("")}},
+		"issuer-secret-other-namespace":       {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("ns2")}, expectedErr: ErrSecretNamespaceMismatch},
+		"cluster-issuer-secret-any-namespace": {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: metav1.ObjectMeta{Name: "issuer1"}, Spec: spec("ns1")}},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			cfg, err := LoadConfig(context.TODO(), fakeClient, tc.issuer)
+			require.ErrorIs(t, err, tc.expectedErr)
+			if err == nil {
+				creds, err := cfg.Credentials.Retrieve(context.TODO())
+				require.NoError(t, err)
+				assert.Equal(t, "static", creds.AccessKeyID)
 			}
 		})
 	}
