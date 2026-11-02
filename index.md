@@ -15,6 +15,9 @@
 > [!IMPORTANT]
 > If you are issuing short lived certificates, such as with istio + ztunnel, set [`spec.notBeforeOffset`](#setting-notbefore-on-issued-certificates) on your issuer. AWS Private CA backdates `NotBefore` by 1 hour by default, which can cause clients to constantly renew their certificates. As of v1.10.0, the issuer adds `spec.notBeforeOffset` and backdates by 15 minutes when it is unset, instead of PCA's 1 hour.
 
+> [!WARNING]
+> As of v1.12.0, an AWSPCAIssuer can no longer use the AWS credentials of the aws-privateca-issuer pod itself (IRSA, EKS Pod Identity, the instance profile) by default. To keep the old behavior, set the chart's `enableIssuerAmbientCredentials: true` before upgrading. Otherwise, give each AWSPCAIssuer that relies on those credentials a `secretRef` or a `serviceAccountRef`. See [Ambient Credentials](#ambient-credentials).
+
 AWS Private CA is an AWS service that can setup and manage private CAs, as well as issue private certificates.
 
 cert-manager is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources.
@@ -34,6 +37,8 @@ helm install awspca/aws-privateca-issuer --generate-name
 ```
 
 You can check the chart configuration in the default [values](charts/aws-pca-issuer/values.yaml) file.
+
+Helm [does not upgrade CRDs](https://helm.sh/docs/topics/charts/#limitations-on-crds), so apply `charts/aws-pca-issuer/crds/` before upgrading. Otherwise the API server rejects or silently drops new fields such as `serviceAccountRef`, and an issuer that loses it falls back to ambient credentials where they are allowed.
 
 **[AWS PCA Issuer supports ARM starting at version 1.3.0](https://github.com/cert-manager/aws-privateca-issuer/releases/tag/v1.3.0)**
 
@@ -117,6 +122,28 @@ Please note that if you are using [KIAM](https://github.com/uswitch/kiam) for au
 
 There is a custom AWS authentication method we have coded into our plugin that allows a user to define a [Kubernetes secret](https://kubernetes.io/docs/concepts/configuration/secret/) with AWS Creds passed in, example [here](config/samples/secret.yaml). The user applies that file with their creds and then references the secret in their Issuer CRD when running the plugin, example [here](config/samples/awspcaclusterissuer_ec/_v1beta1_awspcaclusterissuer_ec.yaml#L8-L10).
 
+#### Ambient Credentials
+
+Ambient credentials are the AWS credentials of the aws-privateca-issuer pod itself (the controller), found by the AWS SDK default credential chain, e.g. IRSA, EKS Pod Identity or the instance profile. `--cluster-issuer-ambient-credentials` (default `true`) and `--issuer-ambient-credentials` (default `false`) decide whether AWSPCAClusterIssuers and AWSPCAIssuers respectively may use ambient credentials. The chart sets them with the `disableClusterIssuerAmbientCredentials` and `enableIssuerAmbientCredentials` values:
+
+```yaml
+enableIssuerAmbientCredentials: true
+```
+
+AWSPCAIssuers are usually created in tenant namespaces, apart from the controller's, so they are refused ambient credentials by default. With ambient credentials enabled, anyone who can create an AWSPCAIssuer could issue certificates using the controller's IAM identity. An AWSPCAIssuer that only sets `role` also uses ambient credentials, because the controller assumes that role with its own credentials.
+
+EKS Pod Identity can only be set up for the aws-privateca-issuer pod's ServiceAccount, not for individual issuers. Every AWSPCAIssuer without `secretRef` or `serviceAccountRef` therefore shares that pod's credentials, and may use them only when `enableIssuerAmbientCredentials` is `true`. For separate credentials per issuer, use [IRSA per issuer](#using-irsa-per-issuer).
+
+#### Using IRSA per Issuer
+
+Set `serviceAccountRef` to give an issuer its own IAM role through IRSA instead of the controller's credentials. The controller requests a short-lived token for that ServiceAccount and uses it to assume the issuer's `role`. To set it up:
+
+1. Create an IAM role whose trust policy allows the cluster's OIDC provider for `system:serviceaccount:<namespace>:<name>`, as for any IRSA role. The controller ignores any Pod Identity association on the ServiceAccount.
+2. Grant the controller `create` on `serviceaccounts/token` for that ServiceAccount.
+3. Set `role` and `serviceAccountRef`, without `secretRef`, on the issuer. An AWSPCAIssuer can only name a ServiceAccount in its own namespace; an AWSPCAClusterIssuer must set `serviceAccountRef.namespace`.
+
+See [config/examples/issuer-with-service-account](config/examples/issuer-with-service-account/issuer.yaml) for an example.
+
 #### IAM Roles Anywhere
 
 For use cases where the AWS Private CA issuer needs to run outside of AWS, IAM Roles Anywhere can be used as an alternative to IAM Users.
@@ -180,7 +207,7 @@ AWS Private Certificate Authority(PCA) Issuer Plugin supports the following inte
 
 * Authentication methods:
     * [KIAM v4.0](https://github.com/uswitch/kiam)
-    * [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - IAM roles for service accounts
+    * [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) - IAM roles for service accounts, for the controller or per issuer with [`serviceAccountRef`](#using-irsa-per-issuer)
     * [Kubernetes Secrets](#authentication)
     * [EC2 Instance Profiles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)
     * [IAM Roles Anywhere](https://docs.aws.amazon.com/rolesanywhere/latest/userguide/introduction.html)
