@@ -51,6 +51,7 @@ type CertificateRequestReconciler struct {
 
 	Clock                  clock.Clock
 	CheckApprovedCondition bool
+	CredentialOptions      awspca.CredentialOptions
 }
 
 // We put this in a variable to easily mock it
@@ -166,7 +167,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	provisioner, err := GetProvisioner(ctx, r.Client, iss)
+	provisioner, err := GetProvisioner(ctx, r.Client, iss, r.CredentialOptions)
 	if err != nil {
 		log.Error(err, "failed to retrieve provisioner")
 		_ = r.setStatus(ctx, cr, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonFailed, "failed to retrieve provisioner")

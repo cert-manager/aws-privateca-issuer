@@ -41,9 +41,11 @@ import (
 	api "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-logr/logr"
+	authv1 "k8s.io/api/authentication/v1"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -53,10 +55,39 @@ const DEFAULT_DURATION = 30 * 24 * 3600
 const DEFAULT_NOT_BEFORE_OFFSET = 15 * time.Minute
 
 var (
-	ErrNoSecretAccessKey       = errors.New("no AWS Secret Access Key Found")
-	ErrNoAccessKeyID           = errors.New("no AWS Access Key ID Found")
-	ErrSecretNamespaceMismatch = errors.New("secretRef namespace in Issuer Spec must match the Issuer's namespace")
+	ErrNoSecretAccessKey = errors.New("no AWS Secret Access Key Found")
+	ErrNoAccessKeyID     = errors.New("no AWS Access Key ID Found")
+	ErrNamespaceMismatch = errors.New("namespace must match the Issuer's namespace")
+	ErrNamespaceRequired = errors.New("namespace is required on an AWSPCAClusterIssuer")
+	ErrAmbientDisallowed = errors.New("empty credentials; perhaps you meant to enable ambient credentials?")
 )
+
+type CredentialOptions struct {
+	IssuerAmbientCredentials        bool
+	ClusterIssuerAmbientCredentials bool
+}
+
+func (o CredentialOptions) canUseAmbientCredentials(iss api.GenericIssuer) bool {
+	switch iss.(type) {
+	case *api.AWSPCAClusterIssuer:
+		return o.ClusterIssuerAmbientCredentials
+	case *api.AWSPCAIssuer:
+		return o.IssuerAmbientCredentials
+	}
+	return false
+}
+
+func resolveRefNamespace(iss api.GenericIssuer, namespace string) (string, error) {
+	issuerNamespace := iss.GetNamespace()
+	namespace = cmp.Or(namespace, issuerNamespace)
+	if namespace == "" {
+		return "", ErrNamespaceRequired
+	}
+	if issuerNamespace != "" && namespace != issuerNamespace {
+		return "", ErrNamespaceMismatch
+	}
+	return namespace, nil
+}
 
 var collection = new(sync.Map)
 
@@ -82,8 +113,8 @@ type PCAProvisioner struct {
 	notBeforeOffset  *metav1.Duration
 }
 
-func GetConfig(ctx context.Context, client client.Client, iss api.GenericIssuer) (aws.Config, error) {
-	cfg, err := LoadConfig(ctx, client, iss)
+func GetConfig(ctx context.Context, client client.Client, iss api.GenericIssuer, opts CredentialOptions) (aws.Config, error) {
+	cfg, err := LoadConfig(ctx, client, iss, opts)
 
 	if err != nil {
 		return aws.Config{}, err
@@ -96,50 +127,22 @@ func GetConfig(ctx context.Context, client client.Client, iss api.GenericIssuer)
 	return cfg, nil
 }
 
-func LoadConfig(ctx context.Context, client client.Client, iss api.GenericIssuer) (aws.Config, error) {
+func LoadConfig(ctx context.Context, client client.Client, iss api.GenericIssuer, opts CredentialOptions) (aws.Config, error) {
 	spec := iss.GetSpec()
+	if spec.SecretRef.Name == "" && spec.ServiceAccountRef == nil && !opts.canUseAmbientCredentials(iss) {
+		return aws.Config{}, ErrAmbientDisallowed
+	}
+
 	var configOptions []func(*config.LoadOptions) error
 	if spec.Region != "" {
 		configOptions = append(configOptions, config.WithRegion(spec.Region))
 	}
-
 	if spec.SecretRef.Name != "" {
-		issuerNamespace := iss.GetNamespace()
-		namespace := cmp.Or(spec.SecretRef.Namespace, issuerNamespace)
-		if issuerNamespace != "" && namespace != issuerNamespace {
-			return aws.Config{}, ErrSecretNamespaceMismatch
+		creds, err := secretCredentials(ctx, client, iss)
+		if err != nil {
+			return aws.Config{}, err
 		}
-		secretNamespaceName := types.NamespacedName{
-			Namespace: namespace,
-			Name:      spec.SecretRef.Name,
-		}
-
-		secret := new(core.Secret)
-		if err := client.Get(ctx, secretNamespaceName, secret); err != nil {
-			return aws.Config{}, fmt.Errorf("failed to retrieve secret: %v", err)
-		}
-
-		key := "AWS_ACCESS_KEY_ID"
-		if spec.SecretRef.AccessKeyIDSelector.Key != "" {
-			key = spec.SecretRef.AccessKeyIDSelector.Key
-		}
-		accessKey, ok := secret.Data[key]
-		if !ok {
-			return aws.Config{}, ErrNoAccessKeyID
-		}
-
-		key = "AWS_SECRET_ACCESS_KEY"
-		if spec.SecretRef.SecretAccessKeySelector.Key != "" {
-			key = spec.SecretRef.SecretAccessKeySelector.Key
-		}
-		secretKey, ok := secret.Data[key]
-		if !ok {
-			return aws.Config{}, ErrNoSecretAccessKey
-		}
-
-		configOptions = append(configOptions, config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), "")),
-		)
+		configOptions = append(configOptions, config.WithCredentialsProvider(creds))
 	}
 
 	cfg, err := config.LoadDefaultConfig(ctx, configOptions...)
@@ -147,14 +150,66 @@ func LoadConfig(ctx context.Context, client client.Client, iss api.GenericIssuer
 		return aws.Config{}, err
 	}
 
-	if spec.Role != "" {
-		stsService := sts.NewFromConfig(cfg)
-		creds := stscreds.NewAssumeRoleProvider(stsService, spec.Role)
+	switch {
+	case spec.ServiceAccountRef != nil:
+		token, err := serviceAccountToken(client, iss)
+		if err != nil {
+			return aws.Config{}, err
+		}
+		creds := stscreds.NewWebIdentityRoleProvider(sts.NewFromConfig(cfg), spec.Role, token, func(o *stscreds.WebIdentityRoleOptions) {
+			o.RoleSessionName = "aws-privateca-issuer"
+		})
+		cfg.Credentials = aws.NewCredentialsCache(creds)
+	case spec.Role != "":
+		creds := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg), spec.Role)
 		cfg.Credentials = aws.NewCredentialsCache(creds)
 	}
 
 	return cfg, nil
 }
+
+func secretCredentials(ctx context.Context, client client.Client, iss api.GenericIssuer) (aws.CredentialsProvider, error) {
+	ref := iss.GetSpec().SecretRef
+	namespace, err := resolveRefNamespace(iss, ref.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("secretRef: %w", err)
+	}
+
+	secret := new(core.Secret)
+	if err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: ref.Name}, secret); err != nil {
+		return nil, fmt.Errorf("failed to retrieve secret: %v", err)
+	}
+	accessKey, ok := secret.Data[cmp.Or(ref.AccessKeyIDSelector.Key, "AWS_ACCESS_KEY_ID")]
+	if !ok {
+		return nil, ErrNoAccessKeyID
+	}
+	secretKey, ok := secret.Data[cmp.Or(ref.SecretAccessKeySelector.Key, "AWS_SECRET_ACCESS_KEY")]
+	if !ok {
+		return nil, ErrNoSecretAccessKey
+	}
+	return credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), ""), nil
+}
+
+func serviceAccountToken(client client.Client, iss api.GenericIssuer) (stscreds.IdentityTokenRetriever, error) {
+	ref := iss.GetSpec().ServiceAccountRef
+	namespace, err := resolveRefNamespace(iss, ref.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("serviceAccountRef: %w", err)
+	}
+
+	return tokenFunc(func() ([]byte, error) {
+		sa := &core.ServiceAccount{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: ref.Name}}
+		req := &authv1.TokenRequest{Spec: authv1.TokenRequestSpec{Audiences: []string{"sts.amazonaws.com"}, ExpirationSeconds: ptr.To(int64(600))}}
+		if err := client.SubResource("token").Create(context.Background(), sa, req); err != nil {
+			return nil, fmt.Errorf("failed to request token for ServiceAccount %s/%s: %w", namespace, ref.Name, err)
+		}
+		return []byte(req.Status.Token), nil
+	}), nil
+}
+
+type tokenFunc func() ([]byte, error)
+
+func (f tokenFunc) GetIdentityToken() ([]byte, error) { return f() }
 
 func ClearProvisioners() {
 	collection.Clear()
@@ -169,7 +224,7 @@ func DeleteProvisioner(ctx context.Context, client client.Client, name types.Nam
 }
 
 // GetProvisioner gets a provisioner that has previously been stored or creates a new one
-func GetProvisioner(ctx context.Context, client client.Client, iss api.GenericIssuer) (GenericProvisioner, error) {
+func GetProvisioner(ctx context.Context, client client.Client, iss api.GenericIssuer, opts CredentialOptions) (GenericProvisioner, error) {
 	name := types.NamespacedName{Namespace: iss.GetNamespace(), Name: iss.GetName()}
 	value, _ := collection.Load(name)
 	p, isProvisioner := value.(GenericProvisioner)
@@ -177,7 +232,7 @@ func GetProvisioner(ctx context.Context, client client.Client, iss api.GenericIs
 		return p, nil
 	}
 
-	config, err := GetConfig(ctx, client, iss)
+	config, err := GetConfig(ctx, client, iss, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -16,7 +16,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func waitForIssuerReady(ctx context.Context, client *clientV1beta1.Client, name string, namespace string) error {
+func waitForIssuerState(ctx context.Context, client *clientV1beta1.Client, name string, namespace string, status metav1.ConditionStatus, message string) error {
 	return wait.PollUntilContextTimeout(ctx, 250*time.Millisecond, 2*time.Minute, true,
 		func(ctx context.Context) (bool, error) {
 			issuer, err := client.AWSPCAIssuers(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -25,7 +25,7 @@ func waitForIssuerReady(ctx context.Context, client *clientV1beta1.Client, name 
 				return false, fmt.Errorf("error getting Issuer %q: %v", name, err)
 			}
 			for _, condition := range issuer.Status.Conditions {
-				if condition.Type == issuerapi.ConditionTypeReady && condition.Status == metav1.ConditionTrue {
+				if condition.Type == issuerapi.ConditionTypeReady && condition.Status == status && condition.Message == message {
 					return true, nil
 				}
 			}

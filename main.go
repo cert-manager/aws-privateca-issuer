@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	awspcacertmanageriov1beta1 "github.com/cert-manager/aws-privateca-issuer/pkg/api/v1beta1"
+	awspca "github.com/cert-manager/aws-privateca-issuer/pkg/aws"
 	"github.com/cert-manager/aws-privateca-issuer/pkg/controllers"
 	// +kubebuilder:scaffold:imports
 )
@@ -59,6 +60,7 @@ func main() {
 	var probeAddr string
 	var disableApprovedCheck bool
 	var disableClientSideRateLimiting bool
+	var credentialOptions awspca.CredentialOptions
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -69,6 +71,10 @@ func main() {
 		"Disables waiting for CertificateRequests to have an approved condition before signing.")
 	flag.BoolVar(&disableClientSideRateLimiting, "disable-client-side-rate-limiting", false,
 		"Disables Kubernetes client-side rate limiting (only use if API Priority & Fairness is enabled on the cluster).")
+	flag.BoolVar(&credentialOptions.ClusterIssuerAmbientCredentials, "cluster-issuer-ambient-credentials", true,
+		"Allow AWSPCAClusterIssuers to use the controller's ambient AWS credentials.")
+	flag.BoolVar(&credentialOptions.IssuerAmbientCredentials, "issuer-ambient-credentials", false,
+		"Allow AWSPCAIssuers to use the controller's ambient AWS credentials.")
 
 	opts := zap.Options{
 		Development: false,
@@ -109,6 +115,7 @@ func main() {
 		Scheme:            mgr.GetScheme(),
 		Recorder:          mgr.GetEventRecorderFor("awspcaissuer-controller"),
 		GetCallerIdentity: true,
+		CredentialOptions: credentialOptions,
 	}
 	if err = (&controllers.AWSPCAIssuerReconciler{
 		Client:            mgr.GetClient(),
@@ -136,6 +143,7 @@ func main() {
 
 		Clock:                  clock.RealClock{},
 		CheckApprovedCondition: !disableApprovedCheck,
+		CredentialOptions:      credentialOptions,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CertificateRequest")
 		os.Exit(1)

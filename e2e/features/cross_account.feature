@@ -38,7 +38,7 @@ Feature: Issue certificates using a CA in another account
       | myKeyId           | mySecret              | ECDSA          |
       | myKeyId           | mySecret              | CA             |
 
-  @AWSPCAIssuer
+  @AWSPCAIssuer @IssuerAmbientCredentials
   Scenario Outline: Issue a certificate with a namespace issuer 
     Given I create an AWSPCAIssuer using a XA CA
     When I issue a <certType> certificate

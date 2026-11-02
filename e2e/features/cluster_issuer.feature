@@ -108,3 +108,8 @@ Feature: Issue certificates using an AWSPCAClusterIssuer
     When I create an AWSPCAClusterIssuer using a RSA CA
     Then the certificate should be issued successfully
 
+  @ServiceAccountAuth
+  Scenario: Issue a certificate with a ClusterIssuer authenticating as a ServiceAccount
+    Given I create an AWSPCAClusterIssuer using the controller's ServiceAccount and a RSA CA
+    When I issue a RSA certificate
+    Then the certificate should be issued successfully

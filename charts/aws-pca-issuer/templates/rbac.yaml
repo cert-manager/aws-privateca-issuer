@@ -134,6 +134,36 @@ subjects:
     name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
+# Lets an issuer's serviceAccountRef name the controller's own ServiceAccount.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    resourceNames: ["{{ include "aws-privateca-issuer.serviceAccountName" . }}"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+---
 {{- end }}
 {{- if .Values.approverRole.enabled -}}
 # permissions to approve all awspca.cert-manager.io requests

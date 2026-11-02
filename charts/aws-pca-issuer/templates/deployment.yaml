@@ -59,6 +59,12 @@ spec:
             {{- if .Values.disableClientSideRateLimiting }}
             - -disable-client-side-rate-limiting
             {{- end }}
+            {{- if .Values.disableClusterIssuerAmbientCredentials }}
+            - --cluster-issuer-ambient-credentials=false
+            {{- end }}
+            {{- if .Values.enableIssuerAmbientCredentials }}
+            - --issuer-ambient-credentials=true
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http

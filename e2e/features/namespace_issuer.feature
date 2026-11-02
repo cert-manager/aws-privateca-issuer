@@ -6,6 +6,7 @@ Feature: Issue certificates using an AWSPCAIssuer
   Background: Create unique namespace
     Given I create a namespace	
 
+  @IssuerAmbientCredentials
   Scenario Outline: Issue a certificate
     Given I create an AWSPCAIssuer using a <caType> CA
     When I issue a <certType> certificate
@@ -52,3 +53,12 @@ Feature: Issue certificates using an AWSPCAIssuer
       | myKeyId           | mySecret              | ECDSA  | ECDSA          |
       | myKeyId           | mySecret              | ECDSA  | CA             |
 
+  @NoIssuerAmbientCredentials
+  Scenario Outline: A namespaced issuer relying on ambient credentials is refused
+    When I create an AWSPCAIssuer <issuer>
+    Then the AWSPCAIssuer should fail with "empty credentials; perhaps you meant to enable ambient credentials?"
+
+    Examples:
+      | issuer               |
+      | using a RSA CA       |
+      | with role assumption |

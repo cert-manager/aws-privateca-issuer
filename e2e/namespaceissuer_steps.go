@@ -20,6 +20,16 @@ func (issCtx *IssuerContext) createNamespaceIssuerWithRole(ctx context.Context) 
 	return issCtx.createNamespaceIssuerWithSpec(ctx, "RSA", getIssuerSpecWithRole("RSA"))
 }
 
+func (issCtx *IssuerContext) verifyNamespaceIssuerFails(ctx context.Context, message string) error {
+	err := waitForIssuerState(ctx, testContext.iclient, issCtx.issuerName, issCtx.namespace, metav1.ConditionFalse, message)
+
+	if err != nil {
+		assert.FailNow(godog.T(ctx), "Namespace issuer did not fail with the expected message: "+err.Error())
+	}
+
+	return nil
+}
+
 func (issCtx *IssuerContext) createNamespaceIssuerWithSpec(ctx context.Context, caType string, spec v1beta1.AWSPCAIssuerSpec) error {
 	issCtx.issuerName = uuid.New().String() + "--namespace-issuer--" + strings.ToLower(caType)
 	issCtx.issuerType = "AWSPCAIssuer"
@@ -36,12 +46,6 @@ func (issCtx *IssuerContext) createNamespaceIssuerWithSpec(ctx context.Context, 
 
 	if err != nil {
 		assert.FailNow(godog.T(ctx), "Could not create namespace issuer: "+err.Error())
-	}
-
-	err = waitForIssuerReady(ctx, testContext.iclient, issCtx.issuerName, issCtx.namespace)
-
-	if err != nil {
-		assert.FailNow(godog.T(ctx), "Namespace issuer did not reach a ready state: "+err.Error())
 	}
 
 	return nil
