@@ -18,6 +18,9 @@ ENV CGO_ENABLED=0
 ENV GOOS=${TARGETOS:-linux}
 ENV GOARCH=${TARGETARCH:-amd64}
 ENV GO111MODULE=on
+
+# Enable FIPS 140-3 mode using Go's native cryptographic module (Go 1.24+).Ref: https://go.dev/doc/security/fips140 | CMVP Certificate #5247
+ENV GOFIPS140=v1.0.0
 ARG go_cache=/pkg/go-cache
 ARG go_mod_cache=/pkg/go-mod
 
