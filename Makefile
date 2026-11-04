@@ -49,6 +49,7 @@ ARCH := $(shell go env GOARCH)
 KIND_VERSION := 0.27.0
 KIND := ${BIN}/kind-${KIND_VERSION}
 K8S_CLUSTER_NAME := pca-external-issuer
+OIDC_CLUSTER_NAME ?= ${ARCH}
 
 # cert-manager
 CERT_MANAGER_VERSION ?= v1.21.2
@@ -255,7 +256,7 @@ kind-cluster: ${KIND}
 		echo "If you wish to have IRSA enabled, recreate the cluster with OIDC_S3_BUCKET_NAME  set"; \
 		cp e2e/kind_config/config.yaml /tmp/config.yaml;
 	else \
-		cat e2e/kind_config/config.yaml | sed "s/S3_BUCKET_NAME_PLACEHOLDER/$$OIDC_S3_BUCKET_NAME/g" \
+		cat e2e/kind_config/config.yaml | sed -e "s/S3_BUCKET_NAME_PLACEHOLDER/$$OIDC_S3_BUCKET_NAME/g" -e "s/OIDC_CLUSTER_NAME_PLACEHOLDER/${OIDC_CLUSTER_NAME}/g" \
 		> /tmp/config.yaml
 	fi
 
@@ -284,8 +285,8 @@ setup-eks-webhook:
 	curl $$APISERVER/.well-known/openid-configuration --header "Authorization: Bearer $$TOKEN" --insecure -o openid-configuration
 	curl $$APISERVER/openid/v1/jwks --header "Authorization: Bearer $$TOKEN" --insecure -o jwks
 	#Put idP configuration in public S3 bucket
-	aws s3 cp --acl public-read jwks s3://$$OIDC_S3_BUCKET_NAME/cluster/my-oidc-cluster/openid/v1/jwks
-	aws s3 cp --acl public-read openid-configuration s3://$$OIDC_S3_BUCKET_NAME/cluster/my-oidc-cluster/.well-known/openid-configuration
+	aws s3 cp --acl public-read jwks s3://$$OIDC_S3_BUCKET_NAME/cluster/${OIDC_CLUSTER_NAME}/openid/v1/jwks
+	aws s3 cp --acl public-read openid-configuration s3://$$OIDC_S3_BUCKET_NAME/cluster/${OIDC_CLUSTER_NAME}/.well-known/openid-configuration
 	sleep 60
 	kubectl apply -f e2e/kind_config/install_eks.yaml --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout 300s deployment pod-identity-webhook --kubeconfig=${TEST_KUBECONFIG_LOCATION}
