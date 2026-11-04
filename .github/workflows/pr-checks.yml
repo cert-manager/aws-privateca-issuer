@@ -23,3 +23,74 @@ jobs:
         uses: aws-pca-k8s-plugin-ops-admin/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
         with:
           configFile: commitlint.config.mjs
+
+  release-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Dry run release as if merged
+        id: semantic
+        run: |
+          set -euo pipefail
+          npm install --prefix "$RUNNER_TEMP/node" --no-audit --no-fund --silent semantic-release@25.0.9
+          git checkout -q -B main
+          git clone -q --bare . "$RUNNER_TEMP/origin.git"
+          env -u CI -u GITHUB_ACTIONS node --input-type=module -e '
+            const { default: semanticRelease } = await import(process.argv[1]);
+            const result = await semanticRelease(
+              { dryRun: true, ci: false, repositoryUrl: process.argv[2], plugins: ["@semantic-release/commit-analyzer"] },
+              { stdout: process.stderr, stderr: process.stderr },
+            );
+            console.log(`next_tag=${result ? result.nextRelease.gitTag : ""}`);
+            console.log(`last_head=${result ? result.lastRelease.gitHead ?? "" : ""}`);
+          ' "$RUNNER_TEMP/node/node_modules/semantic-release/index.js" "file://$RUNNER_TEMP/origin.git" >> "$GITHUB_OUTPUT"
+      - name: Check for shipped changes since the last release
+        id: changes
+        if: ${{ steps.semantic.outputs.next_tag != '' && steps.semantic.outputs.last_head != '' }}
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          token: ''
+          base: ${{ steps.semantic.outputs.last_head }}
+          predicate-quantifier: some-with-excludes
+          filters: .github/release-paths-filter.yml
+      - name: Report the version merging would release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          NEXT_TAG: ${{ steps.semantic.outputs.next_tag }}
+          LAST_HEAD: ${{ steps.semantic.outputs.last_head }}
+          SHIPPED: ${{ steps.changes.outputs.shipped }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$NEXT_TAG" ]]; then
+            body="Merging this pull request as of ${HEAD_SHA:0:7} would not release a new version."
+          elif [[ -n "$LAST_HEAD" && "$SHIPPED" != "true" ]]; then
+            body="Merging this pull request as of ${HEAD_SHA:0:7} would not release a new version. Its commits would make \`$NEXT_TAG\`, but nothing that ships in the image or Helm chart changed since the last release."
+          else
+            body="Merging this pull request as of ${HEAD_SHA:0:7} would release \`$NEXT_TAG\`."
+          fi
+          echo "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [[ "$SAME_REPO" == "true" ]]; then
+            marker="<!-- release-preview -->"
+            existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments" --paginate \
+              --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"$marker\"))) | .id" | tail -n 1)
+            if [[ -n "$existing" ]]; then
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -f body="$body"$'\n\n'"$marker" > /dev/null
+            else
+              gh pr comment "$PR_NUMBER" -R "$GITHUB_REPOSITORY" --body "$body"$'\n\n'"$marker"
+            fi
+          fi

@@ -65,18 +65,7 @@ jobs:
       with:
         base: ${{ steps.semantic.outputs.last_release_git_head }}
         predicate-quantifier: some-with-excludes
-        filters: |
-          shipped:
-          - '**'
-          - '!*.md'
-          - '!docs/**'
-          - '!assets/**'
-          - '!e2e/**'
-          - '!.github/**'
-          - '!LICENSE'
-          - '!OWNERS'
-          - '!.gitignore'
-          - '!commitlint.config.mjs'
+        filters: .github/release-paths-filter.yml
 
   release:
     needs: [ plan, beta ]
