@@ -61,22 +61,11 @@ jobs:
     - name: Check for shipped changes since the last release
       id: changes
       if: ${{ steps.semantic.outputs.new_release_git_tag != '' }}
-      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      uses: aws-pca-k8s-plugin-ops-admin/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
       with:
         base: ${{ steps.semantic.outputs.last_release_git_head }}
         predicate-quantifier: some-with-excludes
-        filters: |
-          shipped:
-          - '**'
-          - '!*.md'
-          - '!docs/**'
-          - '!assets/**'
-          - '!e2e/**'
-          - '!.github/**'
-          - '!LICENSE'
-          - '!OWNERS'
-          - '!.gitignore'
-          - '!commitlint.config.mjs'
+        filters: .github/release-paths-filter.yml
 
   release:
     needs: [ plan, beta ]
