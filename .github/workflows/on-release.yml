@@ -49,7 +49,7 @@ jobs:
           fi
           echo "PRIVATE_REGISTRY=${PRIVATE_REPOSITORY%%/*}" >> "$GITHUB_ENV"
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Setup Dockerx
         uses: docker/setup-buildx-action@v1
       - name: Setup AWS Credentials
