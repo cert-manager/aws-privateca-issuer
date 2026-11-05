@@ -1,0 +1,11 @@
+shipped:
+- '**'
+- '!*.md'
+- '!docs/**'
+- '!assets/**'
+- '!e2e/**'
+- '!.github/**'
+- '!LICENSE'
+- '!OWNERS'
+- '!.gitignore'
+- '!commitlint.config.mjs'

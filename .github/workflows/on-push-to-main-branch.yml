@@ -44,7 +44,7 @@ jobs:
     permissions:
       contents: write
     outputs:
-      tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+      tag: ${{ steps.changes.outputs.shipped == 'true' && steps.semantic.outputs.new_release_git_tag || '' }}
     steps:
     - name: Check out code
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -58,6 +58,14 @@ jobs:
         dry_run: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Check for shipped changes since the last release
+      id: changes
+      if: ${{ steps.semantic.outputs.new_release_git_tag != '' }}
+      uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+      with:
+        base: ${{ steps.semantic.outputs.last_release_git_head }}
+        predicate-quantifier: some-with-excludes
+        filters: .github/release-paths-filter.yml
 
   release:
     needs: [ plan, beta ]
