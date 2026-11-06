@@ -32,9 +32,10 @@ jobs:
     uses: './.github/workflows/publish-and-test.yml'
     with:
       version: ${{ needs.describe.outputs.version }}
-      role: arn:aws:iam::783680406432:role/GithubActionsPublishRole-test-us-east-1
-      public_repository: public.ecr.aws/z0d6s8x8/cert-manager-aws-privateca-issuer-test
-      private_repository: 783680406432.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer-test
+      account: ${{ vars.DEV_ACCOUNT || '783680406432' }}
+      stage: ${{ vars.DEV_STAGE || 'test' }}
+      registry_alias: ${{ vars.DEV_REGISTRY_ALIAS || 'z0d6s8x8' }}
+      repository_suffix: ${{ vars.DEV_ACCOUNT && '-dev' || '-test' }}
       chart_branch: gh-pages-beta
       charts_url: https://raw.githubusercontent.com/${{ github.repository }}/gh-pages-beta
     secrets: inherit
@@ -99,9 +100,10 @@ jobs:
     uses: './.github/workflows/publish-and-test.yml'
     with:
       version: ${{ needs.release.outputs.tag }}
-      role: arn:aws:iam::105154636954:role/GithubActionsPublishRole-prod-us-east-1
-      public_repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
-      private_repository: 105154636954.dkr.ecr.us-east-1.amazonaws.com/eks/aws-privateca-issuer
+      account: ${{ vars.DEV_ACCOUNT || '105154636954' }}
+      stage: ${{ vars.DEV_STAGE || 'prod' }}
+      registry_alias: ${{ vars.DEV_REGISTRY_ALIAS || 'k1n1h4h4' }}
+      repository_suffix: ${{ vars.DEV_ACCOUNT && '-dev' || '' }}
       chart_branch: gh-pages
-      charts_url: https://cert-manager.github.io/aws-privateca-issuer
+      charts_url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
     secrets: inherit
