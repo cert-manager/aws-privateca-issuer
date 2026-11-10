@@ -233,6 +233,13 @@ func isReady(issuer api.GenericIssuer) bool {
 func (r *CertificateRequestReconciler) setStatus(ctx context.Context, cr *cmapi.CertificateRequest, status cmmeta.ConditionStatus, reason, message string) error {
 	cmutil.SetCertificateRequestCondition(cr, "Ready", status, reason, message)
 
+	// cert-manager only deletes a failed CertificateRequest (and retries
+	// issuance with a new one) when FailureTime is set.
+	if reason == cmapi.CertificateRequestReasonFailed && cr.Status.FailureTime == nil {
+		nowTime := metav1.NewTime(r.Clock.Now())
+		cr.Status.FailureTime = &nowTime
+	}
+
 	eventType := core.EventTypeNormal
 	if status == cmmeta.ConditionFalse {
 		eventType = core.EventTypeWarning

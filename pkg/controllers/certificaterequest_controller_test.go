@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	acmpcatypes "github.com/aws/aws-sdk-go-v2/service/acmpca/types"
 	cmutil "github.com/cert-manager/cert-manager/pkg/api/util"
@@ -36,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
+	clocktesting "k8s.io/utils/clock/testing"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -751,6 +753,8 @@ func TestCertificateRequestReconcile(t *testing.T) {
 	require.NoError(t, cmapi.AddToScheme(scheme))
 	require.NoError(t, v1.AddToScheme(scheme))
 
+	fakeClock := clocktesting.NewFakeClock(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			fakeClient := fake.NewClientBuilder().
@@ -764,6 +768,7 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				Scheme:            scheme,
 				Recorder:          record.NewFakeRecorder(10),
 				CredentialOptions: awspca.CredentialOptions{IssuerAmbientCredentials: true},
+				Clock:             fakeClock,
 			}
 
 			ctx := context.TODO()
@@ -803,6 +808,13 @@ func TestCertificateRequestReconcile(t *testing.T) {
 				}
 				if tc.expectedCACertificate != nil {
 					assert.Equal(t, tc.expectedCACertificate, cr.Status.CA)
+				}
+				if tc.expectedReadyConditionReason == cmapi.CertificateRequestReasonFailed {
+					if assert.NotNil(t, cr.Status.FailureTime, "FailureTime must be set on a failed CertificateRequest") {
+						assert.True(t, fakeClock.Now().Equal(cr.Status.FailureTime.Time), "unexpected FailureTime")
+					}
+				} else {
+					assert.Nil(t, cr.Status.FailureTime, "FailureTime must only be set on a failed CertificateRequest")
 				}
 			}
 		})
