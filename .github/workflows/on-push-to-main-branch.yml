@@ -68,6 +68,7 @@ jobs:
       contents: write
     outputs:
       tag: ${{ steps.semantic.outputs.new_release_git_tag }}
+      patch: ${{ steps.semantic.outputs.new_release_patch_version }}
     steps:
     - name: Check out code
       uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -105,3 +106,19 @@ jobs:
       chart_branch: gh-pages
       charts_url: https://cert-manager.github.io/aws-privateca-issuer
     secrets: inherit
+
+  notify-release:
+    needs: [ release, prod ]
+    if: ${{ needs.release.outputs.tag != '' && needs.release.outputs.patch == '0' }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+    - name: Announce release in Slack
+      uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+      with:
+        webhook: ${{ secrets.SLACK_RELEASE_WEBHOOK_URL }}
+        webhook-type: incoming-webhook
+        payload: |
+          {
+            "version": "${{ needs.release.outputs.tag }}"
+          }
