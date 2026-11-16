@@ -23,6 +23,15 @@
       "groupSlug": "all-minor-patch"
     },
     {
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
+    },
+    {
       "matchPackageNames": [
         "k8s.io/client-go",
         "k8s.io/api",
