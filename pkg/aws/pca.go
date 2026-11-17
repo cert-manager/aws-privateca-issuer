@@ -187,7 +187,9 @@ func secretCredentials(ctx context.Context, client client.Client, iss api.Generi
 	if !ok {
 		return nil, ErrNoSecretAccessKey
 	}
-	return credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), ""), nil
+	// The session token is optional and only needed for temporary credentials.
+	sessionToken := secret.Data["AWS_SESSION_TOKEN"]
+	return credentials.NewStaticCredentialsProvider(string(accessKey), string(secretKey), string(sessionToken)), nil
 }
 
 func serviceAccountToken(client client.Client, iss api.GenericIssuer) (stscreds.IdentityTokenRetriever, error) {
