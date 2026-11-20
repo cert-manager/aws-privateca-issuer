@@ -139,7 +139,7 @@ EKS Pod Identity can only be set up for the aws-privateca-issuer pod's ServiceAc
 Set `serviceAccountRef` to give an issuer its own IAM role through IRSA instead of the controller's credentials. The controller requests a short-lived token for that ServiceAccount and uses it to assume the issuer's `role`. To set it up:
 
 1. Create an IAM role whose trust policy allows the cluster's OIDC provider for `system:serviceaccount:<namespace>:<name>`, as for any IRSA role. The controller ignores any Pod Identity association on the ServiceAccount.
-2. Grant the controller `create` on `serviceaccounts/token` for that ServiceAccount.
+2. Grant the controller `create` on `serviceaccounts/token` for that ServiceAccount, by adding it to the chart's `serviceAccountTokenRequests` or with your own Role and RoleBinding.
 3. Set `role` and `serviceAccountRef`, without `secretRef`, on the issuer. An AWSPCAIssuer can only name a ServiceAccount in its own namespace; an AWSPCAClusterIssuer must set `serviceAccountRef.namespace`.
 
 See [config/examples/issuer-with-service-account](config/examples/issuer-with-service-account/issuer.yaml) for an example.
