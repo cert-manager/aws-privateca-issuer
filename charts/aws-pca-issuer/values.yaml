@@ -24,6 +24,11 @@ disableClusterIssuerAmbientCredentials: false
 # Enabling this lets anyone who can create an AWSPCAIssuer in any namespace issue certificates using the controller's IAM identity.
 enableIssuerAmbientCredentials: false
 
+# Lets issuers use AWS access keys from a Kubernetes Secret (`secretRef`), and grants the controller read access to Secrets in every namespace.
+# Using AWS access keys from a Secret is deprecated: long-lived access keys are not recommended. This is enabled by default for backwards compatibility, and will default to false in a future release.
+# Setting this to false removes that access: issuers that set `secretRef` are not ready, with an error, and the controller reads no Secrets.
+enableLegacySecretCredentials: true
+
 # Optional secrets used for pulling the container image
 #
 # For example:
