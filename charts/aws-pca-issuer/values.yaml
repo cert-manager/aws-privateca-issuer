@@ -29,6 +29,18 @@ enableIssuerAmbientCredentials: false
 # Setting this to false removes that access: issuers that set `secretRef` are not ready, with an error, and the controller reads no Secrets.
 enableLegacySecretCredentials: true
 
+# ServiceAccounts that issuers may name in `serviceAccountRef`, to use an IAM role through IRSA (IAM roles for service accounts). For each entry, the chart lets the controller request tokens for only that ServiceAccount, with a Role and RoleBinding in its namespace.
+# For example:
+#   serviceAccountTokenRequests:
+#     - namespace: team-a
+#       name: pca-issuer
+serviceAccountTokenRequests: []
+
+# Lets issuers name the controller's own ServiceAccount in `serviceAccountRef`.
+# Using the controller's own ServiceAccount token is deprecated: it gives an issuer the controller's own AWS identity, even when ambient credentials are disabled for it. This is enabled by default for backwards compatibility. It will default to false in a future release, and then be removed.
+# To keep using the controller's ServiceAccount after that, add it to `serviceAccountTokenRequests`.
+enableLegacyControllerServiceAccountToken: true
+
 # Optional secrets used for pulling the container image
 #
 # For example:

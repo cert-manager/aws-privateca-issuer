@@ -309,19 +309,24 @@ deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster
 	helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --version ${CERT_MANAGER_VERSION} --set crds.enabled=true --set config.apiVersion=controller.config.cert-manager.io/v1alpha1 --set config.kind=ControllerConfiguration --set config.kubernetesAPIQPS=10000 --set config.kubernetesAPIBurst=10000 --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 	kubectl wait --for=condition=Available --timeout=300s apiservice v1.cert-manager.io --kubeconfig=${TEST_KUBECONFIG_LOCATION}
 
+# Grant the controller tokens for its own ServiceAccount through serviceAccountTokenRequests, rather than the
+# deprecated enableLegacyControllerServiceAccountToken, for the e2e issuers whose serviceAccountRef names it.
+TOKEN_REQUEST_VALUES ?= --set enableLegacyControllerServiceAccountToken=false \
+	--set 'serviceAccountTokenRequests[0].namespace=${NAMESPACE}' --set 'serviceAccountTokenRequests[0].name=${SERVICE_ACCOUNT}'
+
 .PHONY: install-local
 install-local: docker-build docker-push-local
 	#install plugin from local docker repo
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) $(TOKEN_REQUEST_VALUES) \
 	--set image.repository=${LOCAL_IMAGE} --set image.tag=latest --set image.pullPolicy=Always $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
 
 .PHONY: install-chart
 install-chart:
 	sleep 15
 	helm install issuer aws-privateca-issuer --repo ${CHART_REPOSITORY} --version ${CHART_VERSION} -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) $(TOKEN_REQUEST_VALUES) $(if $(ISSUER_VALUES),-f $(ISSUER_VALUES))
 
 .PHONY: install-issuer
 install-issuer: $(INSTALL_ISSUER)
@@ -331,7 +336,7 @@ install-beta-ecr:
 	#install plugin from local docker repo
 	sleep 15
 	helm install issuer ./charts/aws-pca-issuer -n ${NAMESPACE} \
-	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) \
+	--set serviceAccount.create=false --set serviceAccount.name=${SERVICE_ACCOUNT} --set enableIssuerAmbientCredentials=$(ISSUER_AMBIENT_CREDENTIALS) $(TOKEN_REQUEST_VALUES) \
 	--set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
 	--set image.tag=latest --set image.pullPolicy=Always
 
