@@ -24,6 +24,18 @@ disableClusterIssuerAmbientCredentials: false
 # Enabling this lets anyone who can create an AWSPCAIssuer in any namespace issue certificates using the controller's IAM identity.
 enableIssuerAmbientCredentials: false
 
+# ServiceAccounts that issuers may name in `serviceAccountRef`, to use an IAM role through IRSA (IAM roles for service accounts). For each entry, the chart lets the controller request tokens for only that ServiceAccount, with a Role and RoleBinding in its namespace.
+# For example:
+#   serviceAccountTokenRequests:
+#     - namespace: team-a
+#       name: pca-issuer
+serviceAccountTokenRequests: []
+
+# Lets issuers name the controller's own ServiceAccount in `serviceAccountRef`.
+# Using the controller's own ServiceAccount token is deprecated: it gives an issuer the controller's own AWS identity, even when ambient credentials are disabled for it. This is enabled by default for backwards compatibility. It will default to false in a future release, and then be removed.
+# To keep using the controller's ServiceAccount after that, add it to `serviceAccountTokenRequests`.
+enableLegacyControllerServiceAccountToken: true
+
 # Optional secrets used for pulling the container image
 #
 # For example:

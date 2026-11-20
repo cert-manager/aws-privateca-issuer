@@ -159,6 +159,47 @@ false
 </tr>
 <tr>
 
+<td>serviceAccountTokenRequests</td>
+<td>
+
+ServiceAccounts that issuers may name in `serviceAccountRef`, to use an IAM role through IRSA (IAM roles for service accounts). For each entry, the chart lets the controller request tokens for only that ServiceAccount, with a Role and RoleBinding in its namespace.  
+For example:
+
+```yaml
+serviceAccountTokenRequests:
+  - namespace: team-a
+    name: pca-issuer
+```
+
+</td>
+<td>array</td>
+<td>
+
+```yaml
+[]
+```
+
+</td>
+</tr>
+<tr>
+
+<td>enableLegacyControllerServiceAccountToken</td>
+<td>
+
+Lets issuers name the controller's own ServiceAccount in `serviceAccountRef`. Using the controller's own ServiceAccount token is deprecated: it gives an issuer the controller's own AWS identity, even when ambient credentials are disabled for it. This is enabled by default for backwards compatibility. It will default to false in a future release, and then be removed. To keep using the controller's ServiceAccount after that, add it to `serviceAccountTokenRequests`.
+
+</td>
+<td>bool</td>
+<td>
+
+```yaml
+true
+```
+
+</td>
+</tr>
+<tr>
+
 <td>imagePullSecrets</td>
 <td>
 
@@ -496,6 +537,19 @@ affinity:
 <td>
 
 ```yaml
+nodeAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+      - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+              - linux
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+              - amd64
+              - arm64
 podAntiAffinity:
   preferredDuringSchedulingIgnoredDuringExecution:
     - podAffinityTerm:
@@ -616,6 +670,23 @@ Additional volumes on the operator container.
 <td>
 
 Additional VolumeMounts on the operator container.
+
+</td>
+<td>array</td>
+<td>
+
+```yaml
+[]
+```
+
+</td>
+</tr>
+<tr>
+
+<td>extraContainers</td>
+<td>
+
+Extra containers to add to the pod spec in the deployment.
 
 </td>
 <td>array</td>
