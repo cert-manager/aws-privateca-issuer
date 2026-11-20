@@ -65,6 +65,9 @@ spec:
             {{- if .Values.enableIssuerAmbientCredentials }}
             - --issuer-ambient-credentials=true
             {{- end }}
+            {{- if not .Values.enableLegacySecretCredentials }}
+            - --legacy-secret-credentials=false
+            {{- end }}
           ports:
             - containerPort: 8080
               name: http

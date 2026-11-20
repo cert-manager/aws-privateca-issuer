@@ -714,6 +714,7 @@ func TestLoadConfigCredentials(t *testing.T) {
 	clusterIssuerMeta := metav1.ObjectMeta{Name: "issuer1"}
 	issuerAmbient := CredentialOptions{IssuerAmbientCredentials: true}
 	clusterIssuerAmbient := CredentialOptions{ClusterIssuerAmbientCredentials: true}
+	secretsDisabled := CredentialOptions{IssuerAmbientCredentials: true, ClusterIssuerAmbientCredentials: true, DisableLegacySecretCredentials: true}
 
 	tests := map[string]struct {
 		issuer      issuerapi.GenericIssuer
@@ -724,6 +725,11 @@ func TestLoadConfigCredentials(t *testing.T) {
 		"issuer-secret-other-namespace":           {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("ns2")}, expectedErr: ErrNamespaceMismatch},
 		"cluster-issuer-secret-any-namespace":     {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: spec("ns1")}},
 		"cluster-issuer-secret-without-namespace": {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: spec("")}, expectedErr: ErrNamespaceRequired},
+
+		// with secret credentials disabled, secretRef is rejected rather than falling back to ambient credentials
+		"issuer-secret-disabled":          {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: spec("")}, opts: secretsDisabled, expectedErr: ErrSecretCredentialsDisabled},
+		"cluster-issuer-secret-disabled":  {issuer: &issuerapi.AWSPCAClusterIssuer{ObjectMeta: clusterIssuerMeta, Spec: spec("ns1")}, opts: secretsDisabled, expectedErr: ErrSecretCredentialsDisabled},
+		"issuer-ambient-secrets-disabled": {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta}, opts: secretsDisabled},
 
 		"issuer-ambient-disallowed":           {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta}, opts: clusterIssuerAmbient, expectedErr: ErrAmbientDisallowed},
 		"issuer-role-only-ambient-disallowed": {issuer: &issuerapi.AWSPCAIssuer{ObjectMeta: issuerMeta, Spec: issuerapi.AWSPCAIssuerSpec{Role: role}}, opts: clusterIssuerAmbient, expectedErr: ErrAmbientDisallowed},
