@@ -1,7 +1,6 @@
 apiVersion: awspca.cert-manager.io/v1beta1
-kind: AWSPCAIssuer
+kind: AWSPCAClusterIssuer
 metadata:
   name: example
-  namespace: default
 spec:
   arn: <some-pca-arn>
