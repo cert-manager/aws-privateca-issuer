@@ -52,7 +52,7 @@ K8S_CLUSTER_NAME := pca-external-issuer
 OIDC_CLUSTER_NAME ?= ${ARCH}
 
 # cert-manager
-CERT_MANAGER_VERSION ?= v1.21.2
+CERT_MANAGER_VERSION ?= v1.21.3
 
 # Controller tools
 CONTROLLER_GEN_VERSION := 0.23.0
