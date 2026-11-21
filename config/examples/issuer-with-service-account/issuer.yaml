@@ -38,5 +38,5 @@ roleRef:
   name: aws-privateca-issuer-tokenrequest
 subjects:
   - kind: ServiceAccount
-    name: <controller-service-account>
-    namespace: <controller-namespace>
+    name: aws-privateca-issuer
+    namespace: aws-privateca-issuer

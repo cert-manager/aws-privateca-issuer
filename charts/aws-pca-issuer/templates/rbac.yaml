@@ -41,6 +41,7 @@ rules:
     verbs:
       - create
       - patch
+  {{- if .Values.enableLegacySecretCredentials }}
   - apiGroups:
       - ""
     resources:
@@ -49,6 +50,7 @@ rules:
       - get
       - list
       - watch
+  {{- end }}
   - apiGroups:
       - awspca.cert-manager.io
     resources:
@@ -134,36 +136,50 @@ subjects:
     name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
-# Lets an issuer's serviceAccountRef name the controller's own ServiceAccount.
+{{- $fullname := include "aws-privateca-issuer.fullname" . }}
+{{- $controllerSA := include "aws-privateca-issuer.serviceAccountName" . }}
+{{- $tokenRequests := list }}
+{{- if .Values.enableLegacyControllerServiceAccountToken }}
+{{- $tokenRequests = append $tokenRequests (dict "namespace" .Release.Namespace "name" $controllerSA "suffix" "tokenrequest") }}
+{{- end }}
+{{- range $i, $sa := .Values.serviceAccountTokenRequests }}
+{{- if not (and $sa.namespace $sa.name) }}
+{{- fail (printf "serviceAccountTokenRequests[%d] must set namespace and name" $i) }}
+{{- end }}
+{{- $tokenRequests = append $tokenRequests (dict "namespace" $sa.namespace "name" $sa.name "suffix" (printf "tokenrequest-%s" $sa.name)) }}
+{{- end }}
+{{- range $tokenRequests }}
+# Lets the controller request tokens for the ServiceAccount {{ .namespace }}/{{ .name }}, for issuers whose serviceAccountRef names it.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
-  namespace: {{ .Release.Namespace }}
+  name: {{ printf "%s-%s" $fullname .suffix | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .namespace }}
   labels:
-    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" $ | nindent 4 }}
 rules:
   - apiGroups: [""]
     resources: ["serviceaccounts/token"]
-    resourceNames: ["{{ include "aws-privateca-issuer.serviceAccountName" . }}"]
+    resourceNames: [{{ .name | quote }}]
     verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
-  namespace: {{ .Release.Namespace }}
+  name: {{ printf "%s-%s" $fullname .suffix | trunc 63 | trimSuffix "-" }}
+  namespace: {{ .namespace }}
   labels:
-    {{- include "aws-privateca-issuer.labels" . | nindent 4 }}
+    {{- include "aws-privateca-issuer.labels" $ | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "aws-privateca-issuer.fullname" . }}-tokenrequest
+  name: {{ printf "%s-%s" $fullname .suffix | trunc 63 | trimSuffix "-" }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "aws-privateca-issuer.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    name: {{ $controllerSA }}
+    namespace: {{ $.Release.Namespace }}
 ---
+{{- end }}
 {{- end }}
 {{- if .Values.approverRole.enabled -}}
 # permissions to approve all awspca.cert-manager.io requests
