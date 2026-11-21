@@ -1,12 +1,8 @@
 apiVersion: awspca.cert-manager.io/v1beta1
-kind: AWSPCAIssuer
+kind: AWSPCAClusterIssuer
 metadata:
   name: example
-  namespace: default
 spec:
   arn: <some-pca-arn>
   region: eu-west-1
   notBeforeOffset: 30s
-  secretRef:
-    namespace: default
-    name: example
