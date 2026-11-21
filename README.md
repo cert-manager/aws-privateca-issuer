@@ -42,16 +42,6 @@ Helm [does not upgrade CRDs](https://helm.sh/docs/topics/charts/#limitations-on-
 
 **[AWS PCA Issuer supports ARM starting at version 1.3.0](https://github.com/cert-manager/aws-privateca-issuer/releases/tag/v1.3.0)**
 
-### Accessing the test ECR
-
-AWS PCA Issuer maintains a test ECR that contains versions that correspond to each commit on the main branch. These images can be accessed by setting the image repo to `public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test` and the image tag to `latest`. An example of how this is done is shown below:
-
-```shell
-helm repo add awspca https://cert-manager.github.io/aws-privateca-issuer
-helm install awspca/aws-privateca-issuer --generate-name \
---set image.repository=public.ecr.aws/cert-manager-aws-privateca-issuer/cert-manager-aws-privateca-issuer-test \
---set image.tag=latest
-```
 ## Configuration
 
 As of now, the only configurable settings are access to AWS. So you can use `AWS_REGION`, `AWS_ACCESS_KEY_ID` or `AWS_SECRET_ACCESS_KEY`.
@@ -238,113 +228,6 @@ This table shows how the UsageTypes are being translated into which template to 
 | OCSPSigning                | acm-pca:::template/OCSPSigningCertificate/V1                     |
 | ClientAuth, ServerAuth     | acm-pca:::template/EndEntityCertificate/V1                       |
 | Everything Else            | acm-pca:::template/BlankEndEntityCertificate_APICSRPassthrough/V1   |
-
-## Understanding/Running the tests
-
-### Running the Unit Tests
-Running ```make test``` will run the written unit test
-
-If you run into an issue like
-
-```
-/home/linuxbrew/.linuxbrew/Cellar/go/1.17/libexec/src/net/cgo_linux.go:13:8: no such package located
-```
-
-This can be fixed with a
-
-```
-brew install gcc@5
-```
-
-### Running the End-To-End Tests
-
-NOTE: Running these tests **will incur charges in your AWS Account**. 
-
-Running ```make e2etest``` will take the current code artifacts and transform them into a Docker image that will run on a kind cluster and ensure that the current version of the code still works with the [Supported Workflows](#Supported-Workflows)
-
-The easiest way to get the test to run would be to use the follow make targets:
-```make cluster && make install-eks-webhook && make e2etest```
-
-### Getting ```make cluster``` to run
-```make cluster``` will create a kind cluster on your machine that has Cert-Manager installed as well as the aws-pca-issuer plugin (using the HEAD of the current branch)
-
-Before running ```make cluster``` we will need to do the following:
-
-\- Have the following tools on your machine:
-* [Git](https://git-scm.com/)
-* [Golang v1.17+](https://golang.org/)
-* [Docker v17.03+](https://docs.docker.com/install/)
-* [Kind v0.9.0+](https://kind.sigs.k8s.io/docs/user/quick-start/) -> This will be installed via running the test
-* [Kubectl v1.13+](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
-* [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html)
-* [Helm](https://helm.sh/docs/intro/install/)
-* [Make](https://www.gnu.org/software/make/) Need to have version 3.82+
-
-
-\- (Optional) You will need a AWS IAM User to test authentication via K8 secrets. You can provide an already existing user into the test via ```export PLUGIN_USER_NAME_OVERRIDE=<IAM User Name>```.  This IAM User should have a policy attached to it that follows with the policy listed in [Configuration](#configuration). This user will be used to test authentication in the plugin via K8 secrets.
-
-\- An S3 Bucket with [BPA disabled](https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-control-block-public-access.html) in us-east-1. After creating the bucket run ```export OIDC_S3_BUCKET_NAME=<Name of bucket you just created>```
-
-\- You will need AWS credentials loaded into your terminal that, via the CLI, minimally allow the following actions via an IAM policy:
-- ```acm-pca:*``` : This is so that Private CA's maybe be created and deleted via the appropriate APIs for testing
-- If you did not provider a user via PLUGIN_USER_NAME_OVERRIDE, the test suite can create a user for you. This will require the following permissions: ```iam:CreatePolicy```,```iam:CreateUser```, and ```iam:AttachUserPolicy```
-- ```iam:CreateAccessKey``` and ```iam:DeleteAccessKey```: This allow us to create and delete access keys to be used to validate that authentication via K8 secrets is functional. If the user was set via $PLUGIN_USER_NAME_OVERRIDE
-- ```s3:PutObject``` and ```s3::PutObjectAcl``` these can be scoped down to the s3 bucket you created above
-
-\- [An AWS IAM OIDC Provider](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_providers_create_oidc.html). Before creating the OIDC provider, set a temporary value for $OIDC_IAM_ROLE (```export OIDC_IAM_ROLE=arn:aws:iam::000000000000:role/oidc-kind-cluster-role``` and run ```make cluster && make install-eks-webhook && make kind-cluster-delete```). This needs to be done otherwise you may see an error complaining about the absence of a file .well-known/openid-configuration. Running these commands helps bootstrap the S3 bucket so that the OIDC provider can be created. Set the provider url of the OIDC provider to be ```$OIDC_S3_BUCKET_NAME.s3.us-east-1.amazonaws.com/cluster/$OIDC_CLUSTER_NAME```, where `OIDC_CLUSTER_NAME` defaults to your `go env GOARCH`. Set the audience to be ```sts.amazonaws.com```.
-
-\- An IAM role that has a trust relationship with the IAM OIDC Provider that was just created. An inline policy for this role can be grabbed from [Configuration](#configuration) except you can't scope it to a particular CA since those will be created during the test run. This role will be used to test authentication in the plugin via IRSA. The trust relationship should look something like:
-```
-{  
-  "Version": "2012-10-17",  
-  "Statement": [  
-	{  
-      "Effect": "Allow",  
-	  "Principal": {  
-	    "Federated": "${OIDC_ARN}"  
-	   },  
-	   "Action": "sts:AssumeRoleWithWebIdentity",  
-	   "Condition": {  
-	     "StringEquals": {  
-	       "${OIDC_URL}:sub": "system:serviceaccount:aws-privateca-issuer:aws-privateca-issuer-sa"  
-	     }  
-	   }  
-	 }  
-   ]  
-}
-```
-After creating this role run ```export OIDC_IAM_ROLE=<IAM role arn you created above>```
-
-\- ```make cluster``` recreate the cluster with all the appropriate enviornment variables set
-
-\- ```make install-eks-webhook``` will install a webhook in that kind cluster that will enable the use of IRSA
-
-\- ```make e2etest``` will run end-to-end test against the kind cluster created via ```make cluster```.
-
-\- After you update controller code locally, an easy way to redeploy the new controller code and re-run end-to-end test is to run:: ```make upgrade-local && make e2etest```
-
-Getting IRSA to work on Kind was heavily inspired by the following blog: https://reece.tech/posts/oidc-k8s-to-aws/
-
-If you want to also test that cross account issuers are working, you will need:
-
-\- A seperate AWS account that has a role that trust the caller who kicks off the end-to-end test via the CLI, the role will need a policy with the following permissions
-- ```acm-pca:*```: This is so the test can create a Private CA is the other account
-- ```ram:GetResourceShareAssociations```, ```ram:CreateResourceShare```, and ```ram:DeleteResourceShare```: These allow the creation of a CA that can be shared with the source (caller) account
-- After creating this role you will need to run ```export PLUGIN_CROSS_ACCOUNT_ROLE=<name of the role you created above>```. If you do not do this, you will see a message about cross account testing being skipped due to this enviornment variable not being set.
-
-Soon these test should be automatically run on each PR, but for the time being each PR will have a core-collaborator for the project run the tests manually to ensure no regressions on the supported workflows
-
-### Contributing to the End-to-End test
-
-The test are fairly straightforward, they will take a set of "issuer templates" (Base name for a aws-pca-issuer as well as a AWSIssuerSpec) and a set of "certificate templates" (Base name for type of certificate as well as a certificate spec). The tests will then take every certificate spec and apply it to each issuer spec. The test will ensure all issuers made from issuer specs reach a ready state as well as ensure that each certificate issued off a issuer reaches a ready state. The issuers with the different certificates is verified to be working for both cluster and namespace issuers.
-
-For the most part, updating end-to-end will be updating these "issuer specs" and "certificate specs" which reside within e2e/e2e_test.go. If the test need updating beyond that, the core logic for the test is also embedded in e2e/e2e_test.go. The other files within the e2e folder are mainly utilities that shouldn't require frequent update
-
-### Other Tests
-
-1. Test to ensure that the workflow laid out in the blog [Setting up end-to-end TLS encryption on Amazon EKS with the new AWS Load Balancer Controller](https://aws.amazon.com/blogs/containers/setting-up-end-to-end-tls-encryption-on-amazon-eks-with-the-new-aws-load-balancer-controller/) is functional. To run the test: ```make cluster && make install-eks-webhook && make blog-test```
-
-2. Test that installs the chart the way users do. It builds the image, packages the chart as a release would, serves it as a Helm repository, and runs `helm repo add` and `helm install`. It then checks that the plugin runs the expected image and uninstalls cleanly. To run the test ```make helm-test```
 
 ## Troubleshooting
 
