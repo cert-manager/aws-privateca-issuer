@@ -118,7 +118,7 @@ You also need AWS credentials and these resources, in us-east-1:
   The provider can only be created once the bucket serves `.well-known/openid-configuration`.
   To bootstrap it, run `export OIDC_IAM_ROLE=arn:aws:iam::000000000000:role/oidc-kind-cluster-role`, a placeholder that you replace below, then `make cluster && make install-eks-webhook && make kind-cluster-delete`.
 - An IAM role for IRSA, trusted by that OIDC provider for the controller's `ServiceAccount`, `aws-privateca-issuer-${ARCH}-sa`, where `ARCH` is `go env GOARCH`.
-  Give it a policy like the one in [Configuration](README.md#configuration), with `certificate-authority/*` as the resource, because the tests create their CAs.
+  Give it a policy like the one in [IAM policy](docs/iam.md#iam-policy), with `certificate-authority/*` as the resource, because the tests create their CAs.
   The trust policy should look something like:
 
   ```json
@@ -155,7 +155,7 @@ IRSA on kind is based on [this blog post](https://reece.tech/posts/oidc-k8s-to-a
 The suite also tests Issuers that use AWS access keys from a Kubernetes `Secret` (`secretRef`).
 Using access keys from a `Secret` is deprecated.
 For these tests, it creates an IAM user and an access key, or uses an existing user that you name with `export PLUGIN_USER_NAME_OVERRIDE=<IAM user name>`.
-That user needs a policy like the one in [Configuration](README.md#configuration).
+That user needs a policy like the one in [IAM policy](docs/iam.md#iam-policy).
 Your credentials need:
 
 - `iam:CreateAccessKey` and `iam:DeleteAccessKey`.
