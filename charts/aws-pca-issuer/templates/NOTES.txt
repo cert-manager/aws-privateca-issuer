@@ -1,0 +1,13 @@
+{{- if .Values.enableLegacySecretCredentials }}
+WARNING: Using AWS access keys from a Kubernetes Secret (secretRef) is deprecated.
+Long-lived access keys are not recommended, and supporting them gives the controller read access
+to Secrets in every namespace. enableLegacySecretCredentials is enabled by default for backwards
+compatibility, and will default to false in a future release.
+
+To identify whether any of your issuers use secretRef:
+
+  kubectl get awspcaissuers,awspcaclusterissuers -A \
+    -o jsonpath='{range .items[?(@.spec.secretRef.name)]}{.kind} {.metadata.namespace} {.metadata.name}{"\n"}{end}'
+
+If it prints nothing, no issuer uses secretRef, and you can set enableLegacySecretCredentials=false.
+{{- end }}

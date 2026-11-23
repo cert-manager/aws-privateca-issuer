@@ -61,6 +61,7 @@ func main() {
 	var disableApprovedCheck bool
 	var disableClientSideRateLimiting bool
 	var credentialOptions awspca.CredentialOptions
+	var legacySecretCredentials bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -75,12 +76,15 @@ func main() {
 		"Allow AWSPCAClusterIssuers to use the controller's ambient AWS credentials.")
 	flag.BoolVar(&credentialOptions.IssuerAmbientCredentials, "issuer-ambient-credentials", false,
 		"Allow AWSPCAIssuers to use the controller's ambient AWS credentials.")
+	flag.BoolVar(&legacySecretCredentials, "legacy-secret-credentials", true,
+		"Allow issuers to use AWS access keys from a Secret (secretRef), which is deprecated. When false, issuers that set secretRef are not ready, and the controller reads no Secrets.")
 
 	opts := zap.Options{
 		Development: false,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+	credentialOptions.DisableLegacySecretCredentials = !legacySecretCredentials
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 

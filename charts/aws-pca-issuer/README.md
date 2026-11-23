@@ -159,6 +159,23 @@ false
 </tr>
 <tr>
 
+<td>enableLegacySecretCredentials</td>
+<td>
+
+Lets issuers use AWS access keys from a Kubernetes Secret (`secretRef`), and grants the controller read access to Secrets in every namespace. Using AWS access keys from a Secret is deprecated: long-lived access keys are not recommended. This is enabled by default for backwards compatibility, and will default to false in a future release. Setting this to false removes that access: issuers that set `secretRef` are not ready, with an error, and the controller reads no Secrets.
+
+</td>
+<td>bool</td>
+<td>
+
+```yaml
+true
+```
+
+</td>
+</tr>
+<tr>
+
 <td>imagePullSecrets</td>
 <td>
 

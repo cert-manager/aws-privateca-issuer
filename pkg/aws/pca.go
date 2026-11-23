@@ -60,11 +60,17 @@ var (
 	ErrNamespaceMismatch = errors.New("namespace must match the Issuer's namespace")
 	ErrNamespaceRequired = errors.New("namespace is required on an AWSPCAClusterIssuer")
 	ErrAmbientDisallowed = errors.New("empty credentials; perhaps you meant to enable ambient credentials?")
+	// ErrSecretCredentialsDisabled is returned for an issuer that sets secretRef when the controller runs with
+	// --legacy-secret-credentials=false
+	ErrSecretCredentialsDisabled = errors.New("secretRef is not supported: AWS access keys from a Secret are deprecated, and the controller runs with --legacy-secret-credentials=false; use serviceAccountRef or ambient credentials")
 )
 
 type CredentialOptions struct {
 	IssuerAmbientCredentials        bool
 	ClusterIssuerAmbientCredentials bool
+	// DisableLegacySecretCredentials rejects issuers that set secretRef, so that the controller never reads Secrets.
+	// AWS access keys from a Secret are deprecated.
+	DisableLegacySecretCredentials bool
 }
 
 func (o CredentialOptions) canUseAmbientCredentials(iss api.GenericIssuer) bool {
@@ -129,6 +135,9 @@ func GetConfig(ctx context.Context, client client.Client, iss api.GenericIssuer,
 
 func LoadConfig(ctx context.Context, client client.Client, iss api.GenericIssuer, opts CredentialOptions) (aws.Config, error) {
 	spec := iss.GetSpec()
+	if spec.SecretRef.Name != "" && opts.DisableLegacySecretCredentials {
+		return aws.Config{}, ErrSecretCredentialsDisabled
+	}
 	if spec.SecretRef.Name == "" && spec.ServiceAccountRef == nil && !opts.canUseAmbientCredentials(iss) {
 		return aws.Config{}, ErrAmbientDisallowed
 	}
