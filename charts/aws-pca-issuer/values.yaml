@@ -8,9 +8,10 @@ image:
   repository: public.ecr.aws/k1n1h4h4/cert-manager-aws-privateca-issuer
   # Image pull policy
   pullPolicy: IfNotPresent
-  # Image tag
+  # Image tag (used only when digest is empty)
   tag: ""
-
+  # Image digest (overrides tag when set). Example: sha256:aaaaaa...
+  digest: ""
 # Disable waiting for CertificateRequests to be Approved before signing
 disableApprovedCheck: false
 
