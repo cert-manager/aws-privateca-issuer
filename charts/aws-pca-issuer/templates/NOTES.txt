@@ -10,4 +10,17 @@ To identify whether any of your issuers use secretRef:
     -o jsonpath='{range .items[?(@.spec.secretRef.name)]}{.kind} {.metadata.namespace} {.metadata.name}{"\n"}{end}'
 
 If it prints nothing, no issuer uses secretRef, and you can set enableLegacySecretCredentials=false.
+{{ end }}
+{{- if .Values.enableLegacyControllerServiceAccountToken }}
+WARNING: Using the controller's own ServiceAccount token in an issuer's serviceAccountRef is deprecated.
+It gives that issuer the controller's own AWS identity, even when ambient credentials are disabled
+for it. enableLegacyControllerServiceAccountToken is enabled by default for backwards compatibility.
+It will default to false in a future release, and then be removed.
+
+To identify whether any of your issuers name the controller's ServiceAccount:
+
+  kubectl get awspcaissuers,awspcaclusterissuers -A \
+    -o jsonpath='{range .items[?(@.spec.serviceAccountRef.name=="{{ include "aws-privateca-issuer.serviceAccountName" . }}")]}{.kind} {.metadata.namespace} {.metadata.name}{"\n"}{end}'
+
+If it prints nothing, you can set enableLegacyControllerServiceAccountToken=false.
 {{- end }}
